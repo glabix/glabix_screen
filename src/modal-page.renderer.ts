@@ -407,11 +407,4 @@ import {
     },
     false
   )
-
-  window.electronAPI.ipcRenderer.on(
-    SimpleStoreEvents.CHANGED,
-    (event, data) => {
-      console.log("modal SimpleStoreEvents.CHANGED", data)
-    }
-  )
 })()
