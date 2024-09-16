@@ -30,6 +30,9 @@ const options: Configuration = {
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.plist",
   },
+  dmg: {
+    artifactName: "${name}-${version}-${arch}.${ext}",
+  },
   nsisWeb: {
     shortcutName: "Глабикс.Экран",
   },
