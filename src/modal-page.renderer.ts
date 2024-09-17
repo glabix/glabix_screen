@@ -65,34 +65,7 @@ import {
     video: true,
   }
 
-  async function setupMediaDevices() {}
-
-  async function setupMediaPermissions() {
-    let camera = false
-    let micro = false
-    let screen = false
-
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      })
-      stream.getTracks().forEach((track) => track.stop())
-      screen = true
-    } catch (e) {}
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach((track) => track.stop())
-      micro = true
-    } catch (e) {}
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      stream.getTracks().forEach((track) => track.stop())
-      camera = true
-    } catch (e) {}
-
+  async function setupMediaDevices() {
     const devices = await navigator.mediaDevices.enumerateDevices()
     audioDevicesList = devices.filter((d) => d.kind == "audioinput")
     audioDevicesList = [noAudioDevice, ...audioDevicesList]
@@ -100,8 +73,6 @@ import {
     videoDevicesList = devices.filter((d) => d.kind == "videoinput")
     videoDevicesList = [noVideoDevice, ...videoDevicesList]
     activeVideoDevice = videoDevicesList[0]
-
-    return { screen, micro, camera }
   }
 
   function renderScreenSettings(item: IDropdownItem) {
@@ -231,7 +202,7 @@ import {
     )
   }
 
-  document.addEventListener("DOMContentLoaded", async () => {
+  document.addEventListener("DOMContentLoaded", () => {
     const windowsToolbar = document.querySelector(".windows-toolbar")
     const windowsMinimizeBtn = document.querySelector("#windows_minimize")
     const windowsCloseBtn = document.querySelector("#windows_close")
@@ -258,8 +229,8 @@ import {
       false
     )
 
-    setupMediaPermissions()
-      .then((permissions) => {
+    setupMediaDevices()
+      .then(() => {
         if (activeVideoDevice) {
           videoDeviceContainer.appendChild(
             renderDeviceButton(activeVideoDevice)

@@ -120,20 +120,6 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
     autoUpdater.checkForUpdatesAndNotify()
-    const cameraAccessStatus = systemPreferences.getMediaAccessStatus("camera")
-    const screenAccessStatus = systemPreferences.getMediaAccessStatus("screen")
-    const microAccessStatus =
-      systemPreferences.getMediaAccessStatus("microphone")
-    console.log("==========================")
-    console.log(
-      "!!!!!cameraAccessStatus!!!!",
-      cameraAccessStatus,
-      "!!!!!screenAccessStatus!!!!",
-      screenAccessStatus,
-      "!!!!!screenAccessStatus!!!!",
-      microAccessStatus
-    )
-    console.log("==========================")
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
     //   "get-screen-resolution",
@@ -149,24 +135,29 @@ if (!gotTheLock) {
     chunkStorage.initStorages()
     checkUnprocessedFiles()
 
-    // session.defaultSession.setDisplayMediaRequestHandler(
-    //   (request, callback) => {
-    //     desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
-    //       // Grant access to the first screen found.
-    //       callback({ video: sources[0], audio: "loopback" })
-    //     })
-    //     .catch(error => {
-    //       console.log('__________session.defaultSession.setDisplayMediaRequestHandler', error)
-    //       throw error
-    //     })
-    //   }
-    // )
-
-    session.defaultSession.setPermissionRequestHandler(
-      (webContents, permission, callback) => {
-        callback(true)
+    session.defaultSession.setDisplayMediaRequestHandler(
+      (request, callback) => {
+        desktopCapturer
+          .getSources({ types: ["screen"] })
+          .then((sources) => {
+            console.log(
+              "session.defaultSession.setDisplayMediaRequestHandler sources[0]",
+              sources[0]
+            )
+            // Grant access to the first screen found.
+            callback({ video: sources[0], audio: "loopback" })
+          })
+          .catch((error) => {
+            throw error
+          })
       }
     )
+
+    // session.defaultSession.setPermissionRequestHandler(
+    //   (webContents, permission, callback) => {
+    //     callback(true)
+    //   }
+    // )
   })
 }
 
@@ -178,6 +169,18 @@ function registerShortCuts() {
 
 function unregisterShortCuts() {
   globalShortcut.unregisterAll()
+}
+
+function getMediaDevicesAccess() {
+  const cameraAccess = systemPreferences.getMediaAccessStatus("camera")
+  const screenAccess = systemPreferences.getMediaAccessStatus("screen")
+  const microphoneAccess = systemPreferences.getMediaAccessStatus("microphone")
+
+  return {
+    camera: cameraAccess == "granted",
+    screen: screenAccess == "granted",
+    microphone: microphoneAccess == "granted",
+  }
 }
 
 if (process.defaultApp) {
@@ -291,8 +294,13 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:hide")
     dropdownWindow.hide()
   })
-  modalWindow.on("show", () => {
+  modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
+    // modalWindow.webContents.
+    console.log("<<<<modal ready-to-show", getMediaDevicesAccess())
+  })
+  modalWindow.on("show", () => {
+    console.log("<<<<modal show", getMediaDevicesAccess())
     mainWindow.webContents.send("app:show")
   })
   modalWindow.on("blur", () => {
