@@ -121,8 +121,18 @@ if (!gotTheLock) {
     chunkStorage = new ChunkStorageService()
     autoUpdater.checkForUpdatesAndNotify()
     const cameraAccessStatus = systemPreferences.getMediaAccessStatus("camera")
+    const screenAccessStatus = systemPreferences.getMediaAccessStatus("screen")
+    const microAccessStatus =
+      systemPreferences.getMediaAccessStatus("microphone")
     console.log("==========================")
-    console.log("!!!!!cameraAccessStatus!!!!", cameraAccessStatus)
+    console.log(
+      "!!!!!cameraAccessStatus!!!!",
+      cameraAccessStatus,
+      "!!!!!screenAccessStatus!!!!",
+      screenAccessStatus,
+      "!!!!!screenAccessStatus!!!!",
+      microAccessStatus
+    )
     console.log("==========================")
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
