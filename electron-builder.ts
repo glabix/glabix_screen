@@ -16,7 +16,7 @@ const options: Configuration = {
     executableName: "Глабикс.Экран",
   },
   mac: {
-    target: [{ target: "dmg", arch: ["arm64", "x64"] }],
+    target: [{ target: "default", arch: ["arm64", "x64"] }],
     category: "public.app-category.productivity",
     executableName: "Глабикс.Экран",
     hardenedRuntime: true,
