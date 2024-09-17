@@ -14,6 +14,7 @@ import {
   nativeTheme,
   globalShortcut,
   shell,
+  systemPreferences,
 } from "electron"
 import path from "path"
 import os from "os"
@@ -119,6 +120,10 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
     autoUpdater.checkForUpdatesAndNotify()
+    const cameraAccessStatus = systemPreferences.getMediaAccessStatus("camera")
+    console.log("==========================")
+    console.log("!!!!!cameraAccessStatus!!!!", cameraAccessStatus)
+    console.log("==========================")
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
     //   "get-screen-resolution",
@@ -134,14 +139,18 @@ if (!gotTheLock) {
     chunkStorage.initStorages()
     checkUnprocessedFiles()
 
-    session.defaultSession.setDisplayMediaRequestHandler(
-      (request, callback) => {
-        desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
-          // Grant access to the first screen found.
-          callback({ video: sources[0], audio: "loopback" })
-        })
-      }
-    )
+    // session.defaultSession.setDisplayMediaRequestHandler(
+    //   (request, callback) => {
+    //     desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
+    //       // Grant access to the first screen found.
+    //       callback({ video: sources[0], audio: "loopback" })
+    //     })
+    //     .catch(error => {
+    //       console.log('__________session.defaultSession.setDisplayMediaRequestHandler', error)
+    //       throw error
+    //     })
+    //   }
+    // )
 
     session.defaultSession.setPermissionRequestHandler(
       (webContents, permission, callback) => {
@@ -251,8 +260,8 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    resizable: false,
-    width: 300,
+    // resizable: false,
+    width: 900,
     height: 395,
     show: false,
     alwaysOnTop: true,
