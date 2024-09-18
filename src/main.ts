@@ -311,6 +311,10 @@ function createModal(parentWindow) {
     )
   })
   modalWindow.on("show", () => {
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
     mainWindow.webContents.send("app:show")
   })
   modalWindow.on("blur", () => {
