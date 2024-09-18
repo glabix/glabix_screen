@@ -5,7 +5,9 @@ import {
   IDropdownList,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IMediaDevicesAccess,
   IScreenActionItem,
+  MediaDeviceType,
   ScreenAction,
   SimpleStoreEvents,
   StreamSettings,
@@ -43,6 +45,8 @@ import {
   let activeScreenActionItem: IDropdownItem = screenActionsList[0]
   let audioDevicesList: MediaDeviceInfo[] = []
   let activeAudioDevice: MediaDeviceInfo
+  let hasCamera = false
+  let hasMicrophone = false
   const noVideoDevice: MediaDeviceInfo = {
     deviceId: "no-camera",
     label: "Без камеры",
@@ -67,6 +71,8 @@ import {
 
   async function setupMediaDevices() {
     const devices = await navigator.mediaDevices.enumerateDevices()
+    hasMicrophone = devices.some((d) => d.kind == "audioinput")
+    hasCamera = devices.some((d) => d.kind == "videoinput")
     audioDevicesList = devices.filter((d) => d.kind == "audioinput")
     audioDevicesList = [noAudioDevice, ...audioDevicesList]
     activeAudioDevice = audioDevicesList[0]
@@ -74,6 +80,56 @@ import {
     videoDevicesList = [noVideoDevice, ...videoDevicesList]
     activeVideoDevice = videoDevicesList[0]
   }
+
+  setupMediaDevices()
+    .then(() => {
+      if (activeVideoDevice) {
+        videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
+      }
+
+      if (activeAudioDevice) {
+        audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
+      }
+
+      // const checkboxes = document.querySelectorAll(".media-device-checkbox")
+      // checkboxes.forEach((checkbox) => {
+      //   checkbox.addEventListener("change", (event) => {
+      //     const input = event.target as HTMLInputElement
+      //     let options = {}
+
+      //     if (input.name == "isVideoEnabled") {
+      //       if (!input.checked) {
+      //         activeVideoDevice = noVideoDevice
+      //       }
+
+      //       options = {
+      //         cameraDeviceId: input.checked
+      //           ? activeVideoDevice.deviceId == "no-camera"
+      //             ? undefined
+      //             : activeVideoDevice.deviceId
+      //           : undefined,
+      //       }
+      //     }
+
+      //     if (input.name == "isAudioEnabled") {
+      //       if (!input.checked) {
+      //         activeAudioDevice = noAudioDevice
+      //       }
+      //       options = {
+      //         audioDeviceId: input.checked
+      //           ? activeAudioDevice.deviceId == "no-microphone"
+      //             ? undefined
+      //             : activeAudioDevice.deviceId
+      //           : undefined,
+      //       }
+      //     }
+
+      //     streamSettings = { ...streamSettings, ...options }
+      //     sendSettings()
+      //   })
+      // })
+    })
+    .catch((e) => {})
 
   function renderScreenSettings(item: IDropdownItem) {
     const container = document.querySelector(
@@ -202,6 +258,90 @@ import {
     )
   }
 
+  // IPC
+  window.electronAPI.ipcRenderer.on("app:version", (event, version) => {
+    const versionEl = document.querySelector("#app_version")
+    versionEl.innerHTML = `, v${version}`
+  })
+
+  window.electronAPI.ipcRenderer.on(
+    "getMediaDevicesAccess",
+    async (event, permissions: IMediaDevicesAccess) => {
+      const modalContent = document.querySelector(".modal-content")
+      const permissionsContent = document.querySelector(".permissions-content")
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      hasMicrophone = devices.some((d) => d.kind == "audioinput")
+      hasCamera = devices.some((d) => d.kind == "videoinput")
+      const noCameraAccess = hasCamera && !permissions.camera
+      const noMicrophoneAccess = hasMicrophone && !permissions.microphone
+      const noScreenAccess = !permissions.screen
+
+      Object.keys(permissions).forEach((deviceName: MediaDeviceType) => {
+        const deviceEl = document.querySelector(`.js-permission-${deviceName}`)
+
+        if (permissions[deviceName]) {
+          deviceEl.classList.add("has-access")
+        }
+
+        if (
+          (deviceName == "microphone" && !hasMicrophone) ||
+          (deviceName == "camera" && !hasCamera)
+        ) {
+          deviceEl.classList.add("is-disabled")
+        }
+      })
+
+      if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
+        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          width: 430,
+          height: 500,
+        })
+        modalContent.setAttribute("hidden", "")
+        permissionsContent.removeAttribute("hidden")
+      } else {
+        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          width: 300,
+          height: 395,
+        })
+        modalContent.removeAttribute("hidden")
+        permissionsContent.setAttribute("hidden", "")
+      }
+    }
+  )
+
+  window.electronAPI.ipcRenderer.on(
+    "dropdown:select",
+    (event, data: IDropdownPageSelectData) => {
+      streamSettings = { ...streamSettings, ...data }
+
+      if (data.action && data.action != activeScreenAction) {
+        activeScreenAction = data.action
+        activeScreenActionItem = data.item
+        renderScreenSettings(data.item)
+      }
+
+      if (data.audioDeviceId) {
+        activeAudioDevice = audioDevicesList.find(
+          (d) => d.deviceId == data.audioDeviceId
+        )
+        audioDeviceContainer.innerHTML = null
+        audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
+      }
+
+      if (data.cameraDeviceId) {
+        activeVideoDevice = videoDevicesList.find(
+          (d) => d.deviceId == data.cameraDeviceId
+        )
+        videoDeviceContainer.innerHTML = null
+        videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
+      }
+
+      openedDropdownType = undefined
+      sendSettings()
+    }
+  )
+
+  // DOM
   document.addEventListener("DOMContentLoaded", () => {
     const windowsToolbar = document.querySelector(".windows-toolbar")
     const windowsMinimizeBtn = document.querySelector("#windows_minimize")
@@ -227,100 +367,6 @@ import {
         }
       },
       false
-    )
-
-    setupMediaDevices()
-      .then(() => {
-        if (activeVideoDevice) {
-          videoDeviceContainer.appendChild(
-            renderDeviceButton(activeVideoDevice)
-          )
-        }
-
-        if (activeAudioDevice) {
-          audioDeviceContainer.appendChild(
-            renderDeviceButton(activeAudioDevice)
-          )
-        }
-
-        // const checkboxes = document.querySelectorAll(".media-device-checkbox")
-        // checkboxes.forEach((checkbox) => {
-        //   checkbox.addEventListener("change", (event) => {
-        //     const input = event.target as HTMLInputElement
-        //     let options = {}
-
-        //     if (input.name == "isVideoEnabled") {
-        //       if (!input.checked) {
-        //         activeVideoDevice = noVideoDevice
-        //       }
-
-        //       options = {
-        //         cameraDeviceId: input.checked
-        //           ? activeVideoDevice.deviceId == "no-camera"
-        //             ? undefined
-        //             : activeVideoDevice.deviceId
-        //           : undefined,
-        //       }
-        //     }
-
-        //     if (input.name == "isAudioEnabled") {
-        //       if (!input.checked) {
-        //         activeAudioDevice = noAudioDevice
-        //       }
-        //       options = {
-        //         audioDeviceId: input.checked
-        //           ? activeAudioDevice.deviceId == "no-microphone"
-        //             ? undefined
-        //             : activeAudioDevice.deviceId
-        //           : undefined,
-        //       }
-        //     }
-
-        //     streamSettings = { ...streamSettings, ...options }
-        //     sendSettings()
-        //   })
-        // })
-      })
-      .catch((e) => {})
-
-    window.electronAPI.ipcRenderer.on("app:version", (event, version) => {
-      const versionEl = document.querySelector("#app_version")
-      versionEl.innerHTML = `, v${version}`
-    })
-    window.electronAPI.ipcRenderer.on(
-      "dropdown:select",
-      (event, data: IDropdownPageSelectData) => {
-        streamSettings = { ...streamSettings, ...data }
-
-        if (data.action && data.action != activeScreenAction) {
-          activeScreenAction = data.action
-          activeScreenActionItem = data.item
-          renderScreenSettings(data.item)
-        }
-
-        if (data.audioDeviceId) {
-          activeAudioDevice = audioDevicesList.find(
-            (d) => d.deviceId == data.audioDeviceId
-          )
-          audioDeviceContainer.innerHTML = null
-          audioDeviceContainer.appendChild(
-            renderDeviceButton(activeAudioDevice)
-          )
-        }
-
-        if (data.cameraDeviceId) {
-          activeVideoDevice = videoDevicesList.find(
-            (d) => d.deviceId == data.cameraDeviceId
-          )
-          videoDeviceContainer.innerHTML = null
-          videoDeviceContainer.appendChild(
-            renderDeviceButton(activeVideoDevice)
-          )
-        }
-
-        openedDropdownType = undefined
-        sendSettings()
-      }
     )
 
     document.addEventListener(
@@ -381,6 +427,69 @@ import {
               list,
             })
             openedDropdownType = "audioDevices"
+          }
+        }
+      },
+      false
+    )
+  })
+
+  const deviceAccessBtn = document.querySelectorAll(".js-device-access")
+  deviceAccessBtn.forEach((btn) => {
+    btn.addEventListener(
+      "click",
+      async (event) => {
+        const target = (event.target as HTMLElement).dataset
+          .type as MediaDeviceType
+
+        if (target == "microphone") {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: false,
+            })
+            stream.getTracks().forEach((track) => track.stop())
+          } catch (e) {
+            if (e.toString().toLowerCase().includes("permission denied")) {
+              window.electronAPI.ipcRenderer.send(
+                "system-settings:open",
+                target
+              )
+            }
+          }
+        }
+
+        if (target == "camera") {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: true,
+            })
+            stream.getTracks().forEach((track) => track.stop())
+          } catch (e) {
+            if (e.toString().toLowerCase().includes("permission denied")) {
+              window.electronAPI.ipcRenderer.send(
+                "system-settings:open",
+                target
+              )
+            }
+          }
+        }
+
+        if (target == "screen") {
+          try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+              audio: false,
+              video: true,
+            })
+            stream.getTracks().forEach((track) => track.stop())
+          } catch (e) {
+            if (e.toString().toLowerCase().includes("permission denied")) {
+              window.electronAPI.ipcRenderer.send(
+                "system-settings:open",
+                target
+              )
+            }
           }
         }
       },

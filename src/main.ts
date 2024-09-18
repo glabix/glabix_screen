@@ -29,8 +29,10 @@ import {
   IAuthData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IMediaDevicesAccess,
   ISimpleStoreData,
   IUser,
+  MediaDeviceType,
   SimpleStoreEvents,
 } from "./helpers/types"
 import { AppState } from "./storages/app-state"
@@ -41,6 +43,8 @@ import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
+import { exec } from "child_process"
+import { constants } from "original-fs"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -140,14 +144,18 @@ if (!gotTheLock) {
         desktopCapturer
           .getSources({ types: ["screen"] })
           .then((sources) => {
-            console.log(
-              "session.defaultSession.setDisplayMediaRequestHandler sources[0]",
-              sources[0]
-            )
             // Grant access to the first screen found.
             callback({ video: sources[0], audio: "loopback" })
           })
           .catch((error) => {
+            if (os.platform() == "darwin") {
+              exec(
+                'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+              )
+            }
+            if (os.platform() == "win32") {
+              exec("start ms-settings:privacy-broadfilesystem")
+            }
             throw error
           })
       }
@@ -171,7 +179,7 @@ function unregisterShortCuts() {
   globalShortcut.unregisterAll()
 }
 
-function getMediaDevicesAccess() {
+function getMediaDevicesAccess(): IMediaDevicesAccess {
   const cameraAccess = systemPreferences.getMediaAccessStatus("camera")
   const screenAccess = systemPreferences.getMediaAccessStatus("screen")
   const microphoneAccess = systemPreferences.getMediaAccessStatus("microphone")
@@ -273,8 +281,8 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    // resizable: false,
-    width: 900,
+    resizable: false,
+    width: 300,
     height: 395,
     show: false,
     alwaysOnTop: true,
@@ -296,11 +304,16 @@ function createModal(parentWindow) {
   })
   modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
-    // modalWindow.webContents.
-    console.log("<<<<modal ready-to-show", getMediaDevicesAccess())
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
   })
   modalWindow.on("show", () => {
-    console.log("<<<<modal show", getMediaDevicesAccess())
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
     mainWindow.webContents.send("app:show")
   })
   modalWindow.on("blur", () => {
@@ -546,6 +559,49 @@ ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
   win.setIgnoreMouseEvents(ignore, options)
 })
 
+ipcMain.on(
+  "modal-window:resize",
+  (event, size: { width: number; height: number }) => {
+    if (modalWindow) {
+      modalWindow.setBounds({ width: size.width, height: size.height })
+    }
+  }
+)
+
+ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
+  if (os.platform() == "darwin") {
+    if (device == "microphone") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+      )
+    }
+
+    if (device == "camera") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+      )
+    }
+
+    if (device == "screen") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+      )
+    }
+  }
+  if (os.platform() == "win32") {
+    if (device == "microphone") {
+      exec("start ms-settings:privacy-microphone")
+    }
+
+    if (device == "camera") {
+      exec("start ms-settings:privacy-webcam")
+    }
+
+    if (device == "screen") {
+      exec("start ms-settings:privacy-broadfilesystem")
+    }
+  }
+})
 ipcMain.on("record-settings-change", (event, data) => {
   mainWindow.webContents.send("record-settings-change", data)
 })

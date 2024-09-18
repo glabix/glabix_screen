@@ -27,18 +27,127 @@
         <i class="i i-close"></i>
       </button>
     </div>
-    <div class="mb-6 flex justify-center">
-      <img src="recorder-logo.svg" />
+
+    <div class="permissions-content" hidden>
+      <div class="mb-4 flex justify-center">
+        <img src="recorder-logo.svg" />
+      </div>
+      <div class="text-center font-weight-600 mb-2 text-lg">
+        Добро пожаловать в Глабикс Экран
+      </div>
+      <div class="mb-6 text-center">
+        Включите разрешения, чтобы начать работу
+      </div>
+      <div class="mb-3">
+        <div
+          class="media-device-panel items-center flex rounded-lg gap-2 bg-gray-200 p-3 justify-between js-permission-camera"
+        >
+          <div class="flex flex-grow-1 items-center gap-3">
+            <div class="flex-center-5">
+              <i class="i i--lg i-video"></i>
+            </div>
+            <div>
+              <div class="font-weight-600 text-md">Камера</div>
+              <div class="text-sm text-gray-600">
+                Чтобы зрители могли вас видеть
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              class="btn btn--default btn--sm js-device-access"
+              data-type="camera"
+            >
+              Включить
+            </button>
+            <div class="icon-access">
+              <div class="i i--xl i-check-circle-solid text-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div
+          class="media-device-panel items-center flex rounded-lg gap-2 bg-gray-200 p-3 justify-between js-permission-microphone"
+        >
+          <div class="flex flex-grow-1 items-center gap-3">
+            <div class="flex-center-5">
+              <i class="i i--lg i-microphone"></i>
+            </div>
+            <div>
+              <div class="font-weight-600 text-md">Микрофон</div>
+              <div class="text-sm text-gray-600">
+                Чтобы зрители могли вам слывшать
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              class="btn btn--default btn--sm js-device-access"
+              data-type="microphone"
+            >
+              Включить
+            </button>
+            <div class="icon-access">
+              <div class="i i--xl i-check-circle-solid text-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div
+          class="media-device-panel items-center flex rounded-lg gap-2 bg-gray-200 p-3 justify-between js-permission-screen"
+        >
+          <div class="flex flex-grow-1 items-center gap-3">
+            <div class="flex-center-5">
+              <i class="i i--lg i-display"></i>
+            </div>
+            <div>
+              <div class="font-weight-600 text-md">Экран</div>
+              <div class="text-sm text-gray-600">
+                Чтобы поделиться своим экраном
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              class="btn btn--default btn--sm js-device-access"
+              data-type="screen"
+            >
+              Включить
+            </button>
+            <div class="icon-access">
+              <div class="i i--xl i-check-circle-solid text-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <button
+          type="button"
+          id="continueBtn"
+          disabled
+          class="btn btn--primary"
+        >
+          Продолжить
+        </button>
+      </div>
     </div>
-    <div class="mb-5">
-      <div id="screen_settings_container"></div>
-    </div>
-    <div id="video_device_container"></div>
-    <div id="audio_device_container"></div>
-    <div>
-      <button type="button" id="startBtn" class="btn btn--primary">
-        Начать запись
-      </button>
+
+    <div class="modal-content">
+      <div class="mb-6 flex justify-center">
+        <img src="recorder-logo.svg" />
+      </div>
+      <div class="mb-5">
+        <div id="screen_settings_container"></div>
+      </div>
+      <div id="video_device_container"></div>
+      <div id="audio_device_container"></div>
+      <div>
+        <button type="button" id="startBtn" class="btn btn--primary">
+          Начать запись
+        </button>
+      </div>
     </div>
     <div class="text-center mt-5 text-xs text-gray-600">
       &copy; 2024 ООО «Глабикс»
