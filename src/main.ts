@@ -156,6 +156,7 @@ if (!gotTheLock) {
             if (os.platform() == "win32") {
               exec("start ms-settings:privacy-broadfilesystem")
             }
+            hideWindows()
             throw error
           })
       }
@@ -269,12 +270,6 @@ function createWindow() {
     )
   }
   mainWindow.webContents.setFrameRate(60)
-  mainWindow.on("focus", () => {
-    modalWindow.webContents.send(
-      "getMediaDevicesAccess",
-      getMediaDevicesAccess()
-    )
-  })
   mainWindow.on("close", () => {
     app.quit()
   })
@@ -316,17 +311,7 @@ function createModal(parentWindow) {
     )
   })
   modalWindow.on("show", () => {
-    modalWindow.webContents.send(
-      "getMediaDevicesAccess",
-      getMediaDevicesAccess()
-    )
     mainWindow.webContents.send("app:show")
-  })
-  modalWindow.on("focus", () => {
-    modalWindow.webContents.send(
-      "getMediaDevicesAccess",
-      getMediaDevicesAccess()
-    )
   })
   modalWindow.on("blur", () => {
     mainWindow.focus()
@@ -613,6 +598,7 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
       exec("start ms-settings:privacy-broadfilesystem")
     }
   }
+  hideWindows()
 })
 ipcMain.on("record-settings-change", (event, data) => {
   mainWindow.webContents.send("record-settings-change", data)
