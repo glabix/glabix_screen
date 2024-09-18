@@ -118,7 +118,10 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
-    autoUpdater.checkForUpdatesAndNotify()
+    autoUpdater.checkForUpdatesAndNotify({
+      title: "Новое обновление готово к установке",
+      body: "{appName} версия {version} загружена и будет автоматически установлена при выходе из приложения",
+    })
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
     //   "get-screen-resolution",
