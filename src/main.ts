@@ -269,6 +269,12 @@ function createWindow() {
     )
   }
   mainWindow.webContents.setFrameRate(60)
+  mainWindow.on("focus", () => {
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
+  })
   mainWindow.on("close", () => {
     app.quit()
   })
@@ -315,6 +321,12 @@ function createModal(parentWindow) {
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
+  })
+  modalWindow.on("focus", () => {
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
   })
   modalWindow.on("blur", () => {
     mainWindow.focus()

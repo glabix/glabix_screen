@@ -281,6 +281,8 @@ import {
 
         if (permissions[deviceName]) {
           deviceEl.classList.add("has-access")
+        } else {
+          deviceEl.classList.remove("has-access")
         }
 
         if (
@@ -342,97 +344,96 @@ import {
   )
 
   // DOM
-  document.addEventListener("DOMContentLoaded", () => {
-    const windowsToolbar = document.querySelector(".windows-toolbar")
-    const windowsMinimizeBtn = document.querySelector("#windows_minimize")
-    const windowsCloseBtn = document.querySelector("#windows_close")
-    const isWindows = navigator.userAgent.indexOf("Windows") != -1
-    if (isWindows) {
-      windowsToolbar.removeAttribute("hidden")
-    }
-    windowsMinimizeBtn.addEventListener(
-      "click",
-      () => {
-        if (isWindows) {
-          window.electronAPI.ipcRenderer.send("windows:minimize", {})
-        }
-      },
-      false
-    )
-    windowsCloseBtn.addEventListener(
-      "click",
-      () => {
-        if (isWindows) {
-          window.electronAPI.ipcRenderer.send("windows:close", {})
-        }
-      },
-      false
-    )
+  document.addEventListener("DOMContentLoaded", () => {})
+  const windowsToolbar = document.querySelector(".windows-toolbar")
+  const windowsMinimizeBtn = document.querySelector("#windows_minimize")
+  const windowsCloseBtn = document.querySelector("#windows_close")
+  const isWindows = navigator.userAgent.indexOf("Windows") != -1
+  if (isWindows) {
+    windowsToolbar.removeAttribute("hidden")
+  }
+  windowsMinimizeBtn.addEventListener(
+    "click",
+    () => {
+      if (isWindows) {
+        window.electronAPI.ipcRenderer.send("windows:minimize", {})
+      }
+    },
+    false
+  )
+  windowsCloseBtn.addEventListener(
+    "click",
+    () => {
+      if (isWindows) {
+        window.electronAPI.ipcRenderer.send("windows:close", {})
+      }
+    },
+    false
+  )
 
-    document.addEventListener(
-      "click",
-      (event) => {
-        const btn = event.target as HTMLElement
+  document.addEventListener(
+    "click",
+    (event) => {
+      const btn = event.target as HTMLElement
 
-        if (btn.classList.contains("js-btn-action-type")) {
-          if (openedDropdownType == "screenActions") {
-            window.electronAPI.ipcRenderer.send("dropdown:close", {})
-            openedDropdownType = undefined
-          } else {
-            const offsetY = btn.getBoundingClientRect().top
-            const action = btn.dataset.action as ScreenAction
-            const list: IDropdownList = {
-              type: "screenActions",
-              items: getDropdownItems("screenActions"),
-            }
-            window.electronAPI.ipcRenderer.send("dropdown:open", {
-              action,
-              offsetY,
-              list,
-            })
-            openedDropdownType = "screenActions"
+      if (btn.classList.contains("js-btn-action-type")) {
+        if (openedDropdownType == "screenActions") {
+          window.electronAPI.ipcRenderer.send("dropdown:close", {})
+          openedDropdownType = undefined
+        } else {
+          const offsetY = btn.getBoundingClientRect().top
+          const action = btn.dataset.action as ScreenAction
+          const list: IDropdownList = {
+            type: "screenActions",
+            items: getDropdownItems("screenActions"),
           }
+          window.electronAPI.ipcRenderer.send("dropdown:open", {
+            action,
+            offsetY,
+            list,
+          })
+          openedDropdownType = "screenActions"
         }
+      }
 
-        if (btn.classList.contains("js-video-device")) {
-          if (openedDropdownType == "videoDevices") {
-            window.electronAPI.ipcRenderer.send("dropdown:close", {})
-            openedDropdownType = undefined
-          } else {
-            const offsetY = btn.getBoundingClientRect().top
-            const list: IDropdownList = {
-              type: "videoDevices",
-              items: getDropdownItems("videoDevices"),
-            }
-            window.electronAPI.ipcRenderer.send("dropdown:open", {
-              offsetY,
-              list,
-            })
-            openedDropdownType = "videoDevices"
+      if (btn.classList.contains("js-video-device")) {
+        if (openedDropdownType == "videoDevices") {
+          window.electronAPI.ipcRenderer.send("dropdown:close", {})
+          openedDropdownType = undefined
+        } else {
+          const offsetY = btn.getBoundingClientRect().top
+          const list: IDropdownList = {
+            type: "videoDevices",
+            items: getDropdownItems("videoDevices"),
           }
+          window.electronAPI.ipcRenderer.send("dropdown:open", {
+            offsetY,
+            list,
+          })
+          openedDropdownType = "videoDevices"
         }
+      }
 
-        if (btn.classList.contains("js-audio-device")) {
-          if (openedDropdownType == "audioDevices") {
-            window.electronAPI.ipcRenderer.send("dropdown:close", {})
-            openedDropdownType = undefined
-          } else {
-            const offsetY = btn.getBoundingClientRect().top
-            const list: IDropdownList = {
-              type: "audioDevices",
-              items: getDropdownItems("audioDevices"),
-            }
-            window.electronAPI.ipcRenderer.send("dropdown:open", {
-              offsetY,
-              list,
-            })
-            openedDropdownType = "audioDevices"
+      if (btn.classList.contains("js-audio-device")) {
+        if (openedDropdownType == "audioDevices") {
+          window.electronAPI.ipcRenderer.send("dropdown:close", {})
+          openedDropdownType = undefined
+        } else {
+          const offsetY = btn.getBoundingClientRect().top
+          const list: IDropdownList = {
+            type: "audioDevices",
+            items: getDropdownItems("audioDevices"),
           }
+          window.electronAPI.ipcRenderer.send("dropdown:open", {
+            offsetY,
+            list,
+          })
+          openedDropdownType = "audioDevices"
         }
-      },
-      false
-    )
-  })
+      }
+    },
+    false
+  )
 
   const deviceAccessBtn = document.querySelectorAll(".js-device-access")
   deviceAccessBtn.forEach((btn) => {
