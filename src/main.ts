@@ -44,7 +44,6 @@ import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { exec } from "child_process"
-import { constants } from "original-fs"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -162,11 +161,15 @@ if (!gotTheLock) {
       }
     )
 
-    // session.defaultSession.setPermissionRequestHandler(
-    //   (webContents, permission, callback) => {
-    //     callback(true)
-    //   }
-    // )
+    session.defaultSession.setPermissionRequestHandler(
+      (webContents, permission, callback) => {
+        callback(true)
+        modalWindow.webContents.send(
+          "getMediaDevicesAccess",
+          getMediaDevicesAccess()
+        )
+      }
+    )
   })
 }
 
