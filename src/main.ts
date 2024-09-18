@@ -14,6 +14,7 @@ import {
   nativeTheme,
   globalShortcut,
   shell,
+  systemPreferences,
 } from "electron"
 import path from "path"
 import os from "os"
@@ -28,8 +29,10 @@ import {
   IAuthData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IMediaDevicesAccess,
   ISimpleStoreData,
   IUser,
+  MediaDeviceType,
   SimpleStoreEvents,
 } from "./helpers/types"
 import { AppState } from "./storages/app-state"
@@ -40,6 +43,7 @@ import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
+import { exec } from "child_process"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -136,16 +140,34 @@ if (!gotTheLock) {
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
-        desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
-          // Grant access to the first screen found.
-          callback({ video: sources[0], audio: "loopback" })
-        })
+        desktopCapturer
+          .getSources({ types: ["screen"] })
+          .then((sources) => {
+            // Grant access to the first screen found.
+            callback({ video: sources[0], audio: "loopback" })
+          })
+          .catch((error) => {
+            if (os.platform() == "darwin") {
+              exec(
+                'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+              )
+            }
+            if (os.platform() == "win32") {
+              exec("start ms-settings:privacy-broadfilesystem")
+            }
+            hideWindows()
+            throw error
+          })
       }
     )
 
     session.defaultSession.setPermissionRequestHandler(
       (webContents, permission, callback) => {
         callback(true)
+        modalWindow.webContents.send(
+          "getMediaDevicesAccess",
+          getMediaDevicesAccess()
+        )
       }
     )
   })
@@ -159,6 +181,18 @@ function registerShortCuts() {
 
 function unregisterShortCuts() {
   globalShortcut.unregisterAll()
+}
+
+function getMediaDevicesAccess(): IMediaDevicesAccess {
+  const cameraAccess = systemPreferences.getMediaAccessStatus("camera")
+  const screenAccess = systemPreferences.getMediaAccessStatus("screen")
+  const microphoneAccess = systemPreferences.getMediaAccessStatus("microphone")
+
+  return {
+    camera: cameraAccess == "granted",
+    screen: screenAccess == "granted",
+    microphone: microphoneAccess == "granted",
+  }
 }
 
 if (process.defaultApp) {
@@ -272,8 +306,18 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:hide")
     dropdownWindow.hide()
   })
-  modalWindow.on("show", () => {
+  modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
+  })
+  modalWindow.on("show", () => {
+    modalWindow.webContents.send(
+      "getMediaDevicesAccess",
+      getMediaDevicesAccess()
+    )
     mainWindow.webContents.send("app:show")
   })
   modalWindow.on("blur", () => {
@@ -519,6 +563,50 @@ ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
   win.setIgnoreMouseEvents(ignore, options)
 })
 
+ipcMain.on(
+  "modal-window:resize",
+  (event, size: { width: number; height: number }) => {
+    if (modalWindow) {
+      modalWindow.setBounds({ width: size.width, height: size.height })
+    }
+  }
+)
+
+ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
+  if (os.platform() == "darwin") {
+    if (device == "microphone") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+      )
+    }
+
+    if (device == "camera") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+      )
+    }
+
+    if (device == "screen") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+      )
+    }
+  }
+  if (os.platform() == "win32") {
+    if (device == "microphone") {
+      exec("start ms-settings:privacy-microphone")
+    }
+
+    if (device == "camera") {
+      exec("start ms-settings:privacy-webcam")
+    }
+
+    if (device == "screen") {
+      exec("start ms-settings:privacy-broadfilesystem")
+    }
+  }
+  hideWindows()
+})
 ipcMain.on("record-settings-change", (event, data) => {
   mainWindow.webContents.send("record-settings-change", data)
 })

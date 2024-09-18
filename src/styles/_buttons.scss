@@ -45,4 +45,19 @@
     background-color: var(--primary-300);
     border-color: var(--primary-300);
   }
+
+  &--default {
+    background-color: var(--gray-100);
+    border-color: var(--gray-600);
+  }
+
+  &--default:hover {
+    background-color: var(--gray-300);
+    border-color: var(--gray-600);
+  }
+
+  &--sm {
+    height: 2rem;
+    padding: 0 0.75rem;
+  }
 }
