@@ -44,6 +44,7 @@ import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { exec } from "child_process"
+import positioner from "electron-traywindow-positioner"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -164,8 +165,9 @@ if (!gotTheLock) {
     session.defaultSession.setPermissionRequestHandler(
       (webContents, permission, callback) => {
         callback(true)
+
         modalWindow.webContents.send(
-          "getMediaDevicesAccess",
+          "mediaDevicesAccess:get",
           getMediaDevicesAccess()
         )
       }
@@ -309,19 +311,34 @@ function createModal(parentWindow) {
   modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
     modalWindow.webContents.send(
-      "getMediaDevicesAccess",
+      "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
   })
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
-      "getMediaDevicesAccess",
+      "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
   })
   modalWindow.on("blur", () => {
-    mainWindow.focus()
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
+    if (modalWindow.isAlwaysOnTop()) {
+      if (modalWindow.isAlwaysOnTop()) {
+        mainWindow.focus()
+      }
+    }
+  })
+
+  modalWindow.on("focus", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
   })
 
   modalWindow.on("close", (event) => {
@@ -447,6 +464,15 @@ function showWindows() {
       mainWindow.show()
     }
     if (modalWindow) {
+      if (tray) {
+        const trayBounds = tray.getBounds()
+        const modalTrayPosition = positioner.calculate(
+          modalWindow.getBounds(),
+          trayBounds,
+          { x: "right", y: "up" }
+        )
+        modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
+      }
       modalWindow.show()
     }
   } else {
@@ -558,6 +584,12 @@ app.on("before-quit", () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
+ipcMain.on("mediaDevicesAccess:check", (event) => {
+  modalWindow.webContents.send(
+    "mediaDevicesAccess:get",
+    getMediaDevicesAccess()
+  )
+})
 ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
@@ -565,9 +597,16 @@ ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
 
 ipcMain.on(
   "modal-window:resize",
-  (event, size: { width: number; height: number }) => {
+  (event, data: { width: number; height: number; alwaysOnTop: boolean }) => {
     if (modalWindow) {
-      modalWindow.setBounds({ width: size.width, height: size.height })
+      modalWindow.setBounds({ width: data.width, height: data.height })
+
+      // if (data.alwaysOnTop) {
+      //   mainWindow.setAlwaysOnTop(true, "screen-saver")
+      //   modalWindow.setAlwaysOnTop(true, "screen-saver")
+      // } else {
+
+      // }
     }
   }
 )
@@ -586,11 +625,11 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
       )
     }
 
-    if (device == "screen") {
-      exec(
-        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
-      )
-    }
+    // if (device == "screen") {
+    //   exec(
+    //     'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+    //   )
+    // }
   }
   if (os.platform() == "win32") {
     if (device == "microphone") {
@@ -678,7 +717,9 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
-  mainWindow.focus()
+  if (modalWindow.isAlwaysOnTop()) {
+    mainWindow.focus()
+  }
 })
 ipcMain.on("invalidate-shadow", (event, data) => {
   if (os.platform() == "darwin") {
