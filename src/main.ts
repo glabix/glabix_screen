@@ -120,7 +120,7 @@ if (!gotTheLock) {
     chunkStorage = new ChunkStorageService()
     autoUpdater.checkForUpdatesAndNotify({
       title: "Новое обновление готово к установке",
-      body: "{appName} версия {version} загружена и будет автоматически установлена при выходе из приложения",
+      body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
     })
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
