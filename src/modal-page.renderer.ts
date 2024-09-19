@@ -292,7 +292,11 @@ import {
           deviceEl.classList.add("is-disabled")
         }
       })
-
+      window.electronAPI.ipcRenderer.send("log", {
+        noCameraAccess,
+        noMicrophoneAccess,
+        noScreenAccess,
+      })
       if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
         window.electronAPI.ipcRenderer.send("modal-window:resize", {
           alwaysOnTop: false,
@@ -310,6 +314,9 @@ import {
         modalContent.removeAttribute("hidden")
         permissionsContent.setAttribute("hidden", "")
       }
+
+      const footer = document.querySelector("#footer")
+      footer.removeAttribute("hidden")
     }
   )
 
@@ -346,18 +353,18 @@ import {
   )
 
   // DOM
-  document.body.addEventListener("mouseenter", () => {
-    window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  })
-  document.body.addEventListener("blur", () => {
-    window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  })
-  document.body.addEventListener("focus", () => {
-    window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  })
-  document.body.addEventListener("mouseleave", () => {
-    window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  })
+  // document.body.addEventListener("mouseenter", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+  // document.body.addEventListener("blur", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+  // document.body.addEventListener("focus", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+  // document.body.addEventListener("mouseleave", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
 
   document.addEventListener("DOMContentLoaded", () => {})
   const windowsToolbar = document.querySelector(".windows-toolbar")

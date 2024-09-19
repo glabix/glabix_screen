@@ -57,6 +57,12 @@ let loginWindow: BrowserWindow
 let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
+let deviceAccessInterval: NodeJS.Timeout
+let lastDeviceAccessData: IMediaDevicesAccess = {
+  camera: false,
+  microphone: false,
+  screen: false,
+}
 
 const tokenStorage = new TokenStorage()
 const appState = new AppState()
@@ -123,6 +129,8 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
+    lastDeviceAccessData = getMediaDevicesAccess()
+    deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     autoUpdater.checkForUpdatesAndNotify()
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
@@ -149,14 +157,22 @@ if (!gotTheLock) {
           })
           .catch((error) => {
             if (os.platform() == "darwin") {
-              exec(
-                'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
-              )
+              mainWindow.webContents
+                .executeJavaScript(
+                  'localStorage.getItem("_has_full_device_access_");',
+                  true
+                )
+                .then((result) => {
+                  if (result) {
+                    exec(
+                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+                    )
+                  }
+                })
             }
             if (os.platform() == "win32") {
               exec("start ms-settings:privacy-broadfilesystem")
             }
-            hideWindows()
             throw error
           })
       }
@@ -165,11 +181,6 @@ if (!gotTheLock) {
     session.defaultSession.setPermissionRequestHandler(
       (webContents, permission, callback) => {
         callback(true)
-
-        modalWindow.webContents.send(
-          "mediaDevicesAccess:get",
-          getMediaDevicesAccess()
-        )
       }
     )
   })
@@ -183,6 +194,40 @@ function registerShortCuts() {
 
 function unregisterShortCuts() {
   globalShortcut.unregisterAll()
+}
+
+function watchMediaDevicesAccessChange() {
+  const currentMediaDeviceAccess = getMediaDevicesAccess()
+  console.log("watchMediaDevicesAccessChange init", currentMediaDeviceAccess)
+  if (
+    lastDeviceAccessData.camera !== currentMediaDeviceAccess.camera ||
+    lastDeviceAccessData.microphone !== currentMediaDeviceAccess.microphone ||
+    lastDeviceAccessData.screen !== currentMediaDeviceAccess.screen
+  ) {
+    lastDeviceAccessData = currentMediaDeviceAccess
+    console.log(
+      "watchMediaDevicesAccessChange lastDeviceAccessData",
+      lastDeviceAccessData
+    )
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      currentMediaDeviceAccess
+    )
+  }
+
+  if (
+    currentMediaDeviceAccess.camera &&
+    currentMediaDeviceAccess.microphone &&
+    currentMediaDeviceAccess.screen
+  ) {
+    mainWindow.webContents.executeJavaScript(
+      'localStorage.setItem("_has_full_device_access_", "true");'
+    )
+    // .then(result => {
+    //   console.log(result);
+    // });
+    clearInterval(deviceAccessInterval)
+  }
 }
 
 function getMediaDevicesAccess(): IMediaDevicesAccess {
@@ -259,6 +304,7 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  // mainWindow.setAlwaysOnTop(true, "screen-saver")
   mainWindow.setAlwaysOnTop(true, "screen-saver")
 
   // mainWindow.setFullScreenable(false)
@@ -310,10 +356,6 @@ function createModal(parentWindow) {
   })
   modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
   })
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
@@ -323,23 +365,14 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
   })
   modalWindow.on("blur", () => {
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
-    if (modalWindow.isAlwaysOnTop()) {
-      if (modalWindow.isAlwaysOnTop()) {
-        mainWindow.focus()
-      }
-    }
+    // if (modalWindow.isAlwaysOnTop()) {
+    //   if (modalWindow.isAlwaysOnTop()) {
+    //     // mainWindow.focus()
+    //   }
+    // }
   })
 
-  modalWindow.on("focus", () => {
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
-  })
+  modalWindow.on("focus", () => {})
 
   modalWindow.on("close", (event) => {
     if (!isAppQuitting) {
@@ -464,15 +497,6 @@ function showWindows() {
       mainWindow.show()
     }
     if (modalWindow) {
-      if (tray) {
-        const trayBounds = tray.getBounds()
-        const modalTrayPosition = positioner.calculate(
-          modalWindow.getBounds(),
-          trayBounds,
-          { x: "right", y: "up" }
-        )
-        modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
-      }
       modalWindow.show()
     }
   } else {
@@ -531,6 +555,13 @@ function createMenu() {
       return
     }
 
+    const modalTrayPosition = positioner.calculate(
+      modalWindow.getBounds(),
+      tray.getBounds(),
+      { x: "right", y: "up" }
+    )
+    modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
+
     toggleWindows()
   })
 
@@ -584,12 +615,9 @@ app.on("before-quit", () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
-ipcMain.on("mediaDevicesAccess:check", (event) => {
-  modalWindow.webContents.send(
-    "mediaDevicesAccess:get",
-    getMediaDevicesAccess()
-  )
-})
+// ipcMain.on("mediaDevicesAccess:check", (event) => {
+//   watchMediaDevicesAccessChange()
+// })
 ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
@@ -601,12 +629,13 @@ ipcMain.on(
     if (modalWindow) {
       modalWindow.setBounds({ width: data.width, height: data.height })
 
-      // if (data.alwaysOnTop) {
-      //   mainWindow.setAlwaysOnTop(true, "screen-saver")
-      //   modalWindow.setAlwaysOnTop(true, "screen-saver")
-      // } else {
-
-      // }
+      if (data.alwaysOnTop) {
+        mainWindow.setAlwaysOnTop(true, "screen-saver")
+        modalWindow.setAlwaysOnTop(true, "screen-saver")
+      } else {
+        mainWindow.setAlwaysOnTop(true, "modal-panel")
+        modalWindow.setAlwaysOnTop(true, "modal-panel")
+      }
     }
   }
 )
@@ -644,7 +673,6 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
       exec("start ms-settings:privacy-broadfilesystem")
     }
   }
-  hideWindows()
 })
 ipcMain.on("record-settings-change", (event, data) => {
   mainWindow.webContents.send("record-settings-change", data)
