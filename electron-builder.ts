@@ -12,7 +12,7 @@ const options: Configuration = {
   files: ["!out/"],
   icon: "public/logo-square.png",
   win: {
-    target: [{ target: "nsis-web", arch: ["x64"] }],
+    target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
     executableName: "Глабикс.Экран",
   },
   mac: {
