@@ -356,6 +356,10 @@ function createModal(parentWindow) {
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
     modalWindow.webContents.send("app:version", app.getVersion())
   })
   modalWindow.on("show", () => {
