@@ -227,6 +227,7 @@ function watchMediaDevicesAccessChange() {
     //   console.log(result);
     // });
     clearInterval(deviceAccessInterval)
+    deviceAccessInterval = undefined
   }
 }
 
@@ -629,12 +630,18 @@ ipcMain.on(
     if (modalWindow) {
       modalWindow.setBounds({ width: data.width, height: data.height })
 
-      if (data.alwaysOnTop) {
-        mainWindow.setAlwaysOnTop(true, "screen-saver")
-        modalWindow.setAlwaysOnTop(true, "screen-saver")
-      } else {
-        mainWindow.setAlwaysOnTop(true, "modal-panel")
-        modalWindow.setAlwaysOnTop(true, "modal-panel")
+      if (!data.alwaysOnTop && !deviceAccessInterval) {
+        deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
+      }
+
+      if (os.platform() == "darwin") {
+        if (data.alwaysOnTop) {
+          mainWindow.setAlwaysOnTop(true, "screen-saver")
+          modalWindow.setAlwaysOnTop(true, "screen-saver")
+        } else {
+          mainWindow.setAlwaysOnTop(true, "modal-panel")
+          modalWindow.setAlwaysOnTop(true, "modal-panel")
+        }
       }
     }
   }
@@ -653,12 +660,6 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
       )
     }
-
-    // if (device == "screen") {
-    //   exec(
-    //     'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
-    //   )
-    // }
   }
   if (os.platform() == "win32") {
     if (device == "microphone") {
