@@ -12,11 +12,11 @@ const options: Configuration = {
   files: ["!out/"],
   icon: "public/logo-square.png",
   win: {
-    target: [{ target: "nsis-web", arch: ["x64"] }],
+    target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
     executableName: "Глабикс.Экран",
   },
   mac: {
-    target: [{ target: "dmg", arch: ["arm64", "x64"] }],
+    target: [{ target: "default", arch: ["arm64", "x64"] }],
     category: "public.app-category.productivity",
     executableName: "Глабикс.Экран",
     hardenedRuntime: true,
@@ -29,6 +29,7 @@ const options: Configuration = {
     notarize: true,
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.plist",
+    artifactName: "${name}-${version}-${arch}.${ext}",
   },
   dmg: {
     artifactName: "${name}-${version}-${arch}.${ext}",

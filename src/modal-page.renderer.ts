@@ -265,7 +265,7 @@ import {
   })
 
   window.electronAPI.ipcRenderer.on(
-    "getMediaDevicesAccess",
+    "mediaDevicesAccess:get",
     async (event, permissions: IMediaDevicesAccess) => {
       const modalContent = document.querySelector(".modal-content")
       const permissionsContent = document.querySelector(".permissions-content")
@@ -292,9 +292,14 @@ import {
           deviceEl.classList.add("is-disabled")
         }
       })
-
+      window.electronAPI.ipcRenderer.send("log", {
+        noCameraAccess,
+        noMicrophoneAccess,
+        noScreenAccess,
+      })
       if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
         window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          alwaysOnTop: false,
           width: 430,
           height: 500,
         })
@@ -302,12 +307,16 @@ import {
         permissionsContent.removeAttribute("hidden")
       } else {
         window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          alwaysOnTop: true,
           width: 300,
           height: 395,
         })
         modalContent.removeAttribute("hidden")
         permissionsContent.setAttribute("hidden", "")
       }
+
+      const footer = document.querySelector("#footer")
+      footer.removeAttribute("hidden")
     }
   )
 
@@ -344,6 +353,19 @@ import {
   )
 
   // DOM
+  // document.body.addEventListener("mouseenter", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+  // document.body.addEventListener("blur", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+  // document.body.addEventListener("focus", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+  // document.body.addEventListener("mouseleave", () => {
+  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
+  // })
+
   document.addEventListener("DOMContentLoaded", () => {})
   const windowsToolbar = document.querySelector(".windows-toolbar")
   const windowsMinimizeBtn = document.querySelector("#windows_minimize")

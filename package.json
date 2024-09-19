@@ -1,7 +1,7 @@
 {
   "name": "glabix-screen",
   "productName": "Glabix.Screen",
-  "version": "0.0.24-dev.0",
+  "version": "0.0.24-dev.1",
   "author": "Глабикс",
   "description": "Программа для записи экрана и создания видеосообщений",
   "main": ".vite/build/main.js",
@@ -28,6 +28,7 @@
     "@dotenvx/dotenvx": "^1.8.0",
     "axios": "^1.7.4",
     "electron-log": "^5.1.7",
+    "electron-traywindow-positioner": "^1.2.1",
     "electron-updater": "^6.2.1",
     "konva": "^9.3.14",
     "modern-normalize": "^3.0.0",

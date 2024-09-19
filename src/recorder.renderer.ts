@@ -121,7 +121,7 @@ import { FileUploadEvents } from "./events/file-upload.events"
         ])
       : _stream
     videoRecorder = new MediaRecorder(stream, {
-      mimeType: "video/webm; codecs=vp9",
+      mimeType: "video/mp4",
       videoBitsPerSecond: 2500000, // 2.5 Mbps
     })
     let chunks = []
