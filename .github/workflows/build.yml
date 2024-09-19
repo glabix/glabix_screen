@@ -30,7 +30,7 @@ jobs:
           echo '${{ secrets.APPLE_API_KEY }}' > ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
 
       - name: Build/release Electron app
-        uses: Yan-Jobs/action-electron-builder@v1.7.0
+        uses: Dozorengel/action-electron-builder@v1.7.0
         env:
           VITE_API_PATH: ${{ vars.VITE_API_PATH }}
           VITE_AUTH_APP_URL: ${{ vars.VITE_AUTH_APP_URL }}

@@ -109,6 +109,13 @@ function init(url: string) {
   }
 }
 
+function checkForUpdates() {
+  autoUpdater.checkForUpdatesAndNotify({
+    title: "Новое обновление готово к установке",
+    body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
+  })
+}
+
 if (!gotTheLock) {
   app.quit()
 } else {
@@ -132,6 +139,10 @@ if (!gotTheLock) {
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     autoUpdater.checkForUpdatesAndNotify()
+
+    checkForUpdates()
+    setInterval(() => checkForUpdates(), 1000 * 60 * 60)
+
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
     //   "get-screen-resolution",
