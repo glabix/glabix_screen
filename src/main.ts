@@ -45,6 +45,7 @@ import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
+import permissions from "node-mac-permissions"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -216,17 +217,15 @@ function watchMediaDevicesAccessChange() {
     lastDeviceAccessData.screen !== currentMediaDeviceAccess.screen
   ) {
     lastDeviceAccessData = currentMediaDeviceAccess
-    console.log(
-      "watchMediaDevicesAccessChange lastDeviceAccessData",
-      lastDeviceAccessData
-    )
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      currentMediaDeviceAccess
-    )
-    if (os.platform() == "darwin") {
-      modalWindow.webContents.invalidate()
-      modalWindow.webContents.reload()
+
+    if (modalWindow) {
+      modalWindow.webContents.send(
+        "mediaDevicesAccess:get",
+        currentMediaDeviceAccess
+      )
+      if (os.platform() == "darwin") {
+        modalWindow.webContents.invalidate()
+      }
     }
   }
 
@@ -247,14 +246,25 @@ function watchMediaDevicesAccessChange() {
 }
 
 function getMediaDevicesAccess(): IMediaDevicesAccess {
-  const cameraAccess = systemPreferences.getMediaAccessStatus("camera")
-  const screenAccess = systemPreferences.getMediaAccessStatus("screen")
-  const microphoneAccess = systemPreferences.getMediaAccessStatus("microphone")
+  let cameraAccess = false
+  let screenAccess = false
+  let microphoneAccess = false
+
+  if (os.platform() == "darwin") {
+    microphoneAccess = permissions.getAuthStatus("microphone") == "authorized"
+    cameraAccess = permissions.getAuthStatus("camera") == "authorized"
+  } else {
+    cameraAccess = systemPreferences.getMediaAccessStatus("camera") == "granted"
+    microphoneAccess =
+      systemPreferences.getMediaAccessStatus("microphone") == "granted"
+  }
+
+  screenAccess = systemPreferences.getMediaAccessStatus("screen") == "granted"
 
   return {
-    camera: cameraAccess == "granted",
-    screen: screenAccess == "granted",
-    microphone: microphoneAccess == "granted",
+    camera: cameraAccess,
+    screen: screenAccess,
+    microphone: microphoneAccess,
   }
 }
 
