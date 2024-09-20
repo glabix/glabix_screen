@@ -461,59 +461,65 @@ import {
   deviceAccessBtn.forEach((btn) => {
     btn.addEventListener(
       "click",
-      async (event) => {
+      (event) => {
         const target = (event.target as HTMLElement).dataset
           .type as MediaDeviceType
 
         if (target == "microphone") {
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+          navigator.mediaDevices
+            .getUserMedia({
               audio: true,
               video: false,
             })
-            stream.getTracks().forEach((track) => track.stop())
-          } catch (e) {
-            if (e.toString().toLowerCase().includes("permission denied")) {
-              window.electronAPI.ipcRenderer.send(
-                "system-settings:open",
-                target
-              )
-            }
-          }
+            .then((stream) => {
+              stream.getTracks().forEach((track) => track.stop())
+            })
+            .catch((e) => {
+              if (e.toString().toLowerCase().includes("permission denied")) {
+                window.electronAPI.ipcRenderer.send(
+                  "system-settings:open",
+                  target
+                )
+              }
+            })
         }
 
         if (target == "camera") {
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+          navigator.mediaDevices
+            .getUserMedia({
               audio: false,
               video: true,
             })
-            stream.getTracks().forEach((track) => track.stop())
-          } catch (e) {
-            if (e.toString().toLowerCase().includes("permission denied")) {
-              window.electronAPI.ipcRenderer.send(
-                "system-settings:open",
-                target
-              )
-            }
-          }
+            .then((stream) => {
+              stream.getTracks().forEach((track) => track.stop())
+            })
+            .catch((e) => {
+              if (e.toString().toLowerCase().includes("permission denied")) {
+                window.electronAPI.ipcRenderer.send(
+                  "system-settings:open",
+                  target
+                )
+              }
+            })
         }
 
         if (target == "screen") {
-          try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({
+          navigator.mediaDevices
+            .getDisplayMedia({
               audio: false,
               video: true,
             })
-            stream.getTracks().forEach((track) => track.stop())
-          } catch (e) {
-            if (e.toString().toLowerCase().includes("permission denied")) {
-              window.electronAPI.ipcRenderer.send(
-                "system-settings:open",
-                target
-              )
-            }
-          }
+            .then((stream) => {
+              stream.getTracks().forEach((track) => track.stop())
+            })
+            .catch((e) => {
+              if (e.toString().toLowerCase().includes("permission denied")) {
+                window.electronAPI.ipcRenderer.send(
+                  "system-settings:open",
+                  target
+                )
+              }
+            })
         }
       },
       false
