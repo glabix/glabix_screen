@@ -269,9 +269,11 @@ import {
     async (event, permissions: IMediaDevicesAccess) => {
       const modalContent = document.querySelector(".modal-content")
       const permissionsContent = document.querySelector(".permissions-content")
+
       const devices = await navigator.mediaDevices.enumerateDevices()
       hasMicrophone = devices.some((d) => d.kind == "audioinput")
       hasCamera = devices.some((d) => d.kind == "videoinput")
+
       const noCameraAccess = hasCamera && !permissions.camera
       const noMicrophoneAccess = hasMicrophone && !permissions.microphone
       const noScreenAccess = !permissions.screen
@@ -281,8 +283,18 @@ import {
 
         if (permissions[deviceName]) {
           deviceEl.classList.add("has-access")
+          deviceEl.appendChild(
+            Object.assign(document.createElement("span"), {
+              innerText: "has-access",
+            })
+          )
         } else {
           deviceEl.classList.remove("has-access")
+          deviceEl.appendChild(
+            Object.assign(document.createElement("span"), {
+              innerText: "no-access",
+            })
+          )
         }
 
         if (
@@ -292,11 +304,7 @@ import {
           deviceEl.classList.add("is-disabled")
         }
       })
-      window.electronAPI.ipcRenderer.send("log", {
-        noCameraAccess,
-        noMicrophoneAccess,
-        noScreenAccess,
-      })
+
       if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
         window.electronAPI.ipcRenderer.send("modal-window:resize", {
           alwaysOnTop: false,
