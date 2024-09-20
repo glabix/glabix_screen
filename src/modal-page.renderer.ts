@@ -12,6 +12,7 @@ import {
   SimpleStoreEvents,
   StreamSettings,
 } from "./helpers/types"
+let rerenderCounter = 0
 ;(function () {
   let openedDropdownType: DropdownListType | undefined = undefined
   const audioDeviceContainer = document.querySelector("#audio_device_container")
@@ -277,6 +278,7 @@ import {
       const noCameraAccess = hasCamera && !permissions.camera
       const noMicrophoneAccess = hasMicrophone && !permissions.microphone
       const noScreenAccess = !permissions.screen
+      rerenderCounter = rerenderCounter + 1
 
       Object.keys(permissions).forEach((deviceName: MediaDeviceType) => {
         const deviceEl = document.querySelector(`.js-permission-${deviceName}`)
@@ -285,14 +287,14 @@ import {
           deviceEl.classList.add("has-access")
           deviceEl.appendChild(
             Object.assign(document.createElement("span"), {
-              innerText: "has-access",
+              innerText: `has-access - ${rerenderCounter}`,
             })
           )
         } else {
           deviceEl.classList.remove("has-access")
           deviceEl.appendChild(
             Object.assign(document.createElement("span"), {
-              innerText: "no-access",
+              innerText: `no-access - ${rerenderCounter}`,
             })
           )
         }
