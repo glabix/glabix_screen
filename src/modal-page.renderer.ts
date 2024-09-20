@@ -270,6 +270,10 @@ let rerenderCounter = 0
     async (event, permissions: IMediaDevicesAccess) => {
       const modalContent = document.querySelector(".modal-content")
       const permissionsContent = document.querySelector(".permissions-content")
+      const pre = document.querySelector("pre")
+      rerenderCounter = rerenderCounter + 1
+
+      pre.innerHTML = `request #${rerenderCounter} <br>${JSON.stringify(permissions).replace("{", "").replace("}", "").replaceAll(",", "<br>")}`
 
       navigator.mediaDevices.enumerateDevices().then((devices) => {
         hasMicrophone = devices.some((d) => d.kind == "audioinput")
@@ -278,22 +282,10 @@ let rerenderCounter = 0
         const noCameraAccess = hasCamera && !permissions.camera
         const noMicrophoneAccess = hasMicrophone && !permissions.microphone
         const noScreenAccess = !permissions.screen
-        rerenderCounter = rerenderCounter + 1
 
         Object.keys(permissions).forEach((deviceName: MediaDeviceType) => {
           const deviceEl = document.querySelector(
             `.js-permission-${deviceName}`
-          )
-          let pre = deviceEl.querySelector("pre")
-
-          if (pre) {
-            pre.remove()
-          }
-
-          deviceEl.appendChild(
-            Object.assign(document.createElement("pre"), {
-              innerHTML: `permissions: ${JSON.stringify(permissions)}}`,
-            })
           )
 
           if (permissions[deviceName]) {

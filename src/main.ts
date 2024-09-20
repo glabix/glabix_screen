@@ -210,7 +210,13 @@ function unregisterShortCuts() {
 
 function watchMediaDevicesAccessChange() {
   const currentMediaDeviceAccess = getMediaDevicesAccess()
-  console.log("watchMediaDevicesAccessChange init", currentMediaDeviceAccess)
+  if (modalWindow) {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      currentMediaDeviceAccess
+    )
+  }
+
   if (
     lastDeviceAccessData.camera !== currentMediaDeviceAccess.camera ||
     lastDeviceAccessData.microphone !== currentMediaDeviceAccess.microphone ||
@@ -223,9 +229,6 @@ function watchMediaDevicesAccessChange() {
         "mediaDevicesAccess:get",
         currentMediaDeviceAccess
       )
-      if (os.platform() == "darwin") {
-        modalWindow.webContents.invalidate()
-      }
     }
   }
 
@@ -237,9 +240,6 @@ function watchMediaDevicesAccessChange() {
     mainWindow.webContents.executeJavaScript(
       'localStorage.setItem("_has_full_device_access_", "true");'
     )
-    // .then(result => {
-    //   console.log(result);
-    // });
     clearInterval(deviceAccessInterval)
     deviceAccessInterval = undefined
   }
