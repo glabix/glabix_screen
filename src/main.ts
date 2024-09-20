@@ -102,10 +102,13 @@ function init(url: string) {
 }
 
 function checkForUpdates() {
-  autoUpdater.checkForUpdatesAndNotify({
+  // const feedURL = "https://example.com/download"
+  // autoUpdater.setFeedURL(feedURL)
+  const downloadNotification = {
     title: "Новое обновление готово к установке",
     body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
-  })
+  }
+  autoUpdater.checkForUpdatesAndNotify(downloadNotification)
 }
 
 if (!gotTheLock) {

@@ -36,6 +36,7 @@ const options: Configuration = {
   },
   nsisWeb: {
     shortcutName: "Глабикс.Экран",
+    // appPackageUrl: "https://example.com/download",
   },
 }
 
