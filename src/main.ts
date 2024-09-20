@@ -224,6 +224,9 @@ function watchMediaDevicesAccessChange() {
       "mediaDevicesAccess:get",
       currentMediaDeviceAccess
     )
+    if (os.platform() == "darwin") {
+      modalWindow.webContents.invalidate()
+    }
   }
 
   if (
