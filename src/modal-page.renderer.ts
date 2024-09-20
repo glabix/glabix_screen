@@ -284,27 +284,22 @@ let rerenderCounter = 0
           const deviceEl = document.querySelector(
             `.js-permission-${deviceName}`
           )
+          let pre = deviceEl.querySelector("pre")
+
+          if (pre) {
+            pre.remove()
+          }
 
           deviceEl.appendChild(
-            Object.assign(document.createElement("span"), {
-              innerHTML: `permissions: ${JSON.stringify(permissions)} <br> deviceName:${deviceName} <br> permissions[deviceName]:${permissions[deviceName]}`,
+            Object.assign(document.createElement("pre"), {
+              innerHTML: `permissions: ${JSON.stringify(permissions)}}`,
             })
           )
 
           if (permissions[deviceName]) {
             deviceEl.classList.add("has-access")
-            deviceEl.appendChild(
-              Object.assign(document.createElement("span"), {
-                innerText: `has-access - ${rerenderCounter}`,
-              })
-            )
           } else {
             deviceEl.classList.remove("has-access")
-            deviceEl.appendChild(
-              Object.assign(document.createElement("span"), {
-                innerText: `no-access - ${rerenderCounter}`,
-              })
-            )
           }
 
           if (
