@@ -271,62 +271,71 @@ let rerenderCounter = 0
       const modalContent = document.querySelector(".modal-content")
       const permissionsContent = document.querySelector(".permissions-content")
 
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      hasMicrophone = devices.some((d) => d.kind == "audioinput")
-      hasCamera = devices.some((d) => d.kind == "videoinput")
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        hasMicrophone = devices.some((d) => d.kind == "audioinput")
+        hasCamera = devices.some((d) => d.kind == "videoinput")
 
-      const noCameraAccess = hasCamera && !permissions.camera
-      const noMicrophoneAccess = hasMicrophone && !permissions.microphone
-      const noScreenAccess = !permissions.screen
-      rerenderCounter = rerenderCounter + 1
+        const noCameraAccess = hasCamera && !permissions.camera
+        const noMicrophoneAccess = hasMicrophone && !permissions.microphone
+        const noScreenAccess = !permissions.screen
+        rerenderCounter = rerenderCounter + 1
 
-      Object.keys(permissions).forEach((deviceName: MediaDeviceType) => {
-        const deviceEl = document.querySelector(`.js-permission-${deviceName}`)
+        Object.keys(permissions).forEach((deviceName: MediaDeviceType) => {
+          const deviceEl = document.querySelector(
+            `.js-permission-${deviceName}`
+          )
 
-        if (permissions[deviceName]) {
-          deviceEl.classList.add("has-access")
           deviceEl.appendChild(
             Object.assign(document.createElement("span"), {
-              innerText: `has-access - ${rerenderCounter}`,
+              innerHTML: `permissions: ${JSON.stringify(permissions)} <br> deviceName:${deviceName} <br> permissions[deviceName]:${permissions[deviceName]}`,
             })
           )
+
+          if (permissions[deviceName]) {
+            deviceEl.classList.add("has-access")
+            deviceEl.appendChild(
+              Object.assign(document.createElement("span"), {
+                innerText: `has-access - ${rerenderCounter}`,
+              })
+            )
+          } else {
+            deviceEl.classList.remove("has-access")
+            deviceEl.appendChild(
+              Object.assign(document.createElement("span"), {
+                innerText: `no-access - ${rerenderCounter}`,
+              })
+            )
+          }
+
+          if (
+            (deviceName == "microphone" && !hasMicrophone) ||
+            (deviceName == "camera" && !hasCamera)
+          ) {
+            deviceEl.classList.add("is-disabled")
+          }
+        })
+
+        if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
+          window.electronAPI.ipcRenderer.send("modal-window:resize", {
+            alwaysOnTop: false,
+            width: 430,
+            height: 500,
+          })
+          modalContent.setAttribute("hidden", "")
+          permissionsContent.removeAttribute("hidden")
         } else {
-          deviceEl.classList.remove("has-access")
-          deviceEl.appendChild(
-            Object.assign(document.createElement("span"), {
-              innerText: `no-access - ${rerenderCounter}`,
-            })
-          )
+          window.electronAPI.ipcRenderer.send("modal-window:resize", {
+            alwaysOnTop: true,
+            width: 300,
+            height: 395,
+          })
+          modalContent.removeAttribute("hidden")
+          permissionsContent.setAttribute("hidden", "")
         }
 
-        if (
-          (deviceName == "microphone" && !hasMicrophone) ||
-          (deviceName == "camera" && !hasCamera)
-        ) {
-          deviceEl.classList.add("is-disabled")
-        }
+        const footer = document.querySelector("#footer")
+        footer.removeAttribute("hidden")
       })
-
-      if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
-        window.electronAPI.ipcRenderer.send("modal-window:resize", {
-          alwaysOnTop: false,
-          width: 430,
-          height: 500,
-        })
-        modalContent.setAttribute("hidden", "")
-        permissionsContent.removeAttribute("hidden")
-      } else {
-        window.electronAPI.ipcRenderer.send("modal-window:resize", {
-          alwaysOnTop: true,
-          width: 300,
-          height: 395,
-        })
-        modalContent.removeAttribute("hidden")
-        permissionsContent.setAttribute("hidden", "")
-      }
-
-      const footer = document.querySelector("#footer")
-      footer.removeAttribute("hidden")
     }
   )
 
