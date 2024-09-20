@@ -45,7 +45,6 @@ import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
-import permissions from "node-mac-permissions"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -135,6 +134,7 @@ if (!gotTheLock) {
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
+
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
     lastDeviceAccessData = getMediaDevicesAccess()
@@ -246,20 +246,12 @@ function watchMediaDevicesAccessChange() {
 }
 
 function getMediaDevicesAccess(): IMediaDevicesAccess {
-  let cameraAccess = false
-  let screenAccess = false
-  let microphoneAccess = false
-
-  if (os.platform() == "darwin") {
-    microphoneAccess = permissions.getAuthStatus("microphone") == "authorized"
-    cameraAccess = permissions.getAuthStatus("camera") == "authorized"
-  } else {
-    cameraAccess = systemPreferences.getMediaAccessStatus("camera") == "granted"
-    microphoneAccess =
-      systemPreferences.getMediaAccessStatus("microphone") == "granted"
-  }
-
-  screenAccess = systemPreferences.getMediaAccessStatus("screen") == "granted"
+  const cameraAccess =
+    systemPreferences.getMediaAccessStatus("camera") == "granted"
+  const microphoneAccess =
+    systemPreferences.getMediaAccessStatus("microphone") == "granted"
+  const screenAccess =
+    systemPreferences.getMediaAccessStatus("screen") == "granted"
 
   return {
     camera: cameraAccess,
