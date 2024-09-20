@@ -292,7 +292,7 @@ import {
           deviceEl.classList.remove("has-access")
           deviceEl.appendChild(
             Object.assign(document.createElement("span"), {
-              innerText: "has-access",
+              innerText: "no-access",
             })
           )
         }
