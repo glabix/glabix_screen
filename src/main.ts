@@ -44,7 +44,7 @@ import { setLog } from "./helpers/set-log"
 // Optional, initialize the logger for any renderer process
 log.initialize()
 
-const APP_ID = "com.glabix-screen.app"
+const APP_ID = "com.glabix.screen"
 
 let dropdownWindow: BrowserWindow
 let dropdownWindowOffsetY = 0

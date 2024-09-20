@@ -1,7 +1,7 @@
 import { Configuration } from "app-builder-lib"
 
 const options: Configuration = {
-  appId: "com.glabix-screen.app",
+  appId: "com.glabix.screen",
   productName: "Глабикс.Экран",
   protocols: {
     name: "Глабикс.Экран",
