@@ -15,6 +15,7 @@ import {
   globalShortcut,
   shell,
   systemPreferences,
+  MediaAccessPermissionRequest,
 } from "electron"
 import path from "path"
 import os from "os"
@@ -109,6 +110,13 @@ function init(url: string) {
   }
 }
 
+function appReload() {
+  if (app && app.isPackaged) {
+    app.relaunch()
+    app.exit(0)
+  }
+}
+
 function checkForUpdates() {
   autoUpdater.checkForUpdatesAndNotify({
     title: "Новое обновление готово к установке",
@@ -191,10 +199,61 @@ if (!gotTheLock) {
     )
 
     session.defaultSession.setPermissionRequestHandler(
-      (webContents, permission, callback) => {
-        callback(true)
+      (webContents, permission, callback, details) => {
+        if (os.platform() == "darwin") {
+          console.log("permission", permission, "details", details)
+          if (permission === "media") {
+            mainWindow.setAlwaysOnTop(true, "modal-panel")
+            modalWindow.setAlwaysOnTop(true, "modal-panel")
+            const d = details as MediaAccessPermissionRequest
+            if (d.mediaTypes && d.mediaTypes.includes("video")) {
+              callback(false)
+              systemPreferences
+                .askForMediaAccess("camera")
+                .then((value) => {
+                  if (value) {
+                    appReload()
+                  } else {
+                    exec(
+                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+                    )
+                  }
+                })
+                .catch((e) => {})
+            } else if (d.mediaTypes && d.mediaTypes.includes("audio")) {
+              callback(false)
+              systemPreferences
+                .askForMediaAccess("microphone")
+                .then((value) => {
+                  if (value) {
+                    appReload()
+                  } else {
+                    exec(
+                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+                    )
+                  }
+                })
+                .catch((e) => {})
+            } else {
+              callback(true)
+            }
+          } else {
+            callback(true)
+          }
+        } else {
+          callback(true)
+        }
       }
     )
+
+    // session.defaultSession.setPermissionCheckHandler((webContents, permission, origin, details) => {
+    //   // console.log('setPermissionCheckHandler>>>>>>>>>>', 'permission', permission, 'details', details, 'origin', origin)
+    //   if (permission === 'media') {
+    //     return false
+    //   }
+
+    //   return true
+    // })
   })
 }
 
@@ -669,19 +728,19 @@ ipcMain.on(
 )
 
 ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
-  if (os.platform() == "darwin") {
-    if (device == "microphone") {
-      exec(
-        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
-      )
-    }
+  // if (os.platform() == "darwin") {
+  //   if (device == "microphone") {
+  //     exec(
+  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+  //     )
+  //   }
 
-    if (device == "camera") {
-      exec(
-        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
-      )
-    }
-  }
+  //   if (device == "camera") {
+  //     exec(
+  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+  //     )
+  //   }
+  // }
   if (os.platform() == "win32") {
     if (device == "microphone") {
       exec("start ms-settings:privacy-microphone")
