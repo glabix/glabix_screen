@@ -59,6 +59,7 @@ let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout
+let checkForUpdatesInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -112,6 +113,16 @@ function init(url: string) {
 
 function appReload() {
   if (app && app.isPackaged) {
+    if (deviceAccessInterval) {
+      clearInterval(deviceAccessInterval)
+      deviceAccessInterval = undefined
+    }
+
+    if (checkForUpdatesInterval) {
+      clearInterval(checkForUpdatesInterval)
+      checkForUpdatesInterval = undefined
+    }
+
     app.relaunch()
     app.exit(0)
   }
@@ -150,7 +161,10 @@ if (!gotTheLock) {
     autoUpdater.checkForUpdatesAndNotify()
 
     checkForUpdates()
-    setInterval(() => checkForUpdates(), 1000 * 60 * 60)
+    checkForUpdatesInterval = setInterval(
+      () => checkForUpdates(),
+      1000 * 60 * 60
+    )
 
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
