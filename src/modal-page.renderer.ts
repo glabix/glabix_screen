@@ -12,7 +12,6 @@ import {
   SimpleStoreEvents,
   StreamSettings,
 } from "./helpers/types"
-let rerenderCounter = 0
 ;(function () {
   let openedDropdownType: DropdownListType | undefined = undefined
   const audioDeviceContainer = document.querySelector("#audio_device_container")
@@ -91,44 +90,6 @@ let rerenderCounter = 0
       if (activeAudioDevice) {
         audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
       }
-
-      // const checkboxes = document.querySelectorAll(".media-device-checkbox")
-      // checkboxes.forEach((checkbox) => {
-      //   checkbox.addEventListener("change", (event) => {
-      //     const input = event.target as HTMLInputElement
-      //     let options = {}
-
-      //     if (input.name == "isVideoEnabled") {
-      //       if (!input.checked) {
-      //         activeVideoDevice = noVideoDevice
-      //       }
-
-      //       options = {
-      //         cameraDeviceId: input.checked
-      //           ? activeVideoDevice.deviceId == "no-camera"
-      //             ? undefined
-      //             : activeVideoDevice.deviceId
-      //           : undefined,
-      //       }
-      //     }
-
-      //     if (input.name == "isAudioEnabled") {
-      //       if (!input.checked) {
-      //         activeAudioDevice = noAudioDevice
-      //       }
-      //       options = {
-      //         audioDeviceId: input.checked
-      //           ? activeAudioDevice.deviceId == "no-microphone"
-      //             ? undefined
-      //             : activeAudioDevice.deviceId
-      //           : undefined,
-      //       }
-      //     }
-
-      //     streamSettings = { ...streamSettings, ...options }
-      //     sendSettings()
-      //   })
-      // })
     })
     .catch((e) => {})
 
@@ -270,10 +231,6 @@ let rerenderCounter = 0
     async (event, permissions: IMediaDevicesAccess) => {
       const modalContent = document.querySelector(".modal-content")
       const permissionsContent = document.querySelector(".permissions-content")
-      const pre = document.querySelector("pre")
-      rerenderCounter = rerenderCounter + 1
-
-      pre.innerHTML = `request #${rerenderCounter} <br>${JSON.stringify(permissions).replace("{", "").replace("}", "").replaceAll(",", "<br>")}`
 
       navigator.mediaDevices.enumerateDevices().then((devices) => {
         hasMicrophone = devices.some((d) => d.kind == "audioinput")
@@ -357,20 +314,6 @@ let rerenderCounter = 0
       sendSettings()
     }
   )
-
-  // DOM
-  // document.body.addEventListener("mouseenter", () => {
-  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  // })
-  // document.body.addEventListener("blur", () => {
-  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  // })
-  // document.body.addEventListener("focus", () => {
-  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  // })
-  // document.body.addEventListener("mouseleave", () => {
-  //   window.electronAPI.ipcRenderer.send("mediaDevicesAccess:check", {})
-  // })
 
   document.addEventListener("DOMContentLoaded", () => {})
   const windowsToolbar = document.querySelector(".windows-toolbar")
