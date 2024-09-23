@@ -296,9 +296,11 @@ function watchMediaDevicesAccessChange() {
     currentMediaDeviceAccess.microphone &&
     currentMediaDeviceAccess.screen
   ) {
-    mainWindow.webContents.executeJavaScript(
-      'localStorage.setItem("_has_full_device_access_", "true");'
-    )
+    if (mainWindow) {
+      mainWindow.webContents.executeJavaScript(
+        'localStorage.setItem("_has_full_device_access_", "true");'
+      )
+    }
     clearInterval(deviceAccessInterval)
     deviceAccessInterval = undefined
   }
@@ -636,12 +638,15 @@ function createMenu() {
       return
     }
 
-    const modalTrayPosition = positioner.calculate(
-      modalWindow.getBounds(),
-      tray.getBounds(),
-      { x: "right", y: "up" }
-    )
-    modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
+    if (modalWindow) {
+      const modalTrayPosition = positioner.calculate(
+        modalWindow.getBounds(),
+        tray.getBounds(),
+        { x: "right", y: "up" }
+      )
+
+      modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
+    }
 
     toggleWindows()
   })
