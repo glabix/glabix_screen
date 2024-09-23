@@ -6,7 +6,7 @@
   "description": "Программа для записи экрана и создания видеосообщений",
   "main": ".vite/build/main.js",
   "scripts": {
-    "start": "dotenvx run --env-file=.env -- electron-forge start",
+    "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
@@ -25,7 +25,6 @@
     "release": "npm run package && npm run build -- --mac --windows -c.compression=maximum -p always"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.8.0",
     "axios": "^1.7.4",
     "electron-log": "^5.1.7",
     "electron-updater": "^6.2.1",

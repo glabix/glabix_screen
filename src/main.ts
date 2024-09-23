@@ -1,4 +1,3 @@
-import "@dotenvx/dotenvx"
 import {
   app,
   BrowserWindow,
@@ -102,8 +101,6 @@ function init(url: string) {
 }
 
 function checkForUpdates() {
-  // const feedURL = "https://example.com/download"
-  // autoUpdater.setFeedURL(feedURL)
   const downloadNotification = {
     title: "Новое обновление готово к установке",
     body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",

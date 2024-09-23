@@ -11,6 +11,7 @@ const options: Configuration = {
   compression: "store",
   files: ["!out/"],
   icon: "public/logo-square.png",
+  artifactName: "${name}-${os}-${arch}.${ext}",
   win: {
     target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
     executableName: "Глабикс.Экран",
@@ -22,22 +23,24 @@ const options: Configuration = {
     hardenedRuntime: true,
     gatekeeperAssess: true,
     extendInfo: {
-      NSScreenCaptureDescription: "Предоставьте доступ к записи экрану",
+      NSScreenCaptureDescription: "Предоставьте доступ к записи экрана",
       NSMicrophoneUsageDescription: "Предоставьте доступ к микрофону",
       NSCameraUsageDescription: "Предоставьте доступ к камере",
     },
     notarize: true,
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.plist",
-    artifactName: "${name}-${version}-${arch}.${ext}",
-  },
-  dmg: {
-    artifactName: "${name}-${version}-${arch}.${ext}",
   },
   nsisWeb: {
     shortcutName: "Глабикс.Экран",
-    // appPackageUrl: "https://example.com/download",
   },
+  publish: [
+    {
+      provider: "generic",
+      url: process.env.UPDATE_URL,
+    },
+    "github",
+  ],
 }
 
 export default options
