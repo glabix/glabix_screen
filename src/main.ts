@@ -13,7 +13,6 @@ import {
   dialog,
   nativeTheme,
   globalShortcut,
-  shell,
   systemPreferences,
   MediaAccessPermissionRequest,
 } from "electron"
@@ -46,6 +45,7 @@ import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
+import { openExternalLink } from "./helpers/open-external-link"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -918,7 +918,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
     "/" +
     "library/" +
     uuid
-  shell.openExternal(shared)
+  openExternalLink(shared)
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
