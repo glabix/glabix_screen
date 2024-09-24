@@ -9,18 +9,17 @@ export const electronAPI = {
       ipcRenderer.on(channel, (event, ...args) => func(event, ...args)),
   },
   openLinkInBrowser: (href) => {
-    setLog(href, true)
-    setLog(shell, true)
-    setLog(shell.openExternal, true)
     try {
       shell
         .openExternal(href)
-        .then()
+        .then(() => {
+          setLog("shell openExternal then", true)
+        })
         .catch((e) => {
-          setLog(e, true)
+          setLog(`shell openExternal catch ${e}`, true)
         })
     } catch (e) {
-      setLog(e, true)
+      setLog(`try catch ${e}`, true)
     }
   },
   setIgnoreMouseEvents: (flag: boolean) => {
