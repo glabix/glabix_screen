@@ -546,7 +546,15 @@ import { FileUploadEvents } from "./events/file-upload.events"
       if (["stopped"].includes(state["recordingState"])) {
         window.electronAPI.ipcRenderer.send("stop-recording", {})
         lastScreenAction = undefined
-        initRecord(lastStreamSettings)
+        const settings: StreamSettings =
+          lastStreamSettings.action == "cropVideo"
+            ? { ...lastStreamSettings, action: "fullScreenVideo" }
+            : lastStreamSettings
+        initRecord(settings)
+        window.electronAPI.ipcRenderer.send(
+          "modal-window:render",
+          settings.action
+        )
       }
 
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
