@@ -215,13 +215,12 @@ if (!gotTheLock) {
     session.defaultSession.setPermissionRequestHandler(
       (webContents, permission, callback, details) => {
         if (os.platform() == "darwin") {
-          console.log("permission", permission, "details", details)
           if (permission === "media") {
-            mainWindow.setAlwaysOnTop(true, "modal-panel")
-            modalWindow.setAlwaysOnTop(true, "modal-panel")
             const d = details as MediaAccessPermissionRequest
             if (d.mediaTypes && d.mediaTypes.includes("video")) {
               callback(false)
+              mainWindow.setAlwaysOnTop(true, "modal-panel")
+              modalWindow.setAlwaysOnTop(true, "modal-panel")
               systemPreferences
                 .askForMediaAccess("camera")
                 .then((value) => {
@@ -231,11 +230,15 @@ if (!gotTheLock) {
                     exec(
                       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                     )
+                    mainWindow.setAlwaysOnTop(true, "screen-saver")
+                    modalWindow.setAlwaysOnTop(true, "screen-saver")
                   }
                 })
                 .catch((e) => {})
             } else if (d.mediaTypes && d.mediaTypes.includes("audio")) {
               callback(false)
+              mainWindow.setAlwaysOnTop(true, "modal-panel")
+              modalWindow.setAlwaysOnTop(true, "modal-panel")
               systemPreferences
                 .askForMediaAccess("microphone")
                 .then((value) => {
@@ -245,6 +248,8 @@ if (!gotTheLock) {
                     exec(
                       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                     )
+                    mainWindow.setAlwaysOnTop(true, "screen-saver")
+                    modalWindow.setAlwaysOnTop(true, "screen-saver")
                   }
                 })
                 .catch((e) => {})
@@ -803,15 +808,15 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   dropdownWindowOffsetY = data.offsetY
 
   if (diffX < 0) {
-    dropdownWindow.setBounds({
-      x: modalWindowBounds.x - dropdownWindowBounds.width - gap,
-      y: positionY,
-    })
+    dropdownWindow.setPosition(
+      modalWindowBounds.x - dropdownWindowBounds.width - gap,
+      positionY
+    )
   } else {
-    dropdownWindow.setBounds({
-      x: modalWindowBounds.x + modalWindowBounds.width + gap,
-      y: positionY,
-    })
+    dropdownWindow.setPosition(
+      modalWindowBounds.x + modalWindowBounds.width + gap,
+      positionY
+    )
   }
 
   if (height) {
@@ -845,7 +850,7 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
-  if (modalWindow.isAlwaysOnTop()) {
+  if (modalWindow && modalWindow.isAlwaysOnTop()) {
     mainWindow.focus()
   }
 })
