@@ -450,6 +450,7 @@ function createModal(parentWindow) {
   modalWindow.setAlwaysOnTop(true, "screen-saver")
   modalWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
+    modalWindow.webContents.send("modal-window:hide")
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
@@ -726,6 +727,12 @@ app.on("before-quit", () => {
 ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
+})
+
+ipcMain.on("modal-window:render", (event, data) => {
+  if (modalWindow) {
+    modalWindow.webContents.send("modal-window:render", data)
+  }
 })
 
 ipcMain.on(

@@ -315,6 +315,17 @@ import {
     }
   )
 
+  window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
+    openedDropdownType = undefined
+  })
+  window.electronAPI.ipcRenderer.on("modal-window:render", (event, action) => {
+    const item = screenActionsList.find((i) => i.id == action)
+    activeScreenAction = action
+    activeScreenActionItem = item
+    streamSettings = { ...streamSettings, action }
+    renderScreenSettings(item)
+  })
+
   document.addEventListener("DOMContentLoaded", () => {})
   const windowsToolbar = document.querySelector(".windows-toolbar")
   const windowsMinimizeBtn = document.querySelector("#windows_minimize")
