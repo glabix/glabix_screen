@@ -220,8 +220,9 @@ if (!gotTheLock) {
         if (os.platform() == "darwin") {
           if (permission === "media") {
             const d = details as MediaAccessPermissionRequest
+            const permissions = getMediaDevicesAccess()
             if (d.mediaTypes && d.mediaTypes.includes("video")) {
-              callback(false)
+              callback(permissions.camera)
               mainWindow.setAlwaysOnTop(true, "modal-panel")
               modalWindow.setAlwaysOnTop(true, "modal-panel")
               systemPreferences
@@ -239,7 +240,7 @@ if (!gotTheLock) {
                 })
                 .catch((e) => {})
             } else if (d.mediaTypes && d.mediaTypes.includes("audio")) {
-              callback(false)
+              callback(permissions.microphone)
               mainWindow.setAlwaysOnTop(true, "modal-panel")
               modalWindow.setAlwaysOnTop(true, "modal-panel")
               systemPreferences
