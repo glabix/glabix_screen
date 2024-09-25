@@ -5,7 +5,6 @@ export class Timer {
     this.el = container
     this.seconds = limitSeconds
     this.limitSeconds = limitSeconds
-    this.minutes = Math.floor(this.limitSeconds / 60)
 
     this.setStartTime()
   }
@@ -13,7 +12,6 @@ export class Timer {
   private el: Element
   private limitSeconds: number
   private seconds = 0
-  private minutes = 0
   private timerInterval: NodeJS.Timeout
   private time = "00:00"
 
@@ -22,7 +20,6 @@ export class Timer {
       this.timerInterval = setInterval(() => {
         this.seconds--
         this.setStartTime()
-        console.log("minutes", this.minutes, stopVideo, this.seconds)
         if (this.seconds == 0) {
           this.stop()
           if (stopVideo) {
@@ -30,10 +27,7 @@ export class Timer {
               key: "recordingState",
               value: "stopped",
             }
-
             window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
-
-            console.log("window.electronAPI.ipcRenderer.send", data)
           }
         }
       }, 1000)
@@ -63,7 +57,6 @@ export class Timer {
   stop() {
     clearInterval(this.timerInterval)
     this.seconds = this.limitSeconds
-    this.minutes = Math.floor(this.limitSeconds / 60)
     this.setStartTime()
   }
 }

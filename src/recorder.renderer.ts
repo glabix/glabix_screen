@@ -14,7 +14,7 @@ import { FileUploadEvents } from "./events/file-upload.events"
     "timerDisplay"
   ) as HTMLButtonElement
   const controlPanel = document.querySelector(".panel-wrapper")
-  const timer = new Timer(timerDisplay, 3)
+  let timer = new Timer(timerDisplay, 0)
   const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement
   const pauseBtn = document.getElementById("pauseBtn") as HTMLButtonElement
   const resumeBtn = document.getElementById("resumeBtn") as HTMLButtonElement
