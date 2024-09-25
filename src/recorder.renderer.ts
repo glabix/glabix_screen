@@ -1,6 +1,7 @@
 import "./styles/index-page.scss"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import {
+  IOrganizationLimits,
   ISimpleStoreData,
   RecorderState,
   ScreenAction,
@@ -9,6 +10,7 @@ import {
 } from "./helpers/types"
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "./events/file-upload.events"
+import { APIEvents } from "./events/api.events"
 ;(function () {
   const timerDisplay = document.getElementById(
     "timerDisplay"
@@ -564,6 +566,18 @@ import { FileUploadEvents } from "./events/file-upload.events"
       }
 
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    }
+  )
+
+  window.electronAPI.ipcRenderer.on(
+    APIEvents.GET_ORGANIZATION_LIMITS,
+    (event, limits: IOrganizationLimits) => {
+      if (limits.max_upload_duration) {
+        timer = new Timer(timerDisplay, limits.max_upload_duration)
+      }
+
+      if (limits.upload_allowed) {
+      }
     }
   )
 })()

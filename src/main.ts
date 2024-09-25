@@ -42,6 +42,7 @@ import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "./events/api.events"
+import { constants } from "original-fs"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -142,11 +143,6 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
-      console.log(
-        "tokenStorage.token.access_token",
-        tokenStorage.token.access_token
-      )
-      console.log("tokenStorage.organizationId", tokenStorage.organizationId)
       getOrganizationLimits(
         tokenStorage.token.access_token,
         tokenStorage.organizationId
@@ -297,9 +293,19 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:hide")
     dropdownWindow.hide()
   })
+  modalWindow.on("ready-to-show", () => {
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
+  })
   modalWindow.on("show", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
     mainWindow.webContents.send("app:show")
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
   })
   modalWindow.on("blur", () => {
     mainWindow.focus()
@@ -741,7 +747,10 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
+  console.log("limits", limits)
+  // store.set('limits', limits)
   mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
 })
 
 ipcMain.on("log", (evt, data) => {

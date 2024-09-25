@@ -1,5 +1,3 @@
-import { ISimpleStoreData, SimpleStoreEvents } from "./types"
-
 export class Timer {
   constructor(container: Element, limitSeconds: number) {
     this.el = container

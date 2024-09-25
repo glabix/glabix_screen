@@ -7,7 +7,6 @@ export function getOrganizationLimits(token: string, orgId: number) {
   axios
     .get(url, { headers: { Authorization: `Bearer ${token}` } })
     .then((res) => {
-      console.log("res.data", res.data)
       ipcMain.emit(APIEvents.GET_ORGANIZATION_LIMITS, res.data)
     })
 }
