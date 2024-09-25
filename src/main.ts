@@ -27,6 +27,7 @@ import {
   IAuthData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IOrganizationLimits,
   ISimpleStoreData,
   IUser,
   SimpleStoreEvents,
@@ -39,6 +40,8 @@ import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
+import { getOrganizationLimits } from "./commands/organization-limits.query"
+import { APIEvents } from "./events/api.events"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -139,6 +142,15 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
+      console.log(
+        "tokenStorage.token.access_token",
+        tokenStorage.token.access_token
+      )
+      console.log("tokenStorage.organizationId", tokenStorage.organizationId)
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
       createMenu()
     } catch (e) {
       setLog(e, true)
@@ -726,6 +738,10 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   contextMenu.getMenuItemById("menuLogOutItem").visible = false
+})
+ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
+  const limits = data as IOrganizationLimits
+  mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
 })
 
 ipcMain.on("log", (evt, data) => {
