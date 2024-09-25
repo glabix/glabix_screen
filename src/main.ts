@@ -231,41 +231,49 @@ if (!gotTheLock) {
             const d = details as MediaAccessPermissionRequest
             const permissions = getMediaDevicesAccess()
             if (d.mediaTypes && d.mediaTypes.includes("video")) {
-              callback(permissions.camera)
-              mainWindow.setAlwaysOnTop(true, "modal-panel")
-              modalWindow.setAlwaysOnTop(true, "modal-panel")
-              systemPreferences
-                .askForMediaAccess("camera")
-                .then((value) => {
-                  if (value) {
-                    appReload()
-                  } else {
-                    exec(
-                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
-                    )
-                    mainWindow.setAlwaysOnTop(true, "screen-saver")
-                    modalWindow.setAlwaysOnTop(true, "screen-saver")
-                  }
-                })
-                .catch((e) => {})
+              if (permissions.camera) {
+                callback(true)
+              } else {
+                callback(false)
+                mainWindow.setAlwaysOnTop(true, "modal-panel")
+                modalWindow.setAlwaysOnTop(true, "modal-panel")
+                systemPreferences
+                  .askForMediaAccess("camera")
+                  .then((value) => {
+                    if (value) {
+                      appReload()
+                    } else {
+                      exec(
+                        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+                      )
+                      mainWindow.setAlwaysOnTop(true, "screen-saver")
+                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                    }
+                  })
+                  .catch((e) => {})
+              }
             } else if (d.mediaTypes && d.mediaTypes.includes("audio")) {
-              callback(permissions.microphone)
-              mainWindow.setAlwaysOnTop(true, "modal-panel")
-              modalWindow.setAlwaysOnTop(true, "modal-panel")
-              systemPreferences
-                .askForMediaAccess("microphone")
-                .then((value) => {
-                  if (value) {
-                    appReload()
-                  } else {
-                    exec(
-                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
-                    )
-                    mainWindow.setAlwaysOnTop(true, "screen-saver")
-                    modalWindow.setAlwaysOnTop(true, "screen-saver")
-                  }
-                })
-                .catch((e) => {})
+              if (permissions.microphone) {
+                callback(true)
+              } else {
+                callback(false)
+                mainWindow.setAlwaysOnTop(true, "modal-panel")
+                modalWindow.setAlwaysOnTop(true, "modal-panel")
+                systemPreferences
+                  .askForMediaAccess("microphone")
+                  .then((value) => {
+                    if (value) {
+                      appReload()
+                    } else {
+                      exec(
+                        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+                      )
+                      mainWindow.setAlwaysOnTop(true, "screen-saver")
+                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                    }
+                  })
+                  .catch((e) => {})
+              }
             } else {
               callback(true)
             }
