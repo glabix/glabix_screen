@@ -612,6 +612,10 @@ function createLoginWindow() {
   loginWindow.once("ready-to-show", () => {
     showWindows()
   })
+
+  loginWindow.on("close", (event) => {
+    app.quit()
+  })
 }
 
 function showWindows() {
