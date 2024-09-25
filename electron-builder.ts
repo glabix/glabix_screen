@@ -37,7 +37,7 @@ const options: Configuration = {
   publish: [
     {
       provider: "generic",
-      url: process.env.UPDATE_URL,
+      url: `${process.env.UPDATE_URL}`,
     },
     "github",
   ],
