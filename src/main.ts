@@ -179,10 +179,12 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
+      if (tokenStorage.dataIsActual()) {
+        getOrganizationLimits(
+          tokenStorage.token.access_token,
+          tokenStorage.organizationId
+        )
+      }
       createMenu()
     } catch (e) {
       setLog(e, true)
@@ -465,10 +467,12 @@ function createModal(parentWindow) {
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
-    getOrganizationLimits(
-      tokenStorage.token.access_token,
-      tokenStorage.organizationId
-    )
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
   })
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
@@ -894,6 +898,12 @@ ipcMain.on("invalidate-shadow", (event, data) => {
   if (os.platform() == "darwin") {
     mainWindow.invalidateShadow()
   }
+})
+ipcMain.on("redirect:app", (event, route) => {
+  const url = route.replace("%orgId%", tokenStorage.organizationId)
+  const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
+  openExternalLink(link)
+  hideWindows()
 })
 
 ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
