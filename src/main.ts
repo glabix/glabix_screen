@@ -12,7 +12,8 @@ import {
   dialog,
   nativeTheme,
   globalShortcut,
-  shell,
+  systemPreferences,
+  MediaAccessPermissionRequest,
 } from "electron"
 import path from "path"
 import os from "os"
@@ -28,8 +29,10 @@ import {
   IDropdownPageData,
   IDropdownPageSelectData,
   IOrganizationLimits,
+  IMediaDevicesAccess,
   ISimpleStoreData,
   IUser,
+  MediaDeviceType,
   SimpleStoreEvents,
 } from "./helpers/types"
 import { AppState } from "./storages/app-state"
@@ -42,6 +45,9 @@ import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
 import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "./events/api.events"
+import { exec } from "child_process"
+import positioner from "electron-traywindow-positioner"
+import { openExternalLink } from "./helpers/open-external-link"
 
 // Optional, initialize the logger for any renderer process
 log.initialize()
@@ -56,6 +62,13 @@ let loginWindow: BrowserWindow
 let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
+let deviceAccessInterval: NodeJS.Timeout
+let checkForUpdatesInterval: NodeJS.Timeout
+let lastDeviceAccessData: IMediaDevicesAccess = {
+  camera: false,
+  microphone: false,
+  screen: false,
+}
 
 const tokenStorage = new TokenStorage()
 const appState = new AppState()
@@ -103,6 +116,23 @@ function init(url: string) {
   }
 }
 
+function appReload() {
+  if (app && app.isPackaged) {
+    if (deviceAccessInterval) {
+      clearInterval(deviceAccessInterval)
+      deviceAccessInterval = undefined
+    }
+
+    if (checkForUpdatesInterval) {
+      clearInterval(checkForUpdatesInterval)
+      checkForUpdatesInterval = undefined
+    }
+
+    app.relaunch()
+    app.exit(0)
+  }
+}
+
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -129,11 +159,18 @@ if (!gotTheLock) {
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
+
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
+    lastDeviceAccessData = getMediaDevicesAccess()
+    deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
+    autoUpdater.checkForUpdatesAndNotify()
 
     checkForUpdates()
-    setInterval(() => checkForUpdates(), 1000 * 60 * 60)
+    checkForUpdatesInterval = setInterval(
+      () => checkForUpdates(),
+      1000 * 60 * 60
+    )
 
     setLog(JSON.stringify(import.meta.env), true)
     // ipcMain.handle(
@@ -156,18 +193,97 @@ if (!gotTheLock) {
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
-        desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
-          // Grant access to the first screen found.
-          callback({ video: sources[0], audio: "loopback" })
-        })
+        desktopCapturer
+          .getSources({ types: ["screen"] })
+          .then((sources) => {
+            // Grant access to the first screen found.
+            callback({ video: sources[0], audio: "loopback" })
+          })
+          .catch((error) => {
+            if (os.platform() == "darwin") {
+              mainWindow.webContents
+                .executeJavaScript(
+                  'localStorage.getItem("_has_full_device_access_");',
+                  true
+                )
+                .then((result) => {
+                  if (result) {
+                    exec(
+                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+                    )
+                  }
+                })
+            }
+            if (os.platform() == "win32") {
+              exec("start ms-settings:privacy-broadfilesystem")
+            }
+            throw error
+          })
       }
     )
 
     session.defaultSession.setPermissionRequestHandler(
-      (webContents, permission, callback) => {
-        callback(true)
+      (webContents, permission, callback, details) => {
+        if (os.platform() == "darwin") {
+          if (permission === "media") {
+            const d = details as MediaAccessPermissionRequest
+            const permissions = getMediaDevicesAccess()
+            if (d.mediaTypes && d.mediaTypes.includes("video")) {
+              callback(permissions.camera)
+              mainWindow.setAlwaysOnTop(true, "modal-panel")
+              modalWindow.setAlwaysOnTop(true, "modal-panel")
+              systemPreferences
+                .askForMediaAccess("camera")
+                .then((value) => {
+                  if (value) {
+                    appReload()
+                  } else {
+                    exec(
+                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+                    )
+                    mainWindow.setAlwaysOnTop(true, "screen-saver")
+                    modalWindow.setAlwaysOnTop(true, "screen-saver")
+                  }
+                })
+                .catch((e) => {})
+            } else if (d.mediaTypes && d.mediaTypes.includes("audio")) {
+              callback(permissions.microphone)
+              mainWindow.setAlwaysOnTop(true, "modal-panel")
+              modalWindow.setAlwaysOnTop(true, "modal-panel")
+              systemPreferences
+                .askForMediaAccess("microphone")
+                .then((value) => {
+                  if (value) {
+                    appReload()
+                  } else {
+                    exec(
+                      'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+                    )
+                    mainWindow.setAlwaysOnTop(true, "screen-saver")
+                    modalWindow.setAlwaysOnTop(true, "screen-saver")
+                  }
+                })
+                .catch((e) => {})
+            } else {
+              callback(true)
+            }
+          } else {
+            callback(true)
+          }
+        } else {
+          callback(true)
+        }
       }
     )
+
+    // session.defaultSession.setPermissionCheckHandler((webContents, permission, origin, details) => {
+    //   // console.log('setPermissionCheckHandler>>>>>>>>>>', 'permission', permission, 'details', details, 'origin', origin)
+    //   if (permission === 'media') {
+    //     return false
+    //   }
+
+    //   return true
+    // })
   })
 }
 
@@ -179,6 +295,60 @@ function registerShortCuts() {
 
 function unregisterShortCuts() {
   globalShortcut.unregisterAll()
+}
+
+function watchMediaDevicesAccessChange() {
+  const currentMediaDeviceAccess = getMediaDevicesAccess()
+  if (modalWindow) {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      currentMediaDeviceAccess
+    )
+  }
+
+  if (
+    lastDeviceAccessData.camera !== currentMediaDeviceAccess.camera ||
+    lastDeviceAccessData.microphone !== currentMediaDeviceAccess.microphone ||
+    lastDeviceAccessData.screen !== currentMediaDeviceAccess.screen
+  ) {
+    lastDeviceAccessData = currentMediaDeviceAccess
+
+    if (modalWindow) {
+      modalWindow.webContents.send(
+        "mediaDevicesAccess:get",
+        currentMediaDeviceAccess
+      )
+    }
+  }
+
+  if (
+    currentMediaDeviceAccess.camera &&
+    currentMediaDeviceAccess.microphone &&
+    currentMediaDeviceAccess.screen
+  ) {
+    if (mainWindow) {
+      mainWindow.webContents.executeJavaScript(
+        'localStorage.setItem("_has_full_device_access_", "true");'
+      )
+    }
+    clearInterval(deviceAccessInterval)
+    deviceAccessInterval = undefined
+  }
+}
+
+function getMediaDevicesAccess(): IMediaDevicesAccess {
+  const cameraAccess =
+    systemPreferences.getMediaAccessStatus("camera") == "granted"
+  const microphoneAccess =
+    systemPreferences.getMediaAccessStatus("microphone") == "granted"
+  const screenAccess =
+    systemPreferences.getMediaAccessStatus("screen") == "granted"
+
+  return {
+    camera: cameraAccess,
+    screen: screenAccess,
+    microphone: microphoneAccess,
+  }
 }
 
 if (process.defaultApp) {
@@ -243,6 +413,7 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  // mainWindow.setAlwaysOnTop(true, "screen-saver")
   mainWindow.setAlwaysOnTop(true, "screen-saver")
 
   // mainWindow.setFullScreenable(false)
@@ -290,6 +461,7 @@ function createModal(parentWindow) {
   modalWindow.setAlwaysOnTop(true, "screen-saver")
   modalWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
+    modalWindow.webContents.send("modal-window:hide")
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
@@ -299,7 +471,17 @@ function createModal(parentWindow) {
     )
   })
   modalWindow.on("show", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
     modalWindow.webContents.send("app:version", app.getVersion())
+  })
+  modalWindow.on("show", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
     mainWindow.webContents.send("app:show")
     getOrganizationLimits(
       tokenStorage.token.access_token,
@@ -307,8 +489,14 @@ function createModal(parentWindow) {
     )
   })
   modalWindow.on("blur", () => {
-    mainWindow.focus()
+    // if (modalWindow.isAlwaysOnTop()) {
+    //   if (modalWindow.isAlwaysOnTop()) {
+    //     // mainWindow.focus()
+    //   }
+    // }
   })
+
+  modalWindow.on("focus", () => {})
 
   modalWindow.on("close", (event) => {
     if (!isAppQuitting) {
@@ -484,11 +672,25 @@ function createMenu() {
   tray = new Tray(createTrayIcon())
   tray.setToolTip("Glabix Экран")
 
+  nativeTheme.on("updated", () => {
+    tray.setImage(createTrayIcon())
+  })
+
   tray.on("click", (e) => {
     const state = store.get()
 
     if (["recording", "paused"].includes(state["recordingState"])) {
       return
+    }
+
+    if (modalWindow) {
+      const modalTrayPosition = positioner.calculate(
+        modalWindow.getBounds(),
+        tray.getBounds(),
+        { x: "right", y: "up" }
+      )
+
+      modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
     }
 
     toggleWindows()
@@ -544,11 +746,71 @@ app.on("before-quit", () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
+// ipcMain.on("mediaDevicesAccess:check", (event) => {
+//   watchMediaDevicesAccessChange()
+// })
 ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
 })
 
+ipcMain.on("modal-window:render", (event, data) => {
+  if (modalWindow) {
+    modalWindow.webContents.send("modal-window:render", data)
+  }
+})
+
+ipcMain.on(
+  "modal-window:resize",
+  (event, data: { width: number; height: number; alwaysOnTop: boolean }) => {
+    if (modalWindow) {
+      modalWindow.setBounds({ width: data.width, height: data.height })
+
+      if (!data.alwaysOnTop && !deviceAccessInterval) {
+        deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
+      }
+
+      if (os.platform() == "darwin") {
+        if (data.alwaysOnTop) {
+          mainWindow.setAlwaysOnTop(true, "screen-saver")
+          modalWindow.setAlwaysOnTop(true, "screen-saver")
+        } else {
+          mainWindow.setAlwaysOnTop(true, "modal-panel")
+          modalWindow.setAlwaysOnTop(true, "modal-panel")
+        }
+      }
+    }
+  }
+)
+
+ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
+  // if (os.platform() == "darwin") {
+  //   if (device == "microphone") {
+  //     exec(
+  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
+  //     )
+  //   }
+
+  //   if (device == "camera") {
+  //     exec(
+  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
+  //     )
+  //   }
+  // }
+  if (os.platform() == "win32") {
+    if (device == "microphone") {
+      exec("start ms-settings:privacy-microphone")
+    }
+
+    if (device == "camera") {
+      exec("start ms-settings:privacy-webcam")
+    }
+
+    if (device == "screen") {
+      exec("start ms-settings:privacy-broadfilesystem")
+    }
+  }
+})
 ipcMain.on("record-settings-change", (event, data) => {
   mainWindow.webContents.send("record-settings-change", data)
 })
@@ -578,15 +840,15 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   dropdownWindowOffsetY = data.offsetY
 
   if (diffX < 0) {
-    dropdownWindow.setBounds({
-      x: modalWindowBounds.x - dropdownWindowBounds.width - gap,
-      y: positionY,
-    })
+    dropdownWindow.setPosition(
+      modalWindowBounds.x - dropdownWindowBounds.width - gap,
+      positionY
+    )
   } else {
-    dropdownWindow.setBounds({
-      x: modalWindowBounds.x + modalWindowBounds.width + gap,
-      y: positionY,
-    })
+    dropdownWindow.setPosition(
+      modalWindowBounds.x + modalWindowBounds.width + gap,
+      positionY
+    )
   }
 
   if (height) {
@@ -620,7 +882,9 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
-  mainWindow.focus()
+  if (modalWindow && modalWindow.isAlwaysOnTop()) {
+    mainWindow.focus()
+  }
 })
 ipcMain.on("invalidate-shadow", (event, data) => {
   if (os.platform() == "darwin") {
@@ -691,7 +955,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
     "/" +
     "library/" +
     uuid
-  shell.openExternal(shared)
+  openExternalLink(shared)
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {

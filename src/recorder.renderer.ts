@@ -562,7 +562,15 @@ import { APIEvents } from "./events/api.events"
         window.electronAPI.ipcRenderer.send("stop-recording", {})
         lastScreenAction = undefined
         controlPanel.classList.remove("is-recording")
-        initRecord(lastStreamSettings)
+        const settings: StreamSettings =
+          lastStreamSettings.action == "cropVideo"
+            ? { ...lastStreamSettings, action: "fullScreenVideo" }
+            : lastStreamSettings
+        initRecord(settings)
+        window.electronAPI.ipcRenderer.send(
+          "modal-window:render",
+          settings.action
+        )
       }
 
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})

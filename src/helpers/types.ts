@@ -1,5 +1,6 @@
 export type ScreenAction = "fullScreenVideo" | "cropVideo" | "cameraOnly"
 export type RecorderState = "recording" | "paused" | "stopped"
+export type MediaDeviceType = "camera" | "microphone" | "screen"
 export interface StreamSettings {
   action: ScreenAction
   audioDeviceId?: string
@@ -39,6 +40,12 @@ export enum SimpleStoreEvents {
 export interface ISimpleStoreData {
   key: string
   value: any
+}
+
+export interface IMediaDevicesAccess {
+  camera: boolean
+  microphone: boolean
+  screen: boolean
 }
 
 export interface IDropdownPageData {

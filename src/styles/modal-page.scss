@@ -40,3 +40,27 @@ body {
   background-color: #d5322f;
   color: var(--light);
 }
+
+.media-device-panel {
+  .icon-access {
+    display: none;
+  }
+
+  &.has-access .icon-access {
+    display: block;
+  }
+  &.has-access .btn {
+    display: none;
+  }
+
+  &.is-disabled {
+    color: var(--gray-600);
+    pointer-events: none;
+  }
+
+  &.is-disabled .btn {
+    border-color: var(--gray-300);
+    background-color: var(--gray-300);
+    color: var(--gray-600);
+  }
+}
