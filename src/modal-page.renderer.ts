@@ -6,11 +6,13 @@ import {
   IDropdownList,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IOrganizationLimits,
   IScreenActionItem,
   ScreenAction,
   SimpleStoreEvents,
   StreamSettings,
 } from "./helpers/types"
+import { APIEvents } from "./events/api.events"
 ;(function () {
   let openedDropdownType: DropdownListType | undefined = undefined
   const audioDeviceContainer = document.querySelector("#audio_device_container")
@@ -279,6 +281,14 @@ import {
 
         openedDropdownType = undefined
         sendSettings()
+      }
+    )
+
+    window.electronAPI.ipcRenderer.on(
+      APIEvents.GET_ORGANIZATION_LIMITS,
+      (event, limits: IOrganizationLimits) => {
+        if (limits.upload_allowed) {
+        }
       }
     )
 

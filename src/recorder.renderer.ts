@@ -573,7 +573,7 @@ import { APIEvents } from "./events/api.events"
     APIEvents.GET_ORGANIZATION_LIMITS,
     (event, limits: IOrganizationLimits) => {
       if (limits.max_upload_duration) {
-        timer = new Timer(timerDisplay, limits.max_upload_duration)
+        timer = new Timer(timerDisplay, limits.max_upload_duration || 0)
       }
 
       if (limits.upload_allowed) {
