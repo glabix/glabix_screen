@@ -651,6 +651,10 @@ function createMenu() {
   tray = new Tray(createTrayIcon())
   tray.setToolTip("Glabix Экран")
 
+  nativeTheme.on("updated", () => {
+    tray.setImage(createTrayIcon())
+  })
+
   tray.on("click", (e) => {
     const state = store.get()
 
