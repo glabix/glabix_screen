@@ -1,4 +1,3 @@
-import "@dotenvx/dotenvx"
 import {
   app,
   BrowserWindow,
@@ -50,6 +49,8 @@ import { openExternalLink } from "./helpers/open-external-link"
 // Optional, initialize the logger for any renderer process
 log.initialize()
 
+const APP_ID = "com.glabix.screen"
+
 let dropdownWindow: BrowserWindow
 let dropdownWindowOffsetY = 0
 let mainWindow: BrowserWindow
@@ -71,6 +72,7 @@ const appState = new AppState()
 const store = new SimpleStore()
 let chunkStorage: ChunkStorageService
 
+app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient("glabix-video-recorder")
 app.commandLine.appendSwitch("force-compositing-mode")
 app.commandLine.appendSwitch("enable-transparent-visuals")
@@ -129,10 +131,11 @@ function appReload() {
 }
 
 function checkForUpdates() {
-  autoUpdater.checkForUpdatesAndNotify({
+  const downloadNotification = {
     title: "Новое обновление готово к установке",
     body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
-  })
+  }
+  autoUpdater.checkForUpdatesAndNotify(downloadNotification)
 }
 
 if (!gotTheLock) {

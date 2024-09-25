@@ -1,8 +1,7 @@
-import { electronAPI, envVars } from "./preload"
+import { electronAPI } from "../preload"
 
 declare global {
   interface Window {
     electronAPI: typeof electronAPI
-    envVars: typeof envVars
   }
 }
