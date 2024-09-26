@@ -629,6 +629,24 @@ function createLoginWindow() {
     showWindows()
   })
 
+  loginWindow.on("hide", () => {
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+  })
+
+  loginWindow.on("show", () => {
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+  })
+
   loginWindow.on("close", (event) => {
     app.quit()
   })
@@ -937,10 +955,6 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(`LOGIN_SUCCESS`, app.isPackaged)
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
-  getOrganizationLimits(
-    tokenStorage.token.access_token,
-    tokenStorage.organizationId
-  )
   loginWindow.hide()
   mainWindow.show()
   modalWindow.show()
