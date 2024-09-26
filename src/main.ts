@@ -969,6 +969,13 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
+
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
   })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
