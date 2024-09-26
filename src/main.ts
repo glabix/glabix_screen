@@ -689,6 +689,10 @@ function createMenu() {
   tray.setToolTip("Glabix Экран")
 
   nativeTheme.on("updated", () => {
+    console.log(
+      "<<<<<<<nativeTheme.shouldUseInvertedColorScheme>>>>>",
+      nativeTheme.shouldUseInvertedColorScheme
+    )
     tray.setImage(createTrayIcon())
   })
 
@@ -926,6 +930,10 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(`LOGIN_SUCCESS`, app.isPackaged)
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
+  getOrganizationLimits(
+    tokenStorage.token.access_token,
+    tokenStorage.organizationId
+  )
   loginWindow.hide()
   mainWindow.show()
   modalWindow.show()
