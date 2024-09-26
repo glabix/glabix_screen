@@ -79,6 +79,18 @@ app.commandLine.appendSwitch("enable-transparent-visuals")
 
 const gotTheLock = app.requestSingleInstanceLock()
 
+function clearAllIntervals() {
+  if (deviceAccessInterval) {
+    clearInterval(deviceAccessInterval)
+    deviceAccessInterval = undefined
+  }
+
+  if (checkForUpdatesInterval) {
+    clearInterval(checkForUpdatesInterval)
+    checkForUpdatesInterval = undefined
+  }
+}
+
 function init(url: string) {
   // Someone tried to run a second instance, we should focus our window.
   if (mainWindow) {
@@ -115,15 +127,7 @@ function init(url: string) {
 
 function appReload() {
   if (app && app.isPackaged) {
-    if (deviceAccessInterval) {
-      clearInterval(deviceAccessInterval)
-      deviceAccessInterval = undefined
-    }
-
-    if (checkForUpdatesInterval) {
-      clearInterval(checkForUpdatesInterval)
-      checkForUpdatesInterval = undefined
-    }
+    clearAllIntervals()
 
     app.relaunch()
     app.exit(0)
@@ -734,6 +738,7 @@ app.on("activate", () => {
 })
 
 app.on("before-quit", () => {
+  clearAllIntervals()
   unregisterShortCuts()
   isAppQuitting = true
 })
