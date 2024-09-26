@@ -112,7 +112,7 @@ function init(url: string) {
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
-    setLog(e, true)
+    setLog(`init ${e}`, app.isPackaged)
   }
 }
 
@@ -172,7 +172,7 @@ if (!gotTheLock) {
       1000 * 60 * 60
     )
 
-    setLog(JSON.stringify(import.meta.env), true)
+    setLog(JSON.stringify(import.meta.env), app.isPackaged)
     // ipcMain.handle(
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
@@ -187,7 +187,7 @@ if (!gotTheLock) {
       }
       createMenu()
     } catch (e) {
-      setLog(e, true)
+      setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
     }
     createWindow()
     chunkStorage.initStorages()
@@ -372,23 +372,23 @@ if (process.defaultApp) {
 }
 
 function checkUnprocessedFiles() {
-  setLog(`check Unprocessed Files`, false)
+  setLog(`check Unprocessed Files`, app.isPackaged)
   if (chunkStorage.hasUnloadedFiles()) {
-    setLog(`chunkStorage has Unloaded Files`, false)
+    setLog(`chunkStorage has Unloaded Files`, app.isPackaged)
     const nextChunk = chunkStorage.getNextChunk()
     if (nextChunk) {
       setLog(
         `Next chunk №${nextChunk.index} by file ${nextChunk.fileUuid}`,
-        false
+        app.isPackaged
       )
       ipcMain.emit(FileUploadEvents.LOAD_FILE_CHUNK, {
         chunk: nextChunk,
       })
     } else {
-      setLog(`No next chunk`, false)
+      setLog(`No next chunk`, app.isPackaged)
     }
   } else {
-    setLog(`No unprocessed files!`, false)
+    setLog(`No unprocessed files!`, app.isPackaged)
   }
 }
 
@@ -924,7 +924,7 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 })
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
-  setLog(`LOGIN_SUCCESS`, false)
+  setLog(`LOGIN_SUCCESS`, app.isPackaged)
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
@@ -932,14 +932,14 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 })
 
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {
-  setLog(`TOKEN_CONFIRMED`, false)
+  setLog(`TOKEN_CONFIRMED`, app.isPackaged)
   const { token, organization_id } = event as IAuthData
   tokenStorage.encryptAuthData({ token, organization_id })
   getCurrentUser(tokenStorage.token.access_token)
 })
 
 ipcMain.on(LoginEvents.USER_VERIFIED, (event) => {
-  setLog(`USER_VERIFIED`, false)
+  setLog(`USER_VERIFIED`, app.isPackaged)
   const user = event as IUser
   appState.set({ ...appState.state, user })
   ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
@@ -952,6 +952,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED, (event, file) => {
   const processedChunks = [...chunksSlicer.allChunks]
   const title = getTitle()
   const fileName = title + ".mp4"
+  setLog(`FileUploadEvents.FILE_CREATED filename: ${fileName}`, true)
   createFileUploadCommand(
     tokenStorage.token.access_token,
     tokenStorage.organizationId,
@@ -965,7 +966,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   const { uuid, chunks } = event
   setLog(
     `File-${uuid} created on server, chunks length ${chunks?.length}`,
-    false
+    app.isPackaged
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
@@ -992,24 +993,33 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
   const typedChunk = chunk as Chunk
   const uuid = typedChunk.fileUuid
   const chunkNumber = typedChunk.index + 1
-  setLog(`Chunk ${chunkNumber} by file-${uuid} start upload`, false)
+  setLog(`Chunk ${chunkNumber} by file-${uuid} start upload`, app.isPackaged)
   const callback = (err, data) => {
     typedChunk.cancelProcess()
     if (!err) {
       chunkStorage
         .removeChunk(typedChunk)
         .then(() => {
-          setLog(`Chunk ${chunkNumber} by file-${uuid} was uploaded`, false)
+          setLog(
+            `Chunk ${chunkNumber} by file-${uuid} was uploaded`,
+            app.isPackaged
+          )
           ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
             uuid,
             chunkNumber,
           })
         })
         .catch((e) => {
-          setLog(e, true)
+          setLog(
+            `FileUploadEvents.LOAD_FILE_CHUNK chunkStorage.removeChunk catch((e): ${e}`,
+            app.isPackaged
+          )
         })
     } else {
-      setLog(err, true)
+      setLog(
+        `FileUploadEvents.LOAD_FILE_CHUNK callback error: ${err}`,
+        app.isPackaged
+      )
     }
   }
   typedChunk.getData().then((data) => {
@@ -1029,7 +1039,7 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
   const { uuid, chunkNumber } = event
   setLog(
     `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`,
-    false
+    app.isPackaged
   )
   checkUnprocessedFiles()
 })
