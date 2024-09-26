@@ -662,9 +662,15 @@ function createTrayIcon(): Electron.NativeImage {
       : "tray-macos-dark.png"
   }
 
-  return nativeImage
+  const icon = nativeImage
     .createFromPath(path.join(__dirname, imagePath))
     .resize({ width: 20, height: 20 })
+
+  if (os.platform() == "darwin") {
+    icon.setTemplateImage(true)
+  }
+
+  return icon
 }
 
 function createMenu() {
