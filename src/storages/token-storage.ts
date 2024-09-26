@@ -4,7 +4,7 @@ import { IAuthData, IJWTToken } from "../helpers/types"
 import { LoginEvents } from "../events/login.events"
 import os from "os"
 import path from "path"
-import { setLog } from "../helpers/set-log"
+import { LogLevel, setLog } from "../helpers/set-log"
 
 export class TokenStorage {
   private _token: IJWTToken | null = null
@@ -45,16 +45,16 @@ export class TokenStorage {
   }
 
   readAuthData(): void {
-    setLog(`Read auth data`, false)
+    setLog(`Read auth data`, LogLevel.DEBUG)
     if (fs.existsSync(this.authDataFileName)) {
       const encryptedDataBuffer = fs.readFileSync(this.authDataFileName)
       const encryptedDataString = safeStorage.decryptString(encryptedDataBuffer)
       const encryptedDataJSON = JSON.parse(encryptedDataString) as IAuthData
       this._token = encryptedDataJSON.token
       this._organizationId = +encryptedDataJSON.organization_id
-      setLog(`authDataFile is exist`, false)
+      setLog(`authDataFile is exist`, LogLevel.DEBUG)
     } else {
-      setLog(`authDataFile is empty`, false)
+      setLog(`authDataFile is empty`, LogLevel.DEBUG)
       this._token = null
       this._organizationId = null
     }
@@ -72,7 +72,7 @@ export class TokenStorage {
   }
 
   reset() {
-    setLog(`Reset auth data`, false)
+    setLog(`Reset auth data`, LogLevel.DEBUG)
     this._token = null
     this._organizationId = null
     if (fs.existsSync(this.authDataFileName)) {

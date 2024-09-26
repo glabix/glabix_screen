@@ -2,18 +2,16 @@ import {
   app,
   BrowserWindow,
   desktopCapturer,
-  session,
-  screen,
+  globalShortcut,
   ipcMain,
-  Tray,
+  MediaAccessPermissionRequest,
   Menu,
   nativeImage,
-  protocol,
-  dialog,
   nativeTheme,
-  globalShortcut,
+  screen,
+  session,
   systemPreferences,
-  MediaAccessPermissionRequest,
+  Tray,
 } from "electron"
 import path from "path"
 import os from "os"
@@ -41,13 +39,13 @@ import { ChunkStorageService } from "./file-uploader/chunk-storage.service"
 import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
-import { setLog } from "./helpers/set-log"
+import { LogLevel, setLog } from "./helpers/set-log"
+
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "./helpers/open-external-link"
-
-// Optional, initialize the logger for any renderer process
-log.initialize()
+import { errorsInterceptor } from "./initializators/interceptor"
+import { loggerInit } from "./initializators/logger.init"
 
 const APP_ID = "com.glabix.screen"
 
@@ -76,6 +74,9 @@ app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient("glabix-video-recorder")
 app.commandLine.appendSwitch("force-compositing-mode")
 app.commandLine.appendSwitch("enable-transparent-visuals")
+
+loggerInit() // init logger
+errorsInterceptor() // init req errors interceptor
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -109,7 +110,7 @@ function init(url: string) {
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
-    setLog(`init ${e}`, app.isPackaged)
+    setLog(LogLevel.ERROR, `init`, e)
   }
 }
 
@@ -169,7 +170,7 @@ if (!gotTheLock) {
       1000 * 60 * 60
     )
 
-    setLog(JSON.stringify(import.meta.env), app.isPackaged)
+    setLog(LogLevel.INFO, "ENVS", JSON.stringify(import.meta.env))
     // ipcMain.handle(
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
@@ -178,11 +179,15 @@ if (!gotTheLock) {
       tokenStorage.readAuthData()
       createMenu()
     } catch (e) {
-      setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
+      setLog(LogLevel.ERROR, "tokenStorage.readAuthData:", e)
     }
     createWindow()
+
     chunkStorage.initStorages()
     checkUnprocessedFiles()
+    setInterval(() => {
+      checkUnprocessedFiles()
+    }, 1000 * 20)
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
@@ -363,23 +368,31 @@ if (process.defaultApp) {
 }
 
 function checkUnprocessedFiles() {
-  setLog(`check Unprocessed Files`, app.isPackaged)
+  setLog(LogLevel.SILLY, `check Unprocessed Files`)
+  const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
+  if (chunkCurrentlyLoading) {
+    setLog(
+      LogLevel.SILLY,
+      `chunkCurrentlyLoading ${chunkCurrentlyLoading.fileUuid} #${chunkCurrentlyLoading.index}`
+    )
+    return
+  }
   if (chunkStorage.hasUnloadedFiles()) {
-    setLog(`chunkStorage has Unloaded Files`, app.isPackaged)
+    setLog(LogLevel.SILLY, `chunkStorage has Unloaded Files`)
     const nextChunk = chunkStorage.getNextChunk()
     if (nextChunk) {
       setLog(
-        `Next chunk №${nextChunk.index} by file ${nextChunk.fileUuid}`,
-        app.isPackaged
+        LogLevel.SILLY,
+        `Next chunk №${nextChunk.index} by file ${nextChunk.fileUuid}`
       )
       ipcMain.emit(FileUploadEvents.LOAD_FILE_CHUNK, {
         chunk: nextChunk,
       })
     } else {
-      setLog(`No next chunk`, app.isPackaged)
+      setLog(LogLevel.SILLY, `No next chunk`)
     }
   } else {
-    setLog(`No unprocessed files!`, app.isPackaged)
+    setLog(LogLevel.SILLY, `No unprocessed files!`)
   }
 }
 
@@ -881,23 +894,15 @@ ipcMain.on("main-window-focus", (event, data) => {
     mainWindow.focus()
   }
 })
+
 ipcMain.on("invalidate-shadow", (event, data) => {
   if (os.platform() == "darwin") {
     mainWindow.invalidateShadow()
   }
 })
 
-ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
-  const { username, password } = credentials
-  // Простой пример проверки логина
-  if (username === "1" && password === "1") {
-  } else {
-    event.reply(LoginEvents.LOGIN_FAILED)
-  }
-})
-
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
-  setLog(`LOGIN_SUCCESS`, app.isPackaged)
+  setLog(LogLevel.SILLY, `LOGIN_SUCCESS`)
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
@@ -905,14 +910,14 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 })
 
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {
-  setLog(`TOKEN_CONFIRMED`, app.isPackaged)
+  setLog(LogLevel.SILLY, `TOKEN_CONFIRMED`)
   const { token, organization_id } = event as IAuthData
   tokenStorage.encryptAuthData({ token, organization_id })
   getCurrentUser(tokenStorage.token.access_token)
 })
 
 ipcMain.on(LoginEvents.USER_VERIFIED, (event) => {
-  setLog(`USER_VERIFIED`, app.isPackaged)
+  setLog(LogLevel.SILLY, `USER_VERIFIED`)
   const user = event as IUser
   appState.set({ ...appState.state, user })
   ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
@@ -925,7 +930,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED, (event, file) => {
   const processedChunks = [...chunksSlicer.allChunks]
   const title = getTitle()
   const fileName = title + ".mp4"
-  setLog(`FileUploadEvents.FILE_CREATED filename: ${fileName}`, true)
+  setLog(LogLevel.INFO, "FILE_CREATED", "FILE_CREATED:", "filename", fileName)
   createFileUploadCommand(
     tokenStorage.token.access_token,
     tokenStorage.organizationId,
@@ -938,8 +943,8 @@ ipcMain.on(FileUploadEvents.FILE_CREATED, (event, file) => {
 ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   const { uuid, chunks } = event
   setLog(
-    `File-${uuid} created on server, chunks length ${chunks?.length}`,
-    app.isPackaged
+    LogLevel.SILLY,
+    `File-${uuid} created on server, chunks length ${chunks?.length}`
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
@@ -959,7 +964,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
   const typedChunk = chunk as Chunk
   const uuid = typedChunk.fileUuid
   const chunkNumber = typedChunk.index + 1
-  setLog(`Chunk ${chunkNumber} by file-${uuid} start upload`, app.isPackaged)
+  setLog(LogLevel.SILLY, `Chunk ${chunkNumber} by file-${uuid} start upload`)
   const callback = (err, data) => {
     typedChunk.cancelProcess()
     if (!err) {
@@ -967,8 +972,8 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
         .removeChunk(typedChunk)
         .then(() => {
           setLog(
-            `Chunk ${chunkNumber} by file-${uuid} was uploaded`,
-            app.isPackaged
+            LogLevel.SILLY,
+            `Chunk ${chunkNumber} by file-${uuid} was uploaded`
           )
           ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
             uuid,
@@ -977,14 +982,16 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
         })
         .catch((e) => {
           setLog(
-            `FileUploadEvents.LOAD_FILE_CHUNK chunkStorage.removeChunk catch((e): ${e}`,
-            app.isPackaged
+            LogLevel.ERROR,
+            `FileUploadEvents.LOAD_FILE_CHUNK chunkStorage.removeChunk catch((e)`,
+            e
           )
         })
     } else {
       setLog(
-        `FileUploadEvents.LOAD_FILE_CHUNK callback error: ${err}`,
-        app.isPackaged
+        LogLevel.ERROR,
+        "FileUploadEvents.LOAD_FILE_CHUNK callback error:",
+        err
       )
     }
   }
@@ -1004,8 +1011,8 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
 ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
   const { uuid, chunkNumber } = event
   setLog(
-    `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`,
-    app.isPackaged
+    LogLevel.SILLY,
+    `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`
   )
   checkUnprocessedFiles()
 })
@@ -1015,5 +1022,5 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 
 ipcMain.on("log", (evt, data) => {
-  console.log(data)
+  setLog(LogLevel.DEBUG, data)
 })

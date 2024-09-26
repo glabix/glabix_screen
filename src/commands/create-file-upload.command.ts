@@ -1,7 +1,9 @@
 import axios from "axios"
 import { ipcMain } from "electron"
 import { FileUploadEvents } from "../events/file-upload.events"
-import { setLog } from "src/helpers/set-log"
+import { LogLevel, setLog } from "../helpers/set-log"
+import log from "electron-log/main"
+
 export function createFileUploadCommand(
   token: string,
   orgId: number,
@@ -15,22 +17,18 @@ export function createFileUploadCommand(
     filename,
     title,
   }
-  setLog(`FileUploadEvents.FILE_CREATED init url: ${url}`, true)
+  setLog(`FileUploadEvents.FILE_CREATED init url: ${url}`, LogLevel.DEBUG)
   axios
-    .post<{ uuid: string }>(
-      url,
-      { ...params },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+    .post<{
+      uuid: string
+    }>(url, { ...params }, { headers: { Authorization: `Bearer ${token}` } })
     .then((res) => {
-      console.log("Создан файл", res.data.uuid, chunks.length)
-      setLog(`FileUploadEvents.FILE_CREATED then(): ${res.data}`, true)
+      setLog(
+        `FileUploadEvents.FILE_CREATED then(): ${res.data}`,
+        LogLevel.DEBUG
+      )
       const uuid = res.data.uuid
       const params = { uuid, chunks }
       ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
-    })
-    .catch((e) => {
-      console.log(e)
-      setLog(`FileUploadEvents.FILE_CREATED catch(e): ${e}`, true)
     })
 }
