@@ -5,6 +5,7 @@ import {
   IDropdownList,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IOrganizationLimits,
   IMediaDevicesAccess,
   IScreenActionItem,
   MediaDeviceType,
@@ -12,8 +13,15 @@ import {
   SimpleStoreEvents,
   StreamSettings,
 } from "./helpers/types"
+import { APIEvents } from "./events/api.events"
+type PageViewType = "modal" | "permissions" | "limits"
 ;(function () {
+  let isAllowRecords = false
   let openedDropdownType: DropdownListType | undefined = undefined
+  const modalContent = document.querySelector(".modal-content")
+  const permissionsContent = document.querySelector(".permissions-content")
+  const limitsContent = document.querySelector(".limits-content")
+
   const audioDeviceContainer = document.querySelector("#audio_device_container")
   const videoDeviceContainer = document.querySelector("#video_device_container")
   const screenActionsList: IDropdownItem[] = [
@@ -220,6 +228,30 @@ import {
     )
   }
 
+  function setPageView(view: PageViewType) {
+    const sections = [modalContent, permissionsContent, limitsContent]
+    const footer = document.querySelector("#footer")
+    sections.forEach((s) => s.setAttribute("hidden", ""))
+    footer.removeAttribute("hidden")
+
+    if (!isAllowRecords) {
+      limitsContent.removeAttribute("hidden")
+      return
+    }
+
+    switch (view) {
+      case "modal":
+        modalContent.removeAttribute("hidden")
+        break
+      case "permissions":
+        permissionsContent.removeAttribute("hidden")
+        break
+      case "limits":
+        limitsContent.removeAttribute("hidden")
+        break
+    }
+  }
+
   // IPC
   window.electronAPI.ipcRenderer.on("app:version", (event, version) => {
     const versionEl = document.querySelector("#app_version")
@@ -229,9 +261,6 @@ import {
   window.electronAPI.ipcRenderer.on(
     "mediaDevicesAccess:get",
     async (event, permissions: IMediaDevicesAccess) => {
-      const modalContent = document.querySelector(".modal-content")
-      const permissionsContent = document.querySelector(".permissions-content")
-
       navigator.mediaDevices.enumerateDevices().then((devices) => {
         hasMicrophone = devices.some((d) => d.kind == "audioinput")
         hasCamera = devices.some((d) => d.kind == "videoinput")
@@ -265,20 +294,15 @@ import {
             width: 430,
             height: 500,
           })
-          modalContent.setAttribute("hidden", "")
-          permissionsContent.removeAttribute("hidden")
+          setPageView("permissions")
         } else {
           window.electronAPI.ipcRenderer.send("modal-window:resize", {
             alwaysOnTop: true,
             width: 300,
             height: 395,
           })
-          modalContent.removeAttribute("hidden")
-          permissionsContent.setAttribute("hidden", "")
+          setPageView("modal")
         }
-
-        const footer = document.querySelector("#footer")
-        footer.removeAttribute("hidden")
       })
     }
   )
@@ -326,7 +350,19 @@ import {
     renderScreenSettings(item)
   })
 
+  window.electronAPI.ipcRenderer.on(
+    APIEvents.GET_ORGANIZATION_LIMITS,
+    (event, limits: IOrganizationLimits) => {
+      isAllowRecords = limits.upload_allowed
+
+      if (!isAllowRecords) {
+        setPageView("permissions")
+      }
+    }
+  )
+
   document.addEventListener("DOMContentLoaded", () => {})
+  const redirectToPlansBtn = document.querySelector("#redirectToPlans")
   const windowsToolbar = document.querySelector(".windows-toolbar")
   const windowsMinimizeBtn = document.querySelector("#windows_minimize")
   const windowsCloseBtn = document.querySelector("#windows_close")
@@ -349,6 +385,17 @@ import {
       if (isWindows) {
         window.electronAPI.ipcRenderer.send("windows:close", {})
       }
+    },
+    false
+  )
+
+  redirectToPlansBtn.addEventListener(
+    "click",
+    () => {
+      window.electronAPI.ipcRenderer.send(
+        "redirect:app",
+        "org/%orgId%/settings/payments"
+      )
     },
     false
   )

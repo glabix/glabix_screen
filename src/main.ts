@@ -28,6 +28,7 @@ import {
   IAuthData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IOrganizationLimits,
   IMediaDevicesAccess,
   ISimpleStoreData,
   IUser,
@@ -42,6 +43,8 @@ import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
+import { getOrganizationLimits } from "./commands/organization-limits.query"
+import { APIEvents } from "./events/api.events"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "./helpers/open-external-link"
@@ -79,6 +82,18 @@ app.commandLine.appendSwitch("enable-transparent-visuals")
 
 const gotTheLock = app.requestSingleInstanceLock()
 
+function clearAllIntervals() {
+  if (deviceAccessInterval) {
+    clearInterval(deviceAccessInterval)
+    deviceAccessInterval = undefined
+  }
+
+  if (checkForUpdatesInterval) {
+    clearInterval(checkForUpdatesInterval)
+    checkForUpdatesInterval = undefined
+  }
+}
+
 function init(url: string) {
   // Someone tried to run a second instance, we should focus our window.
   if (mainWindow) {
@@ -115,15 +130,7 @@ function init(url: string) {
 
 function appReload() {
   if (app && app.isPackaged) {
-    if (deviceAccessInterval) {
-      clearInterval(deviceAccessInterval)
-      deviceAccessInterval = undefined
-    }
-
-    if (checkForUpdatesInterval) {
-      clearInterval(checkForUpdatesInterval)
-      checkForUpdatesInterval = undefined
-    }
+    clearAllIntervals()
 
     app.relaunch()
     app.exit(0)
@@ -176,6 +183,12 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
+      if (tokenStorage.dataIsActual()) {
+        getOrganizationLimits(
+          tokenStorage.token.access_token,
+          tokenStorage.organizationId
+        )
+      }
       createMenu()
     } catch (e) {
       setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
@@ -466,6 +479,14 @@ function createModal(parentWindow) {
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+  })
+  modalWindow.on("show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
@@ -478,6 +499,10 @@ function createModal(parentWindow) {
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
   })
   modalWindow.on("blur", () => {
     // if (modalWindow.isAlwaysOnTop()) {
@@ -604,6 +629,24 @@ function createLoginWindow() {
     showWindows()
   })
 
+  loginWindow.on("hide", () => {
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+  })
+
+  loginWindow.on("show", () => {
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+  })
+
   loginWindow.on("close", (event) => {
     app.quit()
   })
@@ -658,9 +701,15 @@ function createTrayIcon(): Electron.NativeImage {
       : "tray-macos-dark.png"
   }
 
-  return nativeImage
+  const icon = nativeImage
     .createFromPath(path.join(__dirname, imagePath))
     .resize({ width: 20, height: 20 })
+
+  if (os.platform() == "darwin") {
+    icon.setTemplateImage(true)
+  }
+
+  return icon
 }
 
 function createMenu() {
@@ -734,6 +783,7 @@ app.on("activate", () => {
 })
 
 app.on("before-quit", () => {
+  clearAllIntervals()
   unregisterShortCuts()
   isAppQuitting = true
 })
@@ -886,6 +936,12 @@ ipcMain.on("invalidate-shadow", (event, data) => {
     mainWindow.invalidateShadow()
   }
 })
+ipcMain.on("redirect:app", (event, route) => {
+  const url = route.replace("%orgId%", tokenStorage.organizationId)
+  const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
+  openExternalLink(link)
+  hideWindows()
+})
 
 ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
   const { username, password } = credentials
@@ -943,6 +999,13 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
+
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
   })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
@@ -1012,6 +1075,13 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   contextMenu.getMenuItemById("menuLogOutItem").visible = false
+})
+ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
+  const limits = data as IOrganizationLimits
+  console.log("limits", limits)
+  // store.set('limits', limits)
+  mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
 })
 
 ipcMain.on("log", (evt, data) => {
