@@ -64,6 +64,7 @@ let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout
 let checkForUpdatesInterval: NodeJS.Timeout
+let checkOrganizationLimitsInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -87,6 +88,11 @@ function clearAllIntervals() {
   if (deviceAccessInterval) {
     clearInterval(deviceAccessInterval)
     deviceAccessInterval = undefined
+  }
+
+  if (checkOrganizationLimitsInterval) {
+    clearInterval(checkOrganizationLimitsInterval)
+    checkOrganizationLimitsInterval = undefined
   }
 
   if (checkForUpdatesInterval) {
@@ -139,6 +145,7 @@ function appReload() {
 }
 
 function checkOrganizationLimits() {
+  console.log("checkOrganizationLimits")
   if (tokenStorage.dataIsActual()) {
     getOrganizationLimits(
       tokenStorage.token.access_token,
@@ -190,6 +197,10 @@ if (!gotTheLock) {
     try {
       tokenStorage.readAuthData()
       checkOrganizationLimits()
+      checkOrganizationLimitsInterval = setInterval(
+        checkOrganizationLimits,
+        2000
+      )
       createMenu()
     } catch (e) {
       setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
@@ -492,9 +503,13 @@ function createModal(parentWindow) {
     modalWindow.webContents.send("app:version", app.getVersion())
 
     checkOrganizationLimits()
+
     setTimeout(() => {
-      checkOrganizationLimits()
-    }, 500)
+      if (checkOrganizationLimitsInterval) {
+        clearInterval(checkOrganizationLimitsInterval)
+        checkOrganizationLimitsInterval = undefined
+      }
+    }, 3000)
   })
 
   modalWindow.on("blur", () => {})
