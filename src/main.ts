@@ -137,6 +137,15 @@ function appReload() {
   }
 }
 
+function checkOrganizationLimits() {
+  if (tokenStorage.dataIsActual()) {
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
+  }
+}
+
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -179,12 +188,7 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
-      if (tokenStorage.dataIsActual()) {
-        getOrganizationLimits(
-          tokenStorage.token.access_token,
-          tokenStorage.organizationId
-        )
-      }
+      checkOrganizationLimits()
       createMenu()
     } catch (e) {
       setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
@@ -475,12 +479,7 @@ function createModal(parentWindow) {
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    checkOrganizationLimits()
   })
 
   modalWindow.on("show", () => {
@@ -491,15 +490,12 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
 
+    checkOrganizationLimits()
     setTimeout(() => {
-      if (tokenStorage.dataIsActual()) {
-        getOrganizationLimits(
-          tokenStorage.token.access_token,
-          tokenStorage.organizationId
-        )
-      }
-    })
+      checkOrganizationLimits()
+    }, 100)
   })
+
   modalWindow.on("blur", () => {})
 
   modalWindow.on("focus", () => {})
@@ -623,12 +619,7 @@ function createLoginWindow() {
   })
 
   loginWindow.on("hide", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    checkOrganizationLimits()
   })
 
   loginWindow.on("close", (event) => {
@@ -938,12 +929,7 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(`LOGIN_SUCCESS`, app.isPackaged)
-  if (tokenStorage.dataIsActual()) {
-    getOrganizationLimits(
-      tokenStorage.token.access_token,
-      tokenStorage.organizationId
-    )
-  }
+  checkOrganizationLimits()
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
@@ -989,13 +975,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
-
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    checkOrganizationLimits()
   })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
