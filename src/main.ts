@@ -55,7 +55,6 @@ log.initialize()
 const APP_ID = "com.glabix.screen"
 
 let dropdownWindow: BrowserWindow
-let isIgnoreMouseEventsEnable = true
 let dropdownWindowOffsetY = 0
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
@@ -495,7 +494,7 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
     setTimeout(() => {
       checkOrganizationLimits()
-    }, 100)
+    }, 500)
   })
 
   modalWindow.on("blur", () => {})
@@ -771,21 +770,10 @@ app.on("before-quit", () => {
 // ipcMain.on("mediaDevicesAccess:check", (event) => {
 //   watchMediaDevicesAccessChange()
 // })
-ipcMain.on("ignore-mouse-events:toggle", (event, flag) => {
-  // isIgnoreMouseEventsEnable = flag
-  // if (isIgnoreMouseEventsEnable) {
-  //   mainWindow.setIgnoreMouseEvents(true, { forward: true })
-  // } else {
-  //   mainWindow.setIgnoreMouseEvents(false)
-  // }
-})
+
 ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
-  // if (isIgnoreMouseEventsEnable) {
-  // } else {
-  //   win.setIgnoreMouseEvents(false)
-  // }
 })
 
 ipcMain.on("modal-window:render", (event, data) => {

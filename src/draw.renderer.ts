@@ -82,7 +82,6 @@ class Draw {
   private drawStart() {
     if (this.stage) return
 
-    window.electronAPI.ipcRenderer.send("ignore-mouse-events:toggle", false)
     this.drawToggle.classList.add("active")
 
     this.stage = new Konva.Stage({
@@ -178,7 +177,6 @@ class Draw {
 
   private drawEnd() {
     this.drawToggle.classList.remove("active")
-    window.electronAPI.ipcRenderer.send("ignore-mouse-events:toggle", true)
 
     if (this.stage) {
       this.stage.clear()
