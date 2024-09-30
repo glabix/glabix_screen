@@ -77,8 +77,9 @@ let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient("glabix-video-recorder")
-app.commandLine.appendSwitch("force-compositing-mode")
+app.removeAsDefaultProtocolClient("glabix-video-recorder")
 app.commandLine.appendSwitch("enable-transparent-visuals")
+app.commandLine.appendSwitch("disable-software-rasterizer")
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -1081,8 +1082,6 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
-  console.log("limits", limits)
-  // store.set('limits', limits)
   mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
 })
