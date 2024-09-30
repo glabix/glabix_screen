@@ -145,7 +145,6 @@ function appReload() {
 }
 
 function checkOrganizationLimits() {
-  console.log("checkOrganizationLimits")
   if (tokenStorage.dataIsActual()) {
     getOrganizationLimits(
       tokenStorage.token.access_token,
