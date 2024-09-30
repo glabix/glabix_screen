@@ -77,7 +77,6 @@ let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient("glabix-video-recorder")
-app.removeAsDefaultProtocolClient("glabix-video-recorder")
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 
@@ -507,7 +506,14 @@ function createModal(parentWindow) {
     // }
   })
 
-  modalWindow.on("focus", () => {})
+  modalWindow.on("focus", () => {
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+  })
 
   modalWindow.on("close", (event) => {
     if (!isAppQuitting) {
@@ -628,15 +634,6 @@ function createLoginWindow() {
   })
 
   loginWindow.on("hide", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
-  })
-
-  loginWindow.on("show", () => {
     if (tokenStorage.dataIsActual()) {
       getOrganizationLimits(
         tokenStorage.token.access_token,
