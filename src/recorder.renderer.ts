@@ -583,9 +583,6 @@ import { APIEvents } from "./events/api.events"
       if (limits.max_upload_duration) {
         timer = new Timer(timerDisplay, limits.max_upload_duration || 0)
       }
-
-      if (limits.upload_allowed) {
-      }
     }
   )
 })()

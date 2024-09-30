@@ -482,23 +482,21 @@ function createModal(parentWindow) {
       )
     }
   })
-  modalWindow.on("show", () => {
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
-    modalWindow.webContents.send("app:version", app.getVersion())
-  })
+
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
-    getOrganizationLimits(
-      tokenStorage.token.access_token,
-      tokenStorage.organizationId
-    )
+
+    if (tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+    }
+    modalWindow.webContents.send("app:version", app.getVersion())
   })
   modalWindow.on("blur", () => {
     // if (modalWindow.isAlwaysOnTop()) {
@@ -589,7 +587,10 @@ function createDropdownWindow(parentWindow) {
         : modalX + modalBounds.width + gap
     const y = modalY + dropdownWindowOffsetY
 
-    dropdownWindow.setBounds({ width: dropdownWindowWidth })
+    dropdownWindow.setBounds({
+      width: dropdownWindowWidth,
+      height: dropdownBounds.height,
+    })
     dropdownWindow.setPosition(x, y)
     mainWindow.setBounds(screenBounds)
   })
@@ -950,6 +951,12 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(`LOGIN_SUCCESS`, app.isPackaged)
+  if (tokenStorage.dataIsActual()) {
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
+  }
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
