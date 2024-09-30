@@ -168,13 +168,9 @@ if (!gotTheLock) {
     chunkStorage = new ChunkStorageService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
-    autoUpdater.checkForUpdatesAndNotify()
 
     checkForUpdates()
-    checkForUpdatesInterval = setInterval(
-      () => checkForUpdates(),
-      1000 * 60 * 60
-    )
+    checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
 
     setLog(JSON.stringify(import.meta.env), app.isPackaged)
     // ipcMain.handle(
