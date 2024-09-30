@@ -489,31 +489,20 @@ function createModal(parentWindow) {
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
-
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
     modalWindow.webContents.send("app:version", app.getVersion())
-  })
-  modalWindow.on("blur", () => {
-    // if (modalWindow.isAlwaysOnTop()) {
-    //   if (modalWindow.isAlwaysOnTop()) {
-    //     // mainWindow.focus()
-    //   }
-    // }
-  })
 
-  modalWindow.on("focus", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    setTimeout(() => {
+      if (tokenStorage.dataIsActual()) {
+        getOrganizationLimits(
+          tokenStorage.token.access_token,
+          tokenStorage.organizationId
+        )
+      }
+    })
   })
+  modalWindow.on("blur", () => {})
+
+  modalWindow.on("focus", () => {})
 
   modalWindow.on("close", (event) => {
     if (!isAppQuitting) {
