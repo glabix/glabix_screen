@@ -78,9 +78,9 @@ let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient("glabix-video-recorder")
-app.commandLine.appendSwitch("disable-gpu-compositing")
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
+app.commandLine.appendSwitch("disable-gpu-compositing")
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -772,21 +772,20 @@ app.on("before-quit", () => {
 //   watchMediaDevicesAccessChange()
 // })
 ipcMain.on("ignore-mouse-events:toggle", (event, flag) => {
-  isIgnoreMouseEventsEnable = flag
-
-  if (isIgnoreMouseEventsEnable) {
-    mainWindow.setIgnoreMouseEvents(true, { forward: true })
-  } else {
-    mainWindow.setIgnoreMouseEvents(false)
-  }
+  // isIgnoreMouseEventsEnable = flag
+  // if (isIgnoreMouseEventsEnable) {
+  //   mainWindow.setIgnoreMouseEvents(true, { forward: true })
+  // } else {
+  //   mainWindow.setIgnoreMouseEvents(false)
+  // }
 })
 ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
-  if (isIgnoreMouseEventsEnable) {
-    win.setIgnoreMouseEvents(ignore, options)
-  } else {
-    win.setIgnoreMouseEvents(false)
-  }
+  win.setIgnoreMouseEvents(ignore, options)
+  // if (isIgnoreMouseEventsEnable) {
+  // } else {
+  //   win.setIgnoreMouseEvents(false)
+  // }
 })
 
 ipcMain.on("modal-window:render", (event, data) => {

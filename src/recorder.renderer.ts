@@ -250,11 +250,6 @@ import { APIEvents } from "./events/api.events"
   }
 
   const clearView = () => {
-    // const screenOverlay = document.getElementById("__screen__")
-    // if (screenOverlay) {
-    //   screenOverlay.remove()
-    // }
-
     const countdown = document.getElementById("fullscreen_countdown")
     if (countdown) {
       countdown.innerHTML = "3"
