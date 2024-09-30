@@ -262,6 +262,7 @@ function setPanelDraggable() {
       }) => {
         target!.style.left = `${left}px`
         target!.style.top = `${top}px`
+        window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
       }
     )
     .on("dragEnd", ({ target, isDrag, clientX, clientY }) => {
