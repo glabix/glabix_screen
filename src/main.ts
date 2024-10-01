@@ -54,6 +54,7 @@ log.initialize()
 
 const APP_ID = "com.glabix.screen"
 
+let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
 let dropdownWindowOffsetY = 0
 let mainWindow: BrowserWindow
@@ -214,7 +215,15 @@ if (!gotTheLock) {
           .getSources({ types: ["screen"] })
           .then((sources) => {
             // Grant access to the first screen found.
-            callback({ video: sources[0], audio: "loopback" })
+            let screen = sources[0]
+
+            if (activeDisplay) {
+              screen =
+                sources.find((s) => Number(s.display_id) == activeDisplay.id) ||
+                sources[0]
+            }
+
+            callback({ video: screen, audio: "loopback" })
           })
           .catch((error) => {
             if (os.platform() == "darwin") {
@@ -576,9 +585,8 @@ function createDropdownWindow(parentWindow) {
 
   modalWindow.on("move", () => {
     const gap = 20
-    const screenBounds = screen.getDisplayNearestPoint(
-      modalWindow.getBounds()
-    ).bounds
+    activeDisplay = screen.getDisplayNearestPoint(modalWindow.getBounds())
+    const screenBounds = activeDisplay.bounds
     const [modalX, modalY] = modalWindow.getPosition()
     const modalBounds = modalWindow.getBounds()
     const dropdownBounds = dropdownWindow.getBounds()
@@ -820,19 +828,6 @@ ipcMain.on(
 )
 
 ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
-  // if (os.platform() == "darwin") {
-  //   if (device == "microphone") {
-  //     exec(
-  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
-  //     )
-  //   }
-
-  //   if (device == "camera") {
-  //     exec(
-  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
-  //     )
-  //   }
-  // }
   if (os.platform() == "win32") {
     if (device == "microphone") {
       exec("start ms-settings:privacy-microphone")
