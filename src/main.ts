@@ -892,15 +892,22 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 
   dropdownWindow.show()
-  dropdownWindow.webContents.send("dropdown:open", data)
+
+  if (dropdownWindow) {
+    dropdownWindow.webContents.send("dropdown:open", data)
+  }
 })
 
 ipcMain.on("start-recording", (event, data) => {
-  mainWindow.webContents.send("start-recording", data)
+  if (mainWindow) {
+    mainWindow.webContents.send("start-recording", data)
+  }
   modalWindow.hide()
 })
 ipcMain.on("stop-recording", (event, data) => {
-  mainWindow.webContents.send("stop-recording")
+  if (mainWindow) {
+    mainWindow.webContents.send("stop-recording")
+  }
   modalWindow.show()
 })
 ipcMain.on("windows:minimize", (event, data) => {
@@ -913,8 +920,13 @@ ipcMain.on("windows:close", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
-  mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  if (mainWindow) {
+    mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
+
+  if (modalWindow) {
+    modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
@@ -1064,8 +1076,14 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
-  mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
-  modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+
+  if (mainWindow) {
+    mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  }
+
+  if (modalWindow) {
+    modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  }
 })
 
 ipcMain.on("log", (evt, data) => {
