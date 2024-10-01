@@ -17,6 +17,7 @@ import { APIEvents } from "./events/api.events"
 type PageViewType = "modal" | "permissions" | "limits"
 ;(function () {
   let isAllowRecords = false
+  let activePageView: PageViewType
   let openedDropdownType: DropdownListType | undefined = undefined
   const modalContent = document.querySelector(".modal-content")
   const permissionsContent = document.querySelector(".permissions-content")
@@ -233,8 +234,8 @@ type PageViewType = "modal" | "permissions" | "limits"
     const footer = document.querySelector("#footer")
     sections.forEach((s) => s.setAttribute("hidden", ""))
     footer.removeAttribute("hidden")
-
-    if (!isAllowRecords) {
+    activePageView = view
+    if (!isAllowRecords && view != "permissions") {
       limitsContent.removeAttribute("hidden")
       return
     }
@@ -355,8 +356,8 @@ type PageViewType = "modal" | "permissions" | "limits"
     (event, limits: IOrganizationLimits) => {
       isAllowRecords = limits.upload_allowed
 
-      if (!isAllowRecords) {
-        setPageView("permissions")
+      if (!isAllowRecords && activePageView != "permissions") {
+        setPageView("limits")
       }
     }
   )
