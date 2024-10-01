@@ -64,6 +64,7 @@ let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout
 let checkForUpdatesInterval: NodeJS.Timeout
+let checkOrganizationLimitsInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -77,8 +78,9 @@ let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient("glabix-video-recorder")
-app.commandLine.appendSwitch("force-compositing-mode")
 app.commandLine.appendSwitch("enable-transparent-visuals")
+app.commandLine.appendSwitch("disable-software-rasterizer")
+app.commandLine.appendSwitch("disable-gpu-compositing")
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -86,6 +88,11 @@ function clearAllIntervals() {
   if (deviceAccessInterval) {
     clearInterval(deviceAccessInterval)
     deviceAccessInterval = undefined
+  }
+
+  if (checkOrganizationLimitsInterval) {
+    clearInterval(checkOrganizationLimitsInterval)
+    checkOrganizationLimitsInterval = undefined
   }
 
   if (checkForUpdatesInterval) {
@@ -137,6 +144,15 @@ function appReload() {
   }
 }
 
+function checkOrganizationLimits() {
+  if (tokenStorage.dataIsActual()) {
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
+  }
+}
+
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -168,13 +184,9 @@ if (!gotTheLock) {
     chunkStorage = new ChunkStorageService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
-    autoUpdater.checkForUpdatesAndNotify()
 
     checkForUpdates()
-    checkForUpdatesInterval = setInterval(
-      () => checkForUpdates(),
-      1000 * 60 * 60
-    )
+    checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
 
     setLog(JSON.stringify(import.meta.env), app.isPackaged)
     // ipcMain.handle(
@@ -183,12 +195,11 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
-      if (tokenStorage.dataIsActual()) {
-        getOrganizationLimits(
-          tokenStorage.token.access_token,
-          tokenStorage.organizationId
-        )
-      }
+      checkOrganizationLimits()
+      checkOrganizationLimitsInterval = setInterval(
+        checkOrganizationLimits,
+        2000
+      )
       createMenu()
     } catch (e) {
       setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
@@ -479,38 +490,28 @@ function createModal(parentWindow) {
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    checkOrganizationLimits()
   })
-  modalWindow.on("show", () => {
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
-    modalWindow.webContents.send("app:version", app.getVersion())
-  })
+
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
-    getOrganizationLimits(
-      tokenStorage.token.access_token,
-      tokenStorage.organizationId
-    )
+    modalWindow.webContents.send("app:version", app.getVersion())
+
+    checkOrganizationLimits()
+
+    setTimeout(() => {
+      if (checkOrganizationLimitsInterval) {
+        clearInterval(checkOrganizationLimitsInterval)
+        checkOrganizationLimitsInterval = undefined
+      }
+    }, 3000)
   })
-  modalWindow.on("blur", () => {
-    // if (modalWindow.isAlwaysOnTop()) {
-    //   if (modalWindow.isAlwaysOnTop()) {
-    //     // mainWindow.focus()
-    //   }
-    // }
-  })
+
+  modalWindow.on("blur", () => {})
 
   modalWindow.on("focus", () => {})
 
@@ -593,7 +594,10 @@ function createDropdownWindow(parentWindow) {
         : modalX + modalBounds.width + gap
     const y = modalY + dropdownWindowOffsetY
 
-    dropdownWindow.setBounds({ width: dropdownWindowWidth })
+    dropdownWindow.setBounds({
+      width: dropdownWindowWidth,
+      height: dropdownBounds.height,
+    })
     dropdownWindow.setPosition(x, y)
     mainWindow.setBounds(screenBounds)
   })
@@ -630,21 +634,7 @@ function createLoginWindow() {
   })
 
   loginWindow.on("hide", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
-  })
-
-  loginWindow.on("show", () => {
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    checkOrganizationLimits()
   })
 
   loginWindow.on("close", (event) => {
@@ -794,7 +784,8 @@ app.on("before-quit", () => {
 // ipcMain.on("mediaDevicesAccess:check", (event) => {
 //   watchMediaDevicesAccessChange()
 // })
-ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
+
+ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
 })
@@ -954,6 +945,7 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(`LOGIN_SUCCESS`, app.isPackaged)
+  checkOrganizationLimits()
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
@@ -999,13 +991,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
-
-    if (tokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
-      )
-    }
+    checkOrganizationLimits()
   })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
@@ -1078,8 +1064,6 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
-  console.log("limits", limits)
-  // store.set('limits', limits)
   mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
 })

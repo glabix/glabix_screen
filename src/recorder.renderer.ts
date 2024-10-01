@@ -250,10 +250,10 @@ import { APIEvents } from "./events/api.events"
   }
 
   const clearView = () => {
-    // const screenOverlay = document.getElementById("__screen__")
-    // if (screenOverlay) {
-    //   screenOverlay.remove()
-    // }
+    const countdown = document.getElementById("fullscreen_countdown")
+    if (countdown) {
+      countdown.innerHTML = "3"
+    }
 
     const canvasVideo = document.getElementById("__canvas_video_stream__")
     if (canvasVideo) {
@@ -328,6 +328,7 @@ import { APIEvents } from "./events/api.events"
         .on("drag", ({ target, left, top }) => {
           target!.style.left = `${left}px`
           target!.style.top = `${top}px`
+          window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         })
         .on("dragEnd", () => {
           window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -357,6 +358,7 @@ import { APIEvents } from "./events/api.events"
         .on("drag", ({ target, left, top }) => {
           target!.style.left = `${left}px`
           target!.style.top = `${top}px`
+          window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         })
         .on("dragEnd", () => {
           window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -582,9 +584,6 @@ import { APIEvents } from "./events/api.events"
     (event, limits: IOrganizationLimits) => {
       if (limits.max_upload_duration) {
         timer = new Timer(timerDisplay, limits.max_upload_duration || 0)
-      }
-
-      if (limits.upload_allowed) {
       }
     }
   )

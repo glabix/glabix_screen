@@ -14,10 +14,10 @@ export const electronAPI = {
   setIgnoreMouseEvents: (flag: boolean) => {
     if (!flag) {
       isIgnoreMouseEventsFreeze = true
-      ipcRenderer.send("set-ignore-mouse-events", false)
+      ipcRenderer.send("ignore-mouse-events:set", false)
     } else {
       isIgnoreMouseEventsFreeze = false
-      ipcRenderer.send("set-ignore-mouse-events", true, { forward: true })
+      ipcRenderer.send("ignore-mouse-events:set", true, { forward: true })
     }
   },
   startFullScreenRecording: () =>
@@ -45,7 +45,7 @@ window.addEventListener("DOMContentLoaded", () => {
     backdrop.addEventListener(
       "mouseenter",
       (event) => {
-        ipcRenderer.send("set-ignore-mouse-events", true, { forward: true })
+        ipcRenderer.send("ignore-mouse-events:set", true, { forward: true })
       },
       false
     )
@@ -53,7 +53,7 @@ window.addEventListener("DOMContentLoaded", () => {
     backdrop.addEventListener(
       "mouseleave",
       (event) => {
-        ipcRenderer.send("set-ignore-mouse-events", false)
+        ipcRenderer.send("ignore-mouse-events:set", false)
       },
       false
     )
