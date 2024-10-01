@@ -80,6 +80,18 @@ errorsInterceptor() // init req errors interceptor
 
 const gotTheLock = app.requestSingleInstanceLock()
 
+function clearAllIntervals() {
+  if (deviceAccessInterval) {
+    clearInterval(deviceAccessInterval)
+    deviceAccessInterval = undefined
+  }
+
+  if (checkForUpdatesInterval) {
+    clearInterval(checkForUpdatesInterval)
+    checkForUpdatesInterval = undefined
+  }
+}
+
 function init(url: string) {
   // Someone tried to run a second instance, we should focus our window.
   if (mainWindow) {
@@ -116,15 +128,7 @@ function init(url: string) {
 
 function appReload() {
   if (app && app.isPackaged) {
-    if (deviceAccessInterval) {
-      clearInterval(deviceAccessInterval)
-      deviceAccessInterval = undefined
-    }
-
-    if (checkForUpdatesInterval) {
-      clearInterval(checkForUpdatesInterval)
-      checkForUpdatesInterval = undefined
-    }
+    clearAllIntervals()
 
     app.relaunch()
     app.exit(0)
@@ -162,13 +166,9 @@ if (!gotTheLock) {
     chunkStorage = new ChunkStorageService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
-    autoUpdater.checkForUpdatesAndNotify()
 
     checkForUpdates()
-    checkForUpdatesInterval = setInterval(
-      () => checkForUpdates(),
-      1000 * 60 * 60
-    )
+    checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
 
     setLog(LogLevel.INFO, "ENVS", JSON.stringify(import.meta.env))
     // ipcMain.handle(
@@ -671,9 +671,15 @@ function createTrayIcon(): Electron.NativeImage {
       : "tray-macos-dark.png"
   }
 
-  return nativeImage
+  const icon = nativeImage
     .createFromPath(path.join(__dirname, imagePath))
     .resize({ width: 20, height: 20 })
+
+  if (os.platform() == "darwin") {
+    icon.setTemplateImage(true)
+  }
+
+  return icon
 }
 
 function createMenu() {
@@ -747,6 +753,7 @@ app.on("activate", () => {
 })
 
 app.on("before-quit", () => {
+  clearAllIntervals()
   unregisterShortCuts()
   isAppQuitting = true
 })

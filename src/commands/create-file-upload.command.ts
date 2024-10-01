@@ -2,7 +2,6 @@ import axios from "axios"
 import { ipcMain } from "electron"
 import { FileUploadEvents } from "../events/file-upload.events"
 import { LogLevel, setLog } from "../helpers/set-log"
-import log from "electron-log/main"
 
 export function createFileUploadCommand(
   token: string,

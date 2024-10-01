@@ -1,11 +1,6 @@
 name: Build/release
 
-on:
-  push:
-    branches:
-      - main
-      - review
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   release:
@@ -46,8 +41,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_RELEASES_PATH: ${{ secrets.REMOTE_RELEASES_PATH }}
         with:
           # GitHub token, automatically provided to the action
           # (No need to define this secret in the repo settings)
@@ -55,10 +48,3 @@ jobs:
           release: true
           build_script_name: package
           args: --config electron-builder.ts --mac --windows -c.compression=maximum
-
-      - name: Upload to server
-        run: |
-          mkdir -p ~/.ssh
-          echo '${{ secrets.SSH_PRIVATE_KEY }}' > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          scp -r dist/*.dmg dist/*.dmg.blockmap dist/latest-mac.yml dist/nsis-web ${{ secrets.REMOTE_RELEASES_PATH }}
