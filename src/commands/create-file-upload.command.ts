@@ -1,33 +1,44 @@
 import axios from "axios"
-import { ipcMain } from "electron"
-import { FileUploadEvents } from "../events/file-upload.events"
 import { LogLevel, setLog } from "../helpers/set-log"
 
 export function createFileUploadCommand(
   token: string,
   orgId: number,
   filename: string,
-  chunks: Blob[],
-  title: string
+  chunks_count: number,
+  title: string,
+  file_size: number,
+  version: string,
+  callback: (err: null | Error, uuid: string | null) => void
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads`
   const params = {
-    chunks_count: chunks.length,
+    chunks_count,
     filename,
     title,
+    version,
+    file_size,
   }
-  setLog(`FileUploadEvents.FILE_CREATED init url: ${url}`, LogLevel.DEBUG)
+  setLog(LogLevel.SILLY, `Try to create multipart file upload`, url, params)
   axios
     .post<{
       uuid: string
     }>(url, { ...params }, { headers: { Authorization: `Bearer ${token}` } })
-    .then((res) => {
-      setLog(
-        `FileUploadEvents.FILE_CREATED then(): ${res.data}`,
-        LogLevel.DEBUG
-      )
-      const uuid = res.data.uuid
-      const params = { uuid, chunks }
-      ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
+    .then((response) => {
+      if (response.status === 200 || response.status === 201) {
+        const uuid = response.data.uuid
+        callback(null, uuid)
+      } else {
+        callback(
+          new Error(
+            `Failed to create multipart file upload, code ${response.status}`
+          ),
+          null
+        )
+      }
+    })
+    .catch((e) => {
+      callback(e, null)
+      return e
     })
 }

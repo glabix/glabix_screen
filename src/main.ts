@@ -12,6 +12,8 @@ import {
   session,
   systemPreferences,
   Tray,
+  dialog,
+  Notification,
 } from "electron"
 import path from "path"
 import os from "os"
@@ -46,6 +48,9 @@ import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "./helpers/open-external-link"
 import { errorsInterceptor } from "./initializators/interceptor"
 import { loggerInit } from "./initializators/logger.init"
+import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed-files.service"
+import { version } from "vite"
+import { getVersion } from "./helpers/get-version"
 
 const APP_ID = "com.glabix.screen"
 
@@ -59,6 +64,8 @@ let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout
 let checkForUpdatesInterval: NodeJS.Timeout
+let checkUnloadedChunksInterval: NodeJS.Timeout
+let checkUnprocessedFilesInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -68,6 +75,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 const tokenStorage = new TokenStorage()
 const appState = new AppState()
 const store = new SimpleStore()
+let unprocessedFilesService: UnprocessedFilesService
 let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
@@ -79,6 +87,7 @@ loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor
 
 const gotTheLock = app.requestSingleInstanceLock()
+let lastCreatedFileName: string | null = null
 
 function clearAllIntervals() {
   if (deviceAccessInterval) {
@@ -89,6 +98,16 @@ function clearAllIntervals() {
   if (checkForUpdatesInterval) {
     clearInterval(checkForUpdatesInterval)
     checkForUpdatesInterval = undefined
+  }
+
+  if (checkUnloadedChunksInterval) {
+    clearInterval(checkUnloadedChunksInterval)
+    checkUnloadedChunksInterval = undefined
+  }
+
+  if (checkUnprocessedFilesInterval) {
+    clearInterval(checkUnprocessedFilesInterval)
+    checkUnprocessedFilesInterval = undefined
   }
 }
 
@@ -164,6 +183,7 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     chunkStorage = new ChunkStorageService()
+    unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
 
@@ -184,10 +204,14 @@ if (!gotTheLock) {
     createWindow()
 
     chunkStorage.initStorages()
+    checkUnprocessedChunks()
     checkUnprocessedFiles()
-    setInterval(() => {
+    checkUnprocessedFilesInterval = setInterval(() => {
+      checkUnprocessedChunks()
+    }, 1000 * 30)
+    checkUnprocessedFilesInterval = setInterval(() => {
       checkUnprocessedFiles()
-    }, 1000 * 20)
+    }, 1000 * 60)
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
@@ -368,7 +392,27 @@ if (process.defaultApp) {
 }
 
 function checkUnprocessedFiles() {
-  setLog(LogLevel.SILLY, `check Unprocessed Files`)
+  //todo
+  setLog(LogLevel.SILLY, `check unprocessed files`)
+  if (unprocessedFilesService.isProcessedNowFileName) {
+    setLog(LogLevel.SILLY, `File is processed now!`)
+    return
+  }
+  unprocessedFilesService
+    .getFirstFileName()
+    .then((firstUnprocessedFileName) => {
+      if (firstUnprocessedFileName) {
+        setLog(LogLevel.SILLY, `unprocessed file is`, firstUnprocessedFileName)
+        ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, {
+          rawFileName: firstUnprocessedFileName,
+        })
+      }
+    })
+}
+
+function checkUnprocessedChunks() {
+  setLog(LogLevel.SILLY, `check Unprocessed Chunks`)
+
   const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
   if (chunkCurrentlyLoading) {
     setLog(
@@ -392,7 +436,7 @@ function checkUnprocessedFiles() {
       setLog(LogLevel.SILLY, `No next chunk`)
     }
   } else {
-    setLog(LogLevel.SILLY, `No unprocessed files!`)
+    setLog(LogLevel.SILLY, `No unprocessed chunks!`)
   }
 }
 
@@ -930,31 +974,74 @@ ipcMain.on(LoginEvents.USER_VERIFIED, (event) => {
   ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
 })
 
-ipcMain.on(FileUploadEvents.FILE_CREATED, (event, file) => {
-  const blob = new Blob([file], { type: "video/webm" })
-  const size = 10 * 1024 * 1024
-  const chunksSlicer = new ChunkSlicer(blob, size)
-  const processedChunks = [...chunksSlicer.allChunks]
-  const title = getTitle()
-  const fileName = title + ".mp4"
-  setLog(LogLevel.INFO, "FILE_CREATED", "FILE_CREATED:", "filename", fileName)
-  createFileUploadCommand(
-    tokenStorage.token.access_token,
-    tokenStorage.organizationId,
-    fileName,
-    processedChunks,
-    title
-  )
+ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
+  const blob = new Blob([file], { type: "video/mp4" })
+  unprocessedFilesService
+    .saveFileWithStreams(blob, Date.now() + "")
+    .then((rawFileName) => {
+      lastCreatedFileName = rawFileName
+      ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
+    })
+})
+
+ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
+  setLog(LogLevel.SILLY, `Try to create multipart upload on server`)
+  const { rawFileName: timestampRawFileName } = event
+
+  console.log("event", event)
+  unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
+  unprocessedFilesService.getFile(timestampRawFileName).then((file) => {
+    if (file) {
+      const appVersion = getVersion()
+      const fileSize = file.length
+      const size = 10 * 1024 * 1024
+      const chunksSlicer = new ChunkSlicer(file, size)
+      const chunks = [...chunksSlicer.allChunks]
+      const title = getTitle(timestampRawFileName)
+      const fileName = title + ".mp4"
+      const callback = (err, uuid: string) => {
+        if (!err) {
+          const params = { uuid, chunks, rawFileName: timestampRawFileName }
+          console.log(params)
+          setLog(LogLevel.SILLY, `Create multipart file upload SUCCESS`, uuid)
+          ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
+        } else {
+          setLog(
+            LogLevel.ERROR,
+            "FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR callback error:",
+            err
+          )
+          const params = { filename: fileName, fileChunks: [...chunks] }
+          ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
+        }
+      }
+      createFileUploadCommand(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId,
+        fileName,
+        chunks.length,
+        title,
+        fileSize,
+        appVersion,
+        callback
+      )
+    }
+  })
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
-  const { uuid, chunks } = event
+  const { uuid, chunks, rawFileName } = event
   setLog(
     LogLevel.SILLY,
     `File-${uuid} created on server, chunks length ${chunks?.length}`
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
-    checkUnprocessedFiles()
+    unprocessedFilesService.deleteFile(rawFileName).then(() => {
+      unprocessedFilesService.isProcessedNowFileName = null
+      checkUnprocessedFiles()
+      checkUnprocessedChunks()
+      // todo
+    })
   })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
@@ -963,7 +1050,24 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
     "/" +
     "library/" +
     uuid
-  openExternalLink(shared)
+  if (lastCreatedFileName === rawFileName) {
+    openExternalLink(shared)
+  } else {
+    if (Notification.isSupported()) {
+      const notification = new Notification({
+        body: `Запись экрана ${getTitle(rawFileName)} загружается на на сервер, и будет доступна для просмотра после обработки. Нажмите на уведомление, чтобы открыть в браузере`,
+      })
+      notification.show()
+      notification.on("click", () => {
+        // Открываем ссылку в браузере
+        openExternalLink(shared)
+      })
+      setTimeout(() => {
+        notification.close() // Закрытие уведомления через 5 секунд
+      }, 5000) // 5000 миллисекунд = 5 секунд
+    }
+  }
+  lastCreatedFileName = null
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
@@ -1015,13 +1119,27 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
   })
 })
 
+ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event) => {
+  const { filename, fileChunks } = event
+  if (lastCreatedFileName === rawFileName) {
+    dialog.showMessageBox(mainWindow, {
+      type: "error",
+      title: "Ошибка. Не удалось загрузить файл на сервер",
+      message:
+        "Загрузка файла будет повторяться в фоновом процессе, пока он не будет отправлен на сервер. Как только файл будет загружен, вы увидите его в своей библиотеке.",
+    })
+  }
+
+  unprocessedFilesService.isProcessedNowFileName = null
+})
+
 ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
   const { uuid, chunkNumber } = event
   setLog(
     LogLevel.SILLY,
     `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`
   )
-  checkUnprocessedFiles()
+  checkUnprocessedChunks()
 })
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {

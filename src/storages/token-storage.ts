@@ -45,16 +45,16 @@ export class TokenStorage {
   }
 
   readAuthData(): void {
-    setLog(`Read auth data`, LogLevel.DEBUG)
+    setLog(LogLevel.SILLY, `Read auth data`)
     if (fs.existsSync(this.authDataFileName)) {
       const encryptedDataBuffer = fs.readFileSync(this.authDataFileName)
       const encryptedDataString = safeStorage.decryptString(encryptedDataBuffer)
       const encryptedDataJSON = JSON.parse(encryptedDataString) as IAuthData
       this._token = encryptedDataJSON.token
       this._organizationId = +encryptedDataJSON.organization_id
-      setLog(`authDataFile is exist`, LogLevel.DEBUG)
+      setLog(LogLevel.SILLY, `authDataFile is exist`)
     } else {
-      setLog(`authDataFile is empty`, LogLevel.DEBUG)
+      setLog(LogLevel.SILLY, `authDataFile is empty`)
       this._token = null
       this._organizationId = null
     }
@@ -72,7 +72,7 @@ export class TokenStorage {
   }
 
   reset() {
-    setLog(`Reset auth data`, LogLevel.DEBUG)
+    setLog(LogLevel.DEBUG, "Reset auth data")
     this._token = null
     this._organizationId = null
     if (fs.existsSync(this.authDataFileName)) {

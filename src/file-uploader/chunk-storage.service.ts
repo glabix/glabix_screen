@@ -39,34 +39,29 @@ export class ChunkStorageService {
   }
 
   hasUnloadedFiles(): boolean {
+    console.log("this._storages", this._storages)
     return !!this._storages.flatMap((s) => s.chunks).find((c) => !c.processed)
   }
 
-  addStorage(chunkBlobs: Blob[], fileUuid: string): Promise<void> {
+  addStorage(chunks: Buffer[], fileUuid: string): Promise<void> {
     const dirPath = path.join(this.mainPath, fileUuid)
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath)
     }
 
-    const processChunk = (blob: Blob, i: number): Promise<Chunk> => {
+    const processChunk = (data: Buffer, i: number): Promise<Chunk> => {
       return new Promise<Chunk>((resolve, reject) => {
-        blob
-          .arrayBuffer()
-          .then((data) => {
-            const buffer = Buffer.from(data)
-            this.writeChunk(i, fileUuid, buffer)
-              .then((path) => {
-                const chunk = new Chunk(blob.size, fileUuid, i, path)
-                resolve(chunk)
-              })
-              .catch((e) => reject(e))
+        this.writeChunk(i, fileUuid, data)
+          .then((path) => {
+            const chunk = new Chunk(data.byteLength, fileUuid, i, path)
+            resolve(chunk)
           })
           .catch((e) => reject(e))
       })
     }
 
     return new Promise<void>((resolve, reject) => {
-      const chunksPromises = chunkBlobs.map((c, i) => processChunk(c, i))
+      const chunksPromises = chunks.map((c, i) => processChunk(c, i))
       Promise.all(chunksPromises)
         .then((chunks) => {
           this._storages.push(new ChunksStorage(fileUuid, chunks))
