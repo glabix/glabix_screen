@@ -294,10 +294,10 @@ import { APIEvents } from "./events/api.events"
     }
   }
 
-  const initView = (settings: StreamSettings) => {
+  const initView = (settings: StreamSettings, force?: boolean) => {
     clearCameraOnlyVideoStream()
 
-    if (lastScreenAction == settings.action) {
+    if (lastScreenAction == settings.action && !force) {
       return
     }
 
@@ -454,14 +454,6 @@ import { APIEvents } from "./events/api.events"
     }
   )
 
-  // window.electronAPI.ipcRenderer.on(
-  //   "record-settings-change",
-  //   (event, data: StreamSettings) => {
-  //     lastStreamSettings = data
-  //     initRecord(data)
-  //   }
-  // )
-
   window.electronAPI.ipcRenderer.on(
     "start-recording",
     (event, data: StreamSettings) => {
@@ -480,7 +472,7 @@ import { APIEvents } from "./events/api.events"
             window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
             setTimeout(() => {
               startRecording()
-            }, 50)
+            }, 80)
           } else {
             countdown.innerHTML = `${timeleft}`
             window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -587,4 +579,14 @@ import { APIEvents } from "./events/api.events"
       }
     }
   )
+  window.electronAPI.ipcRenderer.on("screen:change", (event) => {
+    if (lastStreamSettings.action == "cropVideo") {
+      initView(lastStreamSettings, true)
+      initRecord(lastStreamSettings)
+      window.electronAPI.ipcRenderer.send(
+        "log",
+        `!!!!!lastStreamSettings: ${JSON.stringify(lastStreamSettings)}`
+      )
+    }
+  })
 })()
