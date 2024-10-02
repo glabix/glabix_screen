@@ -798,6 +798,11 @@ ipcMain.on("modal-window:render", (event, data) => {
     modalWindow.webContents.send("modal-window:render", data)
   }
 })
+ipcMain.on("modal-window:open", (event, data) => {
+  if (modalWindow) {
+    modalWindow.show()
+  }
+})
 
 ipcMain.on(
   "modal-window:resize",
