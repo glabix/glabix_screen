@@ -497,9 +497,11 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:hide")
     modalWindow.webContents.send("modal-window:hide")
     dropdownWindow.hide()
+    checkOrganizationLimits()
   })
   modalWindow.on("ready-to-show", () => {
     checkOrganizationLimits()
+    modalWindow.webContents.send("app:version", app.getVersion())
   })
 
   modalWindow.on("show", () => {
@@ -583,30 +585,20 @@ function createDropdownWindow(parentWindow) {
     )
   }
 
+  dropdownWindow.on("hide", () => {
+    modalWindow.webContents.send("dropdown:hide", {})
+  })
+
   modalWindow.on("move", () => {
-    const gap = 20
-    activeDisplay = screen.getDisplayNearestPoint(modalWindow.getBounds())
+    const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
+
+    if (activeDisplay && activeDisplay.id != currentScreen.id) {
+      mainWindow.webContents.send("screen:change", {})
+    }
+
+    activeDisplay = currentScreen
     const screenBounds = activeDisplay.bounds
-    const [modalX, modalY] = modalWindow.getPosition()
-    const modalBounds = modalWindow.getBounds()
-    const dropdownBounds = dropdownWindow.getBounds()
-    const dropdownWindowWidth = 300
-
-    const positionRight =
-      modalBounds.x + modalBounds.width + dropdownBounds.width + gap
-    const diffX = screenBounds.width - positionRight
-
-    const x =
-      diffX < 0
-        ? modalX - dropdownWindowWidth - gap
-        : modalX + modalBounds.width + gap
-    const y = modalY + dropdownWindowOffsetY
-
-    dropdownWindow.setBounds({
-      width: dropdownWindowWidth,
-      height: dropdownBounds.height,
-    })
-    dropdownWindow.setPosition(x, y)
+    dropdownWindow.hide()
     mainWindow.setBounds(screenBounds)
   })
 }
@@ -748,10 +740,7 @@ function createMenu() {
       label: "Выйти из аккаунта",
       visible: tokenStorage.dataIsActual(),
       click: () => {
-        tokenStorage.reset()
-        mainWindow.hide()
-        modalWindow.hide()
-        loginWindow.show()
+        logOut()
       },
     },
     {
@@ -763,6 +752,12 @@ function createMenu() {
   ])
 }
 
+function logOut() {
+  tokenStorage.reset()
+  mainWindow.hide()
+  modalWindow.hide()
+  loginWindow.show()
+}
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
@@ -857,7 +852,9 @@ ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   const dropdownWindowBounds = dropdownWindow.getBounds()
   const modalWindowBounds = modalWindow.getBounds()
-  const screenBounds = screen.getPrimaryDisplay().bounds
+  const screenBounds = screen.getDisplayNearestPoint(
+    modalWindow.getBounds()
+  ).bounds
   const gap = 20
   const itemHeight = 48
   const height = data.list.items.length * itemHeight
@@ -865,7 +862,8 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
     modalWindowBounds.x +
     modalWindowBounds.width +
     dropdownWindowBounds.width +
-    gap
+    gap -
+    screenBounds.x
   const positionY = modalWindowBounds.y + data.offsetY
   const diffX = screenBounds.width - positionRight
   dropdownWindowOffsetY = data.offsetY
@@ -939,6 +937,10 @@ ipcMain.on("redirect:app", (event, route) => {
   const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
   openExternalLink(link)
   hideWindows()
+})
+
+ipcMain.on("app:logout", (event) => {
+  logOut()
 })
 
 ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {

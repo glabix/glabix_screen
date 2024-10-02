@@ -343,6 +343,11 @@ type PageViewType = "modal" | "permissions" | "limits"
   window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
     openedDropdownType = undefined
   })
+
+  window.electronAPI.ipcRenderer.on("dropdown:hide", (event) => {
+    openedDropdownType = undefined
+  })
+
   window.electronAPI.ipcRenderer.on("modal-window:render", (event, action) => {
     const item = screenActionsList.find((i) => i.id == action)
     activeScreenAction = action
