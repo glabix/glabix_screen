@@ -241,7 +241,6 @@ if (!gotTheLock) {
       logSender.sendLog("user.read_auth_data")
       tokenStorage.readAuthData()
       logSender.sendLog("user.read_auth_data.success")
-      logSender.sendLog("app.started")
       createMenu()
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", JSON.stringify({ e }), e)
