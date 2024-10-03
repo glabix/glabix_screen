@@ -56,6 +56,17 @@
     border-color: var(--gray-600);
   }
 
+  &--invert {
+    background-color: transparent;
+    border-color: var(--light);
+    color: var(--light);
+  }
+
+  &--invert:hover {
+    background-color: var(--light);
+    color: var(--dark);
+  }
+
   &--sm {
     height: 2rem;
     padding: 0 0.75rem;

@@ -110,6 +110,14 @@
     <div class="crop-screen-container" hidden>
       <div id="crop_video_screen" class="screen-recorder-container">
         <canvas></canvas>
+        <div class="microphone-alert-container">
+          <div class="microphone-alert">
+            <div class="microphone-alert-icon">
+              <i class="i i--lg i-microphone-slash"></i>
+            </div>
+            <div>Запись будет производиться без вашего голоса</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -158,11 +166,35 @@
           </button>
         </div>
       </div>
+      <div class="microphone-alert-container">
+        <div class="microphone-alert">
+          <div class="microphone-alert-icon">
+            <i class="i i--lg i-microphone-slash"></i>
+          </div>
+          <div>Запись будет производиться без вашего голоса</div>
+        </div>
+      </div>
     </div>
 
     <div class="fullscreen-countdown-container" hidden>
       <div class="fullscreen-countdown">
-        <div id="fullscreen_countdown">3</div>
+        <div id="fullscreen_countdown" class="fullscreen-countdown-text">3</div>
+        <div>
+          <button
+            id="cancelBtn"
+            class="btn btn--invert btn--sm fullscreen-countdown-btn"
+          >
+            Отмена
+          </button>
+        </div>
+        <div class="microphone-alert-container mt-2">
+          <div class="microphone-alert">
+            <div class="microphone-alert-icon">
+              <i class="i i--lg i-microphone-slash"></i>
+            </div>
+            <div>Запись будет производиться без вашего голоса</div>
+          </div>
+        </div>
       </div>
     </div>
 

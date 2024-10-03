@@ -12,12 +12,18 @@ import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "./events/file-upload.events"
 import { APIEvents } from "./events/api.events"
 ;(function () {
+  const countdownContainer = document.querySelector(
+    ".fullscreen-countdown-container"
+  )
+  const countdown = document.querySelector("#fullscreen_countdown")
+  let startTimer: NodeJS.Timeout
   const timerDisplay = document.getElementById(
     "timerDisplay"
   ) as HTMLButtonElement
   const controlPanel = document.querySelector(".panel-wrapper")
   let timer = new Timer(timerDisplay, 0)
   const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement
+  const cancelBtn = document.getElementById("cancelBtn") as HTMLButtonElement
   const pauseBtn = document.getElementById("pauseBtn") as HTMLButtonElement
   const resumeBtn = document.getElementById("resumeBtn") as HTMLButtonElement
   const changeCameraOnlySizeBtn = document.querySelectorAll(
@@ -36,6 +42,16 @@ import { APIEvents } from "./events/api.events"
       videoRecorder = undefined
 
       clearView()
+    }
+  }
+
+  function cancelRecording() {
+    if (startTimer) {
+      clearInterval(startTimer)
+      initView(lastStreamSettings, true)
+      initRecord(lastStreamSettings)
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+      window.electronAPI.ipcRenderer.send("modal-window:open", {})
     }
   }
 
@@ -59,6 +75,9 @@ import { APIEvents } from "./events/api.events"
 
   stopBtn.addEventListener("click", () => {
     stopRecording()
+  })
+  cancelBtn.addEventListener("click", () => {
+    cancelRecording()
   })
 
   resumeBtn.addEventListener("click", () => {
@@ -254,6 +273,9 @@ import { APIEvents } from "./events/api.events"
     if (countdown) {
       countdown.innerHTML = "3"
     }
+    if (countdownContainer) {
+      countdownContainer.setAttribute("hidden", "")
+    }
 
     const canvasVideo = document.getElementById("__canvas_video_stream__")
     if (canvasVideo) {
@@ -293,9 +315,17 @@ import { APIEvents } from "./events/api.events"
       stream.getTracks().forEach((track) => track.stop())
     }
   }
+  const setNoMicrophoneAlerts = (settings) => {
+    if (!settings.audioDeviceId) {
+      document.body.classList.add("no-microphone")
+    } else {
+      document.body.classList.remove("no-microphone")
+    }
+  }
 
   const initView = (settings: StreamSettings, force?: boolean) => {
     clearCameraOnlyVideoStream()
+    setNoMicrophoneAlerts(settings)
 
     if (lastScreenAction == settings.action && !force) {
       return
@@ -458,13 +488,9 @@ import { APIEvents } from "./events/api.events"
     "start-recording",
     (event, data: StreamSettings) => {
       if (data.action == "fullScreenVideo") {
-        const countdownContainer = document.querySelector(
-          ".fullscreen-countdown-container"
-        )
-        const countdown = document.querySelector("#fullscreen_countdown")
         countdownContainer.removeAttribute("hidden")
         let timeleft = 2
-        const startTimer = setInterval(function () {
+        startTimer = setInterval(function () {
           if (timeleft <= 0) {
             clearInterval(startTimer)
             countdownContainer.setAttribute("hidden", "")
@@ -583,10 +609,6 @@ import { APIEvents } from "./events/api.events"
     if (lastStreamSettings.action == "cropVideo") {
       initView(lastStreamSettings, true)
       initRecord(lastStreamSettings)
-      window.electronAPI.ipcRenderer.send(
-        "log",
-        `!!!!!lastStreamSettings: ${JSON.stringify(lastStreamSettings)}`
-      )
     }
   })
 })()
