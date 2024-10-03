@@ -594,6 +594,7 @@ function createModal(parentWindow) {
       if (checkOrganizationLimitsInterval) {
         clearInterval(checkOrganizationLimitsInterval)
         checkOrganizationLimitsInterval = undefined
+      } else {
       }
     }, 3000)
   })
@@ -1057,11 +1058,18 @@ ipcMain.on("app:logout", (event) => {
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(LogLevel.SILLY, `LOGIN_SUCCESS`)
-  checkOrganizationLimits()
-  contextMenu.getMenuItemById("menuLogOutItem").visible = true
-  loginWindow.hide()
-  mainWindow.show()
-  modalWindow.show()
+
+  if (app.isPackaged) {
+    appReload()
+  } else {
+    contextMenu.getMenuItemById("menuLogOutItem").visible = true
+    loginWindow.hide()
+
+    setTimeout(() => {
+      mainWindow.show()
+      modalWindow.show()
+    })
+  }
 })
 
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {
