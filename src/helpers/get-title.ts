@@ -1,9 +1,8 @@
-export function getTitle() {
-  // Создаем объект текущей даты и времени
-  const currentDate = new Date()
+export function getTitle(ts = Date.now()) {
+  const date = new Date(+ts)
 
-  // Определяем массив с именами месяцев на русском языке
-  const monthNames = [
+  // Массивы для месяцев и дней
+  const months = [
     "января",
     "февраля",
     "марта",
@@ -18,18 +17,8 @@ export function getTitle() {
     "декабря",
   ]
 
-  // Получаем день, месяц, год, часы и минуты
-  const day = currentDate.getDate()
-  const month = monthNames[currentDate.getMonth()]
-  const year = currentDate.getFullYear()
-  const hours = currentDate.getHours()
-  const minutes = currentDate.getMinutes()
-
-  // Добавляем ведущий ноль к минутам, если это необходимо
-  const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes
-
-  // Форматируем дату и время
-  const formattedDateTime = `${day} ${month} ${year}, ${hours}:${formattedMinutes}`
-  const prefix = "Экран — "
-  return prefix + formattedDateTime
+  const options = { hour: "2-digit", minute: "2-digit", hour12: false }
+  const dateString = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+  const timeString = date.toLocaleTimeString("ru-RU", options)
+  return `Экран — ${dateString}, ${timeString}`
 }

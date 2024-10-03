@@ -1,6 +1,4 @@
 import axios from "axios"
-import { ipcMain } from "electron"
-import { FileUploadEvents } from "../events/file-upload.events"
 
 export function uploadFileChunkCommand(
   token: string,
@@ -25,12 +23,9 @@ export function uploadFileChunkCommand(
         callback(null, null)
       } else {
         callback(new Error("Failed to upload chunk ${chunkNumber}"), null)
-        console.log(new Error("Failed to upload chunk ${chunkNumber}"), null)
-        // console.error(`Failed to upload chunk ${chunkNumber}`, response)
       }
     })
     .catch((e) => {
       callback(e, null)
-      // console.error(`Error uploading chunk ${chunkNumber}:`, e)
     })
 }

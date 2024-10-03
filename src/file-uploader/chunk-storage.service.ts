@@ -4,7 +4,7 @@ import { ChunksStorage } from "./chunk-storage"
 import { Chunk } from "./chunk"
 import os from "os"
 import { app } from "electron"
-import { setLog } from "../helpers/set-log"
+import { LogLevel, setLog } from "../helpers/set-log"
 
 export class ChunkStorageService {
   _storages: ChunksStorage[] = []
@@ -25,44 +25,43 @@ export class ChunkStorageService {
           "chunks_storage"
         )
   currentProcessedStorage: ChunksStorage
-  IsLoadedNow = false
+  get chunkCurrentlyLoading(): Chunk | null {
+    return this._storages
+      .flatMap((s) => s.chunks)
+      .find((chunk) => chunk.processed)
+  }
 
   constructor() {
     const pathh = path.join(this.mainPath)
     if (!fs.existsSync(pathh)) {
-      fs.mkdirSync(pathh)
+      fs.mkdirSync(pathh, { recursive: true })
     }
   }
 
   hasUnloadedFiles(): boolean {
+    console.log("this._storages", this._storages)
     return !!this._storages.flatMap((s) => s.chunks).find((c) => !c.processed)
   }
 
-  addStorage(chunkBlobs: Blob[], fileUuid: string): Promise<void> {
+  addStorage(chunks: Buffer[], fileUuid: string): Promise<void> {
     const dirPath = path.join(this.mainPath, fileUuid)
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath)
     }
 
-    const processChunk = (blob: Blob, i: number): Promise<Chunk> => {
+    const processChunk = (data: Buffer, i: number): Promise<Chunk> => {
       return new Promise<Chunk>((resolve, reject) => {
-        blob
-          .arrayBuffer()
-          .then((data) => {
-            const buffer = Buffer.from(data)
-            this.writeChunk(i, fileUuid, buffer)
-              .then((path) => {
-                const chunk = new Chunk(blob.size, fileUuid, i, path)
-                resolve(chunk)
-              })
-              .catch((e) => reject(e))
+        this.writeChunk(i, fileUuid, data)
+          .then((path) => {
+            const chunk = new Chunk(data.byteLength, fileUuid, i, path)
+            resolve(chunk)
           })
           .catch((e) => reject(e))
       })
     }
 
     return new Promise<void>((resolve, reject) => {
-      const chunksPromises = chunkBlobs.map((c, i) => processChunk(c, i))
+      const chunksPromises = chunks.map((c, i) => processChunk(c, i))
       Promise.all(chunksPromises)
         .then((chunks) => {
           this._storages.push(new ChunksStorage(fileUuid, chunks))
@@ -92,7 +91,7 @@ export class ChunkStorageService {
         this.readChunksFromDirectorySync(dirPath)
       }
     } catch (err) {
-      setLog(err, true)
+      setLog(LogLevel.ERROR, err)
     }
   }
 
@@ -116,20 +115,20 @@ export class ChunkStorageService {
             filePath
           )
           chunks.push(chunk)
-          setLog(`chunk: ${filePath}: , ${fileContent.length}`, false)
+          setLog(LogLevel.DEBUG, `chunk: ${filePath}: , ${fileContent.length}`)
         } else {
-          setLog(`unknown chunk name ${filePath}`, true)
+          setLog(LogLevel.ERROR, `unknown chunk name ${filePath}`)
         }
       }
       if (chunks.length) {
         this._storages.push(new ChunksStorage(dirName, chunks))
       } else {
         this.rmdirStorage(dirName).catch((err) => {
-          setLog(err, true)
+          setLog(LogLevel.ERROR, err)
         })
       }
     } catch (err) {
-      setLog(err, true)
+      setLog(LogLevel.ERROR, err)
     }
   }
 

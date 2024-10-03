@@ -194,7 +194,7 @@ import { APIEvents } from "./events/api.events"
         const arrayBuffer = reader.result
 
         window.electronAPI.ipcRenderer.send(
-          FileUploadEvents.FILE_CREATED,
+          FileUploadEvents.RECORD_CREATED,
           arrayBuffer
         )
       }
