@@ -13,6 +13,9 @@ interface ImportMetaEnv {
   readonly VITE_API_PATH: string
   readonly VITE_AUTH_APP_URL: string
   readonly VITE_LOGIN_IS_REQUIRED: number
+  readonly VITE_MODE: "dev" | "review" | "production"
+  readonly VITE_PROTOCOL_SCHEME: string
+  readonly VITE_PRODUCT_NAME: string
 }
 
 interface ImportMeta {

@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     import.meta.env.VITE_AUTH_APP_URL + "recorder/registration"
   const authBtn = document.getElementById("auth-btn")
   const registrationBtn = document.getElementById("registration-btn")
+  const recorderLogo = document.getElementById("recorder-logo")
   authBtn.addEventListener("click", (event) => {
     event.preventDefault()
     window.electronAPI.openLinkInBrowser(authLink)
@@ -16,6 +17,12 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault()
     window.electronAPI.openLinkInBrowser(registrationLink)
   })
+  if (import.meta.env.VITE_MODE === "dev") {
+    recorderLogo.style.color = "#d91615"
+  }
+  if (import.meta.env.VITE_MODE === "review") {
+    recorderLogo.style.color = "#01a0e3"
+  }
 })
 
 // document.getElementById('loginForm').addEventListener('submit', (event) => {
