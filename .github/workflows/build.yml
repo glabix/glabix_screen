@@ -24,10 +24,11 @@ jobs:
           mkdir -p ~/private_keys/
           echo '${{ secrets.APPLE_API_KEY }}' > ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
 
-      - name: Set package name
+      - name: Set package environment meta
         run: |
           npm pkg set name=${{ vars.PACKAGE_NAME }}
           npm pkg set description=${{ vars.PACKAGE_NAME }}
+          [[ ${{ github.ref_name }} != "main" ]] && npm pkg set version=$(npm pkg get version | tr -d '"')-${{ github.ref_name }}
 
       - name: Build/release Electron app
         uses: Dozorengel/action-electron-builder@v1.7.0
