@@ -59,7 +59,6 @@ export class UnprocessedFilesService {
 
         // Дожидаемся события 'finish', чтобы убедиться, что запись завершена
         writeStream.on("finish", () => {
-          console.log(`Чанк записан: ${chunkFileName}`)
           resolve()
         })
 
@@ -82,10 +81,8 @@ export class UnprocessedFilesService {
   }
 
   async restoreFileToBuffer(fileName): Promise<Buffer> {
-    console.log("fileName", fileName)
     const directoryPath = path.join(this.mainPath) // Путь к директории с чанками
     const files = await fs.promises.readdir(directoryPath) // Читаем список файлов в директории
-    console.log(files)
     // Фильтруем файлы, которые соответствуют нужному файлу (например, exampleFile.txt.partX)
     const chunkFiles = files
       .filter((file) => file.startsWith(fileName))
@@ -95,7 +92,6 @@ export class UnprocessedFilesService {
         const bIndex = parseInt(b.split(".part")[1], 10)
         return aIndex - bIndex
       })
-    console.log("chunkFiles", chunkFiles)
     // Читаем все чанки асинхронно
     const buffers = await Promise.all(
       chunkFiles.map(async (chunkFile) => {
@@ -107,7 +103,6 @@ export class UnprocessedFilesService {
     // Соединяем все чанки в один Buffer
     const fileBuffer = Buffer.concat(buffers)
 
-    console.log("Файл восстановлен из частей в виде Buffer.")
     return fileBuffer // Возвращаем собранный файл как Buffer
   }
 
@@ -132,13 +127,10 @@ export class UnprocessedFilesService {
   async deleteFile(fileName) {
     const directoryPath = path.join(this.mainPath)
     const files = await fs.promises.readdir(directoryPath)
-    console.log("fileName", fileName)
-    console.log("files", files)
     // Фильтруем все части файла
     const chunkFiles = files.filter((file) => file.startsWith(fileName))
 
     if (chunkFiles.length === 0) {
-      console.log(`file ${fileName} не найден.`)
       return
     }
 
@@ -147,10 +139,7 @@ export class UnprocessedFilesService {
       chunkFiles.map(async (chunkFile) => {
         const chunkPath = path.join(directoryPath, chunkFile)
         await fs.promises.unlink(chunkPath)
-        console.log(`Удален чанк: ${chunkFile}`)
       })
     )
-
-    console.log(`Все части файла ${fileName} удалены.`)
   }
 }
