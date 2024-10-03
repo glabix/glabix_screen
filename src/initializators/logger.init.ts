@@ -1,6 +1,8 @@
 // Optional, initialize the logger for any renderer process
 import log from "electron-log/main"
 import { LogLevel, setLog } from "../helpers/set-log"
+import { ipcMain } from "electron"
+import { FileUploadEvents } from "../events/file-upload.events"
 
 export const loggerInit = () => {
   log.initialize()
@@ -13,17 +15,13 @@ export const loggerInit = () => {
 
   // Глобальный обработчик для перехвата необработанных исключений
   process.on("uncaughtException", (error) => {
-    setLog(LogLevel.ERROR, "Uncaught Exception:", error)
+    const e = `Uncaught Exception: ${error}`
+    ipcMain.emit("errors.global", JSON.stringify({ e }), true)
   })
 
   // Глобальный обработчик для перехвата необработанных отклонений промисов
   process.on("unhandledRejection", (reason, promise) => {
-    setLog(
-      LogLevel.ERROR,
-      "Unhandled Rejection at:",
-      promise,
-      "reason:",
-      reason
-    )
+    const e = `Unhandled Rejection at:, ${promise} reason: ${reason}`
+    ipcMain.emit("errors.global", JSON.stringify({ e: e }), true)
   })
 }

@@ -19,7 +19,6 @@ export function uploadFileChunkCommand(
     })
     .then((response) => {
       if (response.status === 200 || response.status === 201) {
-        console.log(`Successfully uploaded chunk ${chunkNumber}`)
         callback(null, null)
       } else {
         callback(new Error("Failed to upload chunk ${chunkNumber}"), null)

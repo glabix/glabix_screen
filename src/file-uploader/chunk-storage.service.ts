@@ -39,7 +39,6 @@ export class ChunkStorageService {
   }
 
   hasUnloadedFiles(): boolean {
-    console.log("this._storages", this._storages)
     return !!this._storages.flatMap((s) => s.chunks).find((c) => !c.processed)
   }
 
