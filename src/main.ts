@@ -51,8 +51,8 @@ import { openExternalLink } from "./helpers/open-external-link"
 import { errorsInterceptor } from "./initializators/interceptor"
 import { loggerInit } from "./initializators/logger.init"
 import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed-files.service"
-import { version } from "vite"
 import { getVersion } from "./helpers/get-version"
+import { LogSender } from "./helpers/log-sender"
 
 const APP_ID = "com.glabix.screen"
 
@@ -77,6 +77,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 
 const tokenStorage = new TokenStorage()
+const logSender = new LogSender(tokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
 let unprocessedFilesService: UnprocessedFilesService
@@ -205,7 +206,6 @@ if (!gotTheLock) {
     unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
-
     checkForUpdates()
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
 
@@ -216,6 +216,7 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
+      logSender.sendLog("app.started")
       checkOrganizationLimits()
       checkOrganizationLimitsInterval = setInterval(
         checkOrganizationLimits,
@@ -525,6 +526,7 @@ function createWindow() {
   mainWindow.on("close", () => {
     app.quit()
   })
+  mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
 }
@@ -855,6 +857,7 @@ app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
+    logSender.sendLog("app.activated")
     createWindow()
   }
 })
