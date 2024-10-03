@@ -1,4 +1,5 @@
 import { ISimpleStoreData, SimpleStoreEvents } from "./types"
+import { LoggerEvents } from "../events/logger.events"
 
 export class Timer {
   constructor(container: Element, limitSeconds: number) {
@@ -27,6 +28,10 @@ export class Timer {
               key: "recordingState",
               value: "stopped",
             }
+            window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+              title: "recording.finished",
+              body: JSON.stringify({ type: "auto" }),
+            })
             window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
           }
         }
