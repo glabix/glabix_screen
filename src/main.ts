@@ -88,7 +88,7 @@ app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
-app.commandLine.appendSwitch("disable-gpu-compositing")
+// app.commandLine.appendSwitch("disable-gpu-compositing")
 
 autoUpdater.on("update-downloaded", (info) => {
   logSender.sendLog(
