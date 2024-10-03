@@ -77,6 +77,15 @@ type PageViewType = "modal" | "permissions" | "limits"
     action: activeScreenAction,
     video: true,
   }
+  const recorderLogos = document.querySelectorAll(".recorder-logo")
+  recorderLogos.forEach((logo) => {
+    if (import.meta.env.VITE_MODE === "dev") {
+      logo.style.color = "#d91615"
+    }
+    if (import.meta.env.VITE_MODE === "review") {
+      logo.style.color = "#01a0e3"
+    }
+  })
 
   async function setupMediaDevices() {
     const devices = await navigator.mediaDevices.enumerateDevices()
