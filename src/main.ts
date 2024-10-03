@@ -182,7 +182,7 @@ function appReload() {
 }
 
 function checkOrganizationLimits() {
-  if (tokenStorage.dataIsActual()) {
+  if (tokenStorage && tokenStorage.dataIsActual()) {
     getOrganizationLimits(
       tokenStorage.token.access_token,
       tokenStorage.organizationId
