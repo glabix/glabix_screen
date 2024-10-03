@@ -19,7 +19,6 @@ export function createFileUploadCommand(
     version,
     file_size,
   }
-  setLog(LogLevel.SILLY, `Try to create multipart file upload`, url, params)
   axios
     .post<{
       uuid: string

@@ -230,9 +230,11 @@ if (!gotTheLock) {
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
     // )
+    logSender.sendLog("app.started")
     try {
+      logSender.sendLog("user.read_auth_data")
       tokenStorage.readAuthData()
-      logSender.sendLog("app.started")
+      logSender.sendLog("user.read_auth_data.success")
       checkOrganizationLimits()
       checkOrganizationLimitsInterval = setInterval(
         checkOrganizationLimits,
@@ -240,18 +242,18 @@ if (!gotTheLock) {
       )
       createMenu()
     } catch (e) {
-      setLog(LogLevel.ERROR, "tokenStorage.readAuthData:", e)
+      logSender.sendLog("user.read_auth_data.error", JSON.stringify({ e }), e)
     }
     createWindow()
 
     chunkStorage.initStorages()
-    checkUnprocessedChunks()
-    checkUnprocessedFiles()
-    checkUnprocessedFilesInterval = setInterval(() => {
-      checkUnprocessedChunks()
+    checkUnprocessedChunks(true)
+    checkUnprocessedFiles(true)
+    checkUnloadedChunksInterval = setInterval(() => {
+      checkUnprocessedChunks(true)
     }, 1000 * 30)
     checkUnprocessedFilesInterval = setInterval(() => {
-      checkUnprocessedFiles()
+      checkUnprocessedFiles(true)
     }, 1000 * 60)
 
     session.defaultSession.setDisplayMediaRequestHandler(
@@ -442,7 +444,7 @@ if (process.defaultApp) {
   app.setAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 }
 
-function checkUnprocessedFiles() {
+function checkUnprocessedFiles(byTimer = false) {
   //todo
   setLog(LogLevel.SILLY, `check unprocessed files`)
   if (unprocessedFilesService.isProcessedNowFileName) {
@@ -453,7 +455,12 @@ function checkUnprocessedFiles() {
     .getFirstFileName()
     .then((firstUnprocessedFileName) => {
       if (firstUnprocessedFileName) {
-        setLog(LogLevel.SILLY, `unprocessed file is`, firstUnprocessedFileName)
+        if (byTimer) {
+          logSender.sendLog(
+            "raw_file.autoloader.fire",
+            JSON.stringify({ file: firstUnprocessedFileName })
+          )
+        }
         ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, {
           rawFileName: firstUnprocessedFileName,
         })
@@ -461,7 +468,7 @@ function checkUnprocessedFiles() {
     })
 }
 
-function checkUnprocessedChunks() {
+function checkUnprocessedChunks(timer = false) {
   setLog(LogLevel.SILLY, `check Unprocessed Chunks`)
 
   const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
@@ -473,13 +480,12 @@ function checkUnprocessedChunks() {
     return
   }
   if (chunkStorage.hasUnloadedFiles()) {
+    if (timer) {
+      logSender.sendLog("chunks.autoloader.fire")
+    }
     setLog(LogLevel.SILLY, `chunkStorage has Unloaded Files`)
     const nextChunk = chunkStorage.getNextChunk()
     if (nextChunk) {
-      setLog(
-        LogLevel.SILLY,
-        `Next chunk №${nextChunk.index} by file ${nextChunk.fileUuid}`
-      )
       ipcMain.emit(FileUploadEvents.LOAD_FILE_CHUNK, {
         chunk: nextChunk,
       })
@@ -862,6 +868,7 @@ function logOut() {
   modalWindow.hide()
   loginWindow.show()
 }
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
@@ -1056,7 +1063,7 @@ ipcMain.on("app:logout", (event) => {
 })
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
-  setLog(LogLevel.SILLY, `LOGIN_SUCCESS`)
+  logSender.sendLog("user.login.success")
   checkOrganizationLimits()
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
@@ -1065,14 +1072,14 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 })
 
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {
-  setLog(LogLevel.SILLY, `TOKEN_CONFIRMED`)
+  logSender.sendLog("sessions.created")
   const { token, organization_id } = event as IAuthData
   tokenStorage.encryptAuthData({ token, organization_id })
   getCurrentUser(tokenStorage.token.access_token)
 })
 
 ipcMain.on(LoginEvents.USER_VERIFIED, (event) => {
-  setLog(LogLevel.SILLY, `USER_VERIFIED`)
+  logSender.sendLog("user.verified")
   const user = event as IUser
   appState.set({ ...appState.state, user })
   ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
@@ -1083,16 +1090,26 @@ ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
   unprocessedFilesService
     .saveFileWithStreams(blob, Date.now() + "")
     .then((rawFileName) => {
+      logSender.sendLog("record.raw_file.save.success")
       lastCreatedFileName = rawFileName
       ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
+    })
+    .catch((e) => {
+      logSender.sendLog(
+        "record.raw_file.save.error",
+        JSON.stringify({ err: e }),
+        true
+      )
     })
 })
 
 ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
-  setLog(LogLevel.SILLY, `Try to create multipart upload on server`)
   const { rawFileName: timestampRawFileName } = event
+  logSender.sendLog(
+    "api.uploads.multipart_upload.try_to_create",
+    JSON.stringify({ rawFileName: timestampRawFileName })
+  )
 
-  console.log("event", event)
   unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
   unprocessedFilesService.getFile(timestampRawFileName).then((file) => {
     if (file) {
@@ -1100,21 +1117,19 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
       const fileSize = file.length
       const size = 10 * 1024 * 1024
       const chunksSlicer = new ChunkSlicer(file, size)
+      logSender.sendLog("recording.uploads.chunks.stored.prepared")
       const chunks = [...chunksSlicer.allChunks]
       const title = getTitle(timestampRawFileName)
       const fileName = title + ".mp4"
       const callback = (err, uuid: string) => {
         if (!err) {
           const params = { uuid, chunks, rawFileName: timestampRawFileName }
-          console.log(params)
-          setLog(LogLevel.SILLY, `Create multipart file upload SUCCESS`, uuid)
           ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
         } else {
-          setLog(
-            LogLevel.ERROR,
-            FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR,
-            "callback error:",
-            err
+          logSender.sendLog(
+            "api.uploads.multipart_upload.create.error",
+            JSON.stringify({ err }),
+            true
           )
           const params = { filename: fileName, fileChunks: [...chunks] }
           ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
@@ -1136,19 +1151,47 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
 
 ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   const { uuid, chunks, rawFileName } = event
-  setLog(
-    LogLevel.SILLY,
-    `File-${uuid} created on server, chunks length ${chunks?.length}`
+  logSender.sendLog(
+    "api.uploads.multipart_upload.create.success",
+    JSON.stringify({ uuid })
   )
-  chunkStorage.addStorage(chunks, uuid).then(() => {
-    unprocessedFilesService.deleteFile(rawFileName).then(() => {
-      unprocessedFilesService.isProcessedNowFileName = null
-      checkUnprocessedFiles()
-      checkUnprocessedChunks()
-      checkOrganizationLimits()
-      // todo
+  chunkStorage
+    .addStorage(chunks, uuid)
+    .then(() => {
+      logSender.sendLog(
+        "recording.uploads.chunks.stored.success",
+        JSON.stringify({ uuid })
+      )
+      unprocessedFilesService
+        .deleteFile(rawFileName)
+        .then(() => {
+          logSender.sendLog(
+            "record.raw_file.delete.success",
+            JSON.stringify({
+              fileName: unprocessedFilesService.isProcessedNowFileName,
+            })
+          )
+          unprocessedFilesService.isProcessedNowFileName = null
+          checkUnprocessedFiles()
+          checkUnprocessedChunks()
+          checkOrganizationLimits()
+          // todo
+        })
+        .catch((e) => {
+          logSender.sendLog(
+            "record.raw_file.delete.error",
+            JSON.stringify({ e }),
+            true
+          )
+        })
     })
-  })
+    .catch((e) => {
+      logSender.sendLog(
+        "recording.uploads.chunks.stored.error",
+        JSON.stringify({ e }),
+        true
+      )
+    })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
     "recorder/org/" +
@@ -1181,16 +1224,35 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
   const typedChunk = chunk as Chunk
   const uuid = typedChunk.fileUuid
   const chunkNumber = typedChunk.index + 1
-  setLog(LogLevel.SILLY, `Chunk ${chunkNumber} by file-${uuid} start upload`)
+  logSender.sendLog(
+    "api.uploads.chunks.upload_started",
+    JSON.stringify({
+      chunk_number: chunkNumber,
+      chunk_size: typedChunk.size,
+      file_uuid: typedChunk.fileUuid,
+    })
+  )
   const callback = (err, data) => {
     typedChunk.cancelProcess()
     if (!err) {
+      logSender.sendLog(
+        "api.uploads.chunks.upload_completed",
+        JSON.stringify({
+          chunk_number: chunkNumber,
+          chunk_size: typedChunk.size,
+          file_uuid: typedChunk.fileUuid,
+        })
+      )
       chunkStorage
         .removeChunk(typedChunk)
         .then(() => {
-          setLog(
-            LogLevel.SILLY,
-            `Chunk ${chunkNumber} by file-${uuid} was uploaded`
+          logSender.sendLog(
+            "chunks.storage.delete.success",
+            JSON.stringify({
+              chunk_number: chunkNumber,
+              chunk_size: typedChunk.size,
+              file_uuid: typedChunk.fileUuid,
+            })
           )
           ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
             uuid,
@@ -1198,31 +1260,55 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
           })
         })
         .catch((e) => {
-          setLog(
-            LogLevel.ERROR,
-            `FileUploadEvents.LOAD_FILE_CHUNK chunkStorage.removeChunk catch((e)`,
-            e
+          logSender.sendLog(
+            "chunks.storage.delete.error",
+            JSON.stringify({
+              chunk_number: chunkNumber,
+              chunk_size: typedChunk.size,
+              file_uuid: typedChunk.fileUuid,
+              e,
+            }),
+            true
           )
         })
     } else {
-      setLog(
-        LogLevel.ERROR,
-        "FileUploadEvents.LOAD_FILE_CHUNK callback error:",
-        err
+      logSender.sendLog(
+        "api.uploads.chunks.upload_error",
+        JSON.stringify({
+          chunk_number: chunkNumber,
+          chunk_size: typedChunk.size,
+          file_uuid: typedChunk.fileUuid,
+          e: err,
+        }),
+        true
       )
     }
   }
-  typedChunk.getData().then((data) => {
-    typedChunk.startProcess()
-    uploadFileChunkCommand(
-      tokenStorage.token.access_token,
-      tokenStorage.organizationId,
-      uuid,
-      data,
-      chunkNumber,
-      callback
-    )
-  })
+  typedChunk
+    .getData()
+    .then((data) => {
+      typedChunk.startProcess()
+      uploadFileChunkCommand(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId,
+        uuid,
+        data,
+        chunkNumber,
+        callback
+      )
+    })
+    .catch((e) => {
+      logSender.sendLog(
+        "chunks.storage.getData.error",
+        JSON.stringify({
+          chunk_number: chunkNumber,
+          chunk_size: typedChunk.size,
+          file_uuid: typedChunk.fileUuid,
+          e,
+        }),
+        true
+      )
+    })
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event) => {
@@ -1249,6 +1335,7 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
 })
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
+  logSender.sendLog("sessions.deleted")
   contextMenu.getMenuItemById("menuLogOutItem").visible = false
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {

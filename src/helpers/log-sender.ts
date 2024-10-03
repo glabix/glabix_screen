@@ -9,8 +9,8 @@ export class LogSender {
   constructor(tokenStorage: TokenStorage) {
     this.tokenStorage = tokenStorage
   }
-  sendLog(title: string, body: string = "") {
-    setLog(LogLevel.SILLY, "send log: ", title, body)
+  sendLog(title: string, body: string = "", err = false) {
+    setLog(err ? LogLevel.ERROR : LogLevel.SILLY, "send log:", title, body)
     const token = this.tokenStorage?.token?.access_token
     const orgId = this.tokenStorage?.organizationId
     const app_version = getVersion()
