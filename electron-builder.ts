@@ -1,25 +1,40 @@
 import { Configuration } from "app-builder-lib"
 
+const isReview = process.env.MODE === "review"
+
+let imagePath: string
+switch (process.env.MODE) {
+  case "dev":
+    imagePath = "public/logo-square-dev.png"
+    break
+  case "review":
+    imagePath = "public/logo-square-review.png"
+    break
+  case "production":
+  default:
+    imagePath = "public/logo-square.png"
+    break
+}
+
 const options: Configuration = {
-  appId: "com.glabix.screen",
-  productName: "Глабикс.Экран",
+  appId: isReview ? "com.glabix.screen-review" : "com.glabix.screen",
+  productName: process.env.PRODUCT_NAME,
   protocols: {
-    name: "Глабикс.Экран",
-    schemes: ["glabix-screen"],
+    name: `${process.env.PRODUCT_NAME}`,
+    schemes: [`${process.env.PACKAGE_NAME}`],
   },
   // "store" | “normal" | "maximum" - For testing builds, use 'store' to reduce build time significantly.
   compression: "store",
   files: ["!out/"],
-  icon: "public/logo-square.png",
+  icon: imagePath,
   artifactName: "${name}-${os}-${arch}.${ext}",
+  executableName: process.env.PRODUCT_NAME,
   win: {
     target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
-    executableName: "Глабикс.Экран",
   },
   mac: {
     target: [{ target: "default", arch: ["arm64", "x64"] }],
     category: "public.app-category.productivity",
-    executableName: "Глабикс.Экран",
     hardenedRuntime: true,
     gatekeeperAssess: true,
     extendInfo: {
@@ -32,7 +47,7 @@ const options: Configuration = {
     entitlementsInherit: "build/entitlements.mac.plist",
   },
   nsisWeb: {
-    shortcutName: "Глабикс.Экран",
+    shortcutName: process.env.PRODUCT_NAME,
   },
   publish: [
     {

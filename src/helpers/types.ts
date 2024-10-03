@@ -75,3 +75,10 @@ export interface IScreenActionItem {
   action: ScreenAction
   label: string
 }
+
+export interface IOrganizationLimits {
+  win_version: string
+  mac_version: string
+  upload_allowed: boolean
+  max_upload_duration: number
+}

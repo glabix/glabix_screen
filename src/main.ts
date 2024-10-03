@@ -28,6 +28,7 @@ import {
   IAuthData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IOrganizationLimits,
   IMediaDevicesAccess,
   ISimpleStoreData,
   IUser,
@@ -42,7 +43,8 @@ import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
-
+import { getOrganizationLimits } from "./commands/organization-limits.query"
+import { APIEvents } from "./events/api.events"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "./helpers/open-external-link"
@@ -54,6 +56,7 @@ import { getVersion } from "./helpers/get-version"
 
 const APP_ID = "com.glabix.screen"
 
+let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
 let dropdownWindowOffsetY = 0
 let mainWindow: BrowserWindow
@@ -66,6 +69,7 @@ let deviceAccessInterval: NodeJS.Timeout
 let checkForUpdatesInterval: NodeJS.Timeout
 let checkUnloadedChunksInterval: NodeJS.Timeout
 let checkUnprocessedFilesInterval: NodeJS.Timeout
+let checkOrganizationLimitsInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -79,9 +83,10 @@ let unprocessedFilesService: UnprocessedFilesService
 let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
-app.removeAsDefaultProtocolClient("glabix-video-recorder")
-app.commandLine.appendSwitch("force-compositing-mode")
+app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
+app.commandLine.appendSwitch("disable-software-rasterizer")
+app.commandLine.appendSwitch("disable-gpu-compositing")
 
 loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor
@@ -93,6 +98,11 @@ function clearAllIntervals() {
   if (deviceAccessInterval) {
     clearInterval(deviceAccessInterval)
     deviceAccessInterval = undefined
+  }
+
+  if (checkOrganizationLimitsInterval) {
+    clearInterval(checkOrganizationLimitsInterval)
+    checkOrganizationLimitsInterval = undefined
   }
 
   if (checkForUpdatesInterval) {
@@ -154,6 +164,15 @@ function appReload() {
   }
 }
 
+function checkOrganizationLimits() {
+  if (tokenStorage.dataIsActual()) {
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
+  }
+}
+
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -197,6 +216,11 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
+      checkOrganizationLimits()
+      checkOrganizationLimitsInterval = setInterval(
+        checkOrganizationLimits,
+        2000
+      )
       createMenu()
     } catch (e) {
       setLog(LogLevel.ERROR, "tokenStorage.readAuthData:", e)
@@ -219,7 +243,15 @@ if (!gotTheLock) {
           .getSources({ types: ["screen"] })
           .then((sources) => {
             // Grant access to the first screen found.
-            callback({ video: sources[0], audio: "loopback" })
+            let screen = sources[0]
+
+            if (activeDisplay) {
+              screen =
+                sources.find((s) => Number(s.display_id) == activeDisplay.id) ||
+                sources[0]
+            }
+
+            callback({ video: screen, audio: "loopback" })
           })
           .catch((error) => {
             if (os.platform() == "darwin") {
@@ -383,12 +415,14 @@ function getMediaDevicesAccess(): IMediaDevicesAccess {
 
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient("glabix-video-recorder", process.execPath, [
-      path.resolve(process.argv[1]),
-    ])
+    app.setAsDefaultProtocolClient(
+      import.meta.env.VITE_PROTOCOL_SCHEME,
+      process.execPath,
+      [path.resolve(process.argv[1])]
+    )
   }
 } else {
-  app.setAsDefaultProtocolClient("glabix-video-recorder")
+  app.setAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 }
 
 function checkUnprocessedFiles() {
@@ -521,28 +555,32 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:hide")
     modalWindow.webContents.send("modal-window:hide")
     dropdownWindow.hide()
+    checkOrganizationLimits()
   })
   modalWindow.on("ready-to-show", () => {
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
+    checkOrganizationLimits()
     modalWindow.webContents.send("app:version", app.getVersion())
   })
+
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
+    modalWindow.webContents.send("app:version", app.getVersion())
+
+    checkOrganizationLimits()
+
+    setTimeout(() => {
+      if (checkOrganizationLimitsInterval) {
+        clearInterval(checkOrganizationLimitsInterval)
+        checkOrganizationLimitsInterval = undefined
+      }
+    }, 3000)
   })
-  modalWindow.on("blur", () => {
-    // if (modalWindow.isAlwaysOnTop()) {
-    //   if (modalWindow.isAlwaysOnTop()) {
-    //     // mainWindow.focus()
-    //   }
-    // }
-  })
+
+  modalWindow.on("blur", () => {})
 
   modalWindow.on("focus", () => {})
 
@@ -605,28 +643,20 @@ function createDropdownWindow(parentWindow) {
     )
   }
 
+  dropdownWindow.on("hide", () => {
+    modalWindow.webContents.send("dropdown:hide", {})
+  })
+
   modalWindow.on("move", () => {
-    const gap = 20
-    const screenBounds = screen.getDisplayNearestPoint(
-      modalWindow.getBounds()
-    ).bounds
-    const [modalX, modalY] = modalWindow.getPosition()
-    const modalBounds = modalWindow.getBounds()
-    const dropdownBounds = dropdownWindow.getBounds()
-    const dropdownWindowWidth = 300
+    const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
 
-    const positionRight =
-      modalBounds.x + modalBounds.width + dropdownBounds.width + gap
-    const diffX = screenBounds.width - positionRight
+    if (activeDisplay && activeDisplay.id != currentScreen.id) {
+      mainWindow.webContents.send("screen:change", {})
+    }
 
-    const x =
-      diffX < 0
-        ? modalX - dropdownWindowWidth - gap
-        : modalX + modalBounds.width + gap
-    const y = modalY + dropdownWindowOffsetY
-
-    dropdownWindow.setBounds({ width: dropdownWindowWidth })
-    dropdownWindow.setPosition(x, y)
+    activeDisplay = currentScreen
+    const screenBounds = activeDisplay.bounds
+    dropdownWindow.hide()
     mainWindow.setBounds(screenBounds)
   })
 }
@@ -659,6 +689,10 @@ function createLoginWindow() {
 
   loginWindow.once("ready-to-show", () => {
     showWindows()
+  })
+
+  loginWindow.on("hide", () => {
+    checkOrganizationLimits()
   })
 
   loginWindow.on("close", (event) => {
@@ -707,19 +741,45 @@ function toggleWindows() {
 }
 
 function createTrayIcon(): Electron.NativeImage {
-  let imagePath = "tray-win.png"
+  let imagePath: string
+
+  if (os.platform() == "win32") {
+    switch (import.meta.env.VITE_MODE) {
+      case "dev":
+        imagePath = "tray-win-dev.png"
+        break
+      case "review":
+        imagePath = "tray-win-review.png"
+        break
+      case "production":
+      default:
+        imagePath = "tray-win.png"
+        break
+    }
+  }
 
   if (os.platform() == "darwin") {
-    imagePath = nativeTheme.shouldUseDarkColors
-      ? "tray-macos-light.png"
-      : "tray-macos-dark.png"
+    switch (import.meta.env.VITE_MODE) {
+      case "dev":
+        imagePath = "tray-macos-dev.png"
+        break
+      case "review":
+        imagePath = "tray-macos-review.png"
+        break
+      case "production":
+      default:
+        imagePath = nativeTheme.shouldUseDarkColors
+          ? "tray-macos-light.png"
+          : "tray-macos-dark.png"
+        break
+    }
   }
 
   const icon = nativeImage
     .createFromPath(path.join(__dirname, imagePath))
     .resize({ width: 20, height: 20 })
 
-  if (os.platform() == "darwin") {
+  if (os.platform() == "darwin" && import.meta.env.VITE_MODE == "production") {
     icon.setTemplateImage(true)
   }
 
@@ -728,7 +788,7 @@ function createTrayIcon(): Electron.NativeImage {
 
 function createMenu() {
   tray = new Tray(createTrayIcon())
-  tray.setToolTip("Glabix Экран")
+  tray.setToolTip(import.meta.env.VITE_PRODUCT_NAME)
 
   nativeTheme.on("updated", () => {
     tray.setImage(createTrayIcon())
@@ -764,10 +824,7 @@ function createMenu() {
       label: "Выйти из аккаунта",
       visible: tokenStorage.dataIsActual(),
       click: () => {
-        tokenStorage.reset()
-        mainWindow.hide()
-        modalWindow.hide()
-        loginWindow.show()
+        logOut()
       },
     },
     {
@@ -779,6 +836,12 @@ function createMenu() {
   ])
 }
 
+function logOut() {
+  tokenStorage.reset()
+  mainWindow.hide()
+  modalWindow.hide()
+  loginWindow.show()
+}
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
@@ -808,7 +871,8 @@ app.on("before-quit", () => {
 // ipcMain.on("mediaDevicesAccess:check", (event) => {
 //   watchMediaDevicesAccessChange()
 // })
-ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
+
+ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
 })
@@ -816,6 +880,11 @@ ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
 ipcMain.on("modal-window:render", (event, data) => {
   if (modalWindow) {
     modalWindow.webContents.send("modal-window:render", data)
+  }
+})
+ipcMain.on("modal-window:open", (event, data) => {
+  if (modalWindow) {
+    modalWindow.show()
   }
 })
 
@@ -843,19 +912,6 @@ ipcMain.on(
 )
 
 ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
-  // if (os.platform() == "darwin") {
-  //   if (device == "microphone") {
-  //     exec(
-  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
-  //     )
-  //   }
-
-  //   if (device == "camera") {
-  //     exec(
-  //       'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
-  //     )
-  //   }
-  // }
   if (os.platform() == "win32") {
     if (device == "microphone") {
       exec("start ms-settings:privacy-microphone")
@@ -885,7 +941,9 @@ ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   const dropdownWindowBounds = dropdownWindow.getBounds()
   const modalWindowBounds = modalWindow.getBounds()
-  const screenBounds = screen.getPrimaryDisplay().bounds
+  const screenBounds = screen.getDisplayNearestPoint(
+    modalWindow.getBounds()
+  ).bounds
   const gap = 20
   const itemHeight = 48
   const height = data.list.items.length * itemHeight
@@ -893,7 +951,8 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
     modalWindowBounds.x +
     modalWindowBounds.width +
     dropdownWindowBounds.width +
-    gap
+    gap -
+    screenBounds.x
   const positionY = modalWindowBounds.y + data.offsetY
   const diffX = screenBounds.width - positionRight
   dropdownWindowOffsetY = data.offsetY
@@ -915,15 +974,22 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 
   dropdownWindow.show()
-  dropdownWindow.webContents.send("dropdown:open", data)
+
+  if (dropdownWindow) {
+    dropdownWindow.webContents.send("dropdown:open", data)
+  }
 })
 
 ipcMain.on("start-recording", (event, data) => {
-  mainWindow.webContents.send("start-recording", data)
+  if (mainWindow) {
+    mainWindow.webContents.send("start-recording", data)
+  }
   modalWindow.hide()
 })
 ipcMain.on("stop-recording", (event, data) => {
-  mainWindow.webContents.send("stop-recording")
+  if (mainWindow) {
+    mainWindow.webContents.send("stop-recording")
+  }
   modalWindow.show()
 })
 ipcMain.on("windows:minimize", (event, data) => {
@@ -936,8 +1002,13 @@ ipcMain.on("windows:close", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
-  mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  if (mainWindow) {
+    mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
+
+  if (modalWindow) {
+    modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
@@ -951,9 +1022,20 @@ ipcMain.on("invalidate-shadow", (event, data) => {
     mainWindow.invalidateShadow()
   }
 })
+ipcMain.on("redirect:app", (event, route) => {
+  const url = route.replace("%orgId%", tokenStorage.organizationId)
+  const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
+  openExternalLink(link)
+  hideWindows()
+})
+
+ipcMain.on("app:logout", (event) => {
+  logOut()
+})
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(LogLevel.SILLY, `LOGIN_SUCCESS`)
+  checkOrganizationLimits()
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
@@ -1040,6 +1122,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
       unprocessedFilesService.isProcessedNowFileName = null
       checkUnprocessedFiles()
       checkUnprocessedChunks()
+      checkOrganizationLimits()
       // todo
     })
   })
@@ -1144,6 +1227,17 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   contextMenu.getMenuItemById("menuLogOutItem").visible = false
+})
+ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
+  const limits = data as IOrganizationLimits
+
+  if (mainWindow) {
+    mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  }
+
+  if (modalWindow) {
+    modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  }
 })
 
 ipcMain.on("log", (evt, data) => {

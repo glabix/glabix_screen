@@ -16,6 +16,12 @@
   }
 }
 
+#draw-container {
+  position: relative;
+  z-index: 3;
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
 .panel-drag-handler {
   position: absolute;
   left: 0;
