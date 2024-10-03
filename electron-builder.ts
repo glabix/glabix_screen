@@ -27,7 +27,7 @@ const options: Configuration = {
   compression: "store",
   files: ["!out/"],
   icon: imagePath,
-  artifactName: "${productName}-${os}-${arch}.${ext}",
+  artifactName: "${name}-${os}-${arch}.${ext}",
   executableName: process.env.PRODUCT_NAME,
   win: {
     target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
