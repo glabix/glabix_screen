@@ -73,7 +73,7 @@ const store = new SimpleStore()
 let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
-app.removeAsDefaultProtocolClient("glabix-video-recorder")
+app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("force-compositing-mode")
 app.commandLine.appendSwitch("enable-transparent-visuals")
 
@@ -354,12 +354,14 @@ function getMediaDevicesAccess(): IMediaDevicesAccess {
 
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient("glabix-video-recorder", process.execPath, [
-      path.resolve(process.argv[1]),
-    ])
+    app.setAsDefaultProtocolClient(
+      import.meta.env.VITE_PROTOCOL_SCHEME,
+      process.execPath,
+      [path.resolve(process.argv[1])]
+    )
   }
 } else {
-  app.setAsDefaultProtocolClient("glabix-video-recorder")
+  app.setAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 }
 
 function checkUnprocessedFiles() {
@@ -650,19 +652,45 @@ function toggleWindows() {
 }
 
 function createTrayIcon(): Electron.NativeImage {
-  let imagePath = "tray-win.png"
+  let imagePath: string
+
+  if (os.platform() == "win32") {
+    switch (import.meta.env.VITE_MODE) {
+      case "dev":
+        imagePath = "tray-win-dev.png"
+        break
+      case "review":
+        imagePath = "tray-win-review.png"
+        break
+      case "production":
+      default:
+        imagePath = "tray-win.png"
+        break
+    }
+  }
 
   if (os.platform() == "darwin") {
-    imagePath = nativeTheme.shouldUseDarkColors
-      ? "tray-macos-light.png"
-      : "tray-macos-dark.png"
+    switch (import.meta.env.VITE_MODE) {
+      case "dev":
+        imagePath = "tray-macos-dev.png"
+        break
+      case "review":
+        imagePath = "tray-macos-review.png"
+        break
+      case "production":
+      default:
+        imagePath = nativeTheme.shouldUseDarkColors
+          ? "tray-macos-light.png"
+          : "tray-macos-dark.png"
+        break
+    }
   }
 
   const icon = nativeImage
     .createFromPath(path.join(__dirname, imagePath))
     .resize({ width: 20, height: 20 })
 
-  if (os.platform() == "darwin") {
+  if (os.platform() == "darwin" && import.meta.env.VITE_MODE == "production") {
     icon.setTemplateImage(true)
   }
 
@@ -671,7 +699,7 @@ function createTrayIcon(): Electron.NativeImage {
 
 function createMenu() {
   tray = new Tray(createTrayIcon())
-  tray.setToolTip("Glabix Экран")
+  tray.setToolTip(import.meta.env.VITE_PRODUCT_NAME)
 
   nativeTheme.on("updated", () => {
     tray.setImage(createTrayIcon())
