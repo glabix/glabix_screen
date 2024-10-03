@@ -177,6 +177,7 @@ class Draw {
 
   private drawEnd() {
     this.drawToggle.classList.remove("active")
+
     if (this.stage) {
       this.stage.clear()
       this.stage.destroy()
@@ -259,6 +260,7 @@ function setPanelDraggable() {
       }) => {
         target!.style.left = `${left}px`
         target!.style.top = `${top}px`
+        window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
       }
     )
     .on("dragEnd", ({ target, isDrag, clientX, clientY }) => {

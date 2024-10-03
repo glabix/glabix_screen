@@ -1,30 +1,53 @@
+import { ISimpleStoreData, SimpleStoreEvents } from "./types"
+
 export class Timer {
-  constructor(container: Element) {
+  constructor(container: Element, limitSeconds: number) {
     this.el = container
+    this.seconds = limitSeconds
+    this.limitSeconds = limitSeconds
+
+    this.setStartTime()
   }
 
   private el: Element
+  private limitSeconds: number
   private seconds = 0
-  private minutes = 0
   private timerInterval: NodeJS.Timeout
   private time = "00:00"
 
-  start() {
-    this.timerInterval = setInterval(() => {
-      this.seconds++
-
-      if (this.seconds >= 60) {
-        this.seconds = 0
-        this.minutes++
-      }
-
-      this.time = `${String(this.minutes).padStart(2, "0")}:${String(this.seconds).padStart(2, "0")}`
-      this.update()
-    }, 1000)
+  start(stopVideo?: boolean) {
+    if (this.limitSeconds > 0) {
+      this.timerInterval = setInterval(() => {
+        this.seconds--
+        this.setStartTime()
+        if (this.seconds == 0) {
+          this.stop()
+          if (stopVideo) {
+            const data: ISimpleStoreData = {
+              key: "recordingState",
+              value: "stopped",
+            }
+            window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
+          }
+        }
+      }, 1000)
+    } else {
+      this.timerInterval = setInterval(() => {
+        this.seconds++
+        this.setStartTime()
+      }, 1000)
+    }
   }
 
-  update() {
+  private update() {
     this.el.textContent = this.time
+  }
+
+  private setStartTime() {
+    const minutes = Math.floor(this.seconds / 60)
+    const seconds = this.seconds - minutes * 60
+    this.time = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+    this.update()
   }
 
   pause() {
@@ -33,9 +56,7 @@ export class Timer {
 
   stop() {
     clearInterval(this.timerInterval)
-    this.seconds = 0
-    this.minutes = 0
-    this.time = "00:00"
-    this.update()
+    this.seconds = this.limitSeconds
+    this.setStartTime()
   }
 }

@@ -10,6 +10,9 @@ body {
   height: 100%;
   background: transparent;
   overflow: hidden;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-app-region: no-drag;
 }
 
 .page-backdrop {

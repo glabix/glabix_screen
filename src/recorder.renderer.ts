@@ -1,6 +1,7 @@
 import "./styles/index-page.scss"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import {
+  IOrganizationLimits,
   ISimpleStoreData,
   RecorderState,
   ScreenAction,
@@ -9,12 +10,13 @@ import {
 } from "./helpers/types"
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "./events/file-upload.events"
+import { APIEvents } from "./events/api.events"
 ;(function () {
   const timerDisplay = document.getElementById(
     "timerDisplay"
   ) as HTMLButtonElement
   const controlPanel = document.querySelector(".panel-wrapper")
-  const timer = new Timer(timerDisplay)
+  let timer = new Timer(timerDisplay, 0)
   const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement
   const pauseBtn = document.getElementById("pauseBtn") as HTMLButtonElement
   const resumeBtn = document.getElementById("resumeBtn") as HTMLButtonElement
@@ -27,6 +29,15 @@ import { FileUploadEvents } from "./events/file-upload.events"
   let cropMoveable: Moveable
   let cameraMoveable: Moveable
   let lastStreamSettings: StreamSettings
+
+  function stopRecording() {
+    if (videoRecorder) {
+      videoRecorder.stop()
+      videoRecorder = undefined
+
+      clearView()
+    }
+  }
 
   changeCameraOnlySizeBtn.forEach((button) => {
     button.addEventListener(
@@ -47,18 +58,13 @@ import { FileUploadEvents } from "./events/file-upload.events"
   })
 
   stopBtn.addEventListener("click", () => {
-    if (videoRecorder) {
-      videoRecorder.stop()
-      videoRecorder = undefined
-
-      clearView()
-    }
+    stopRecording()
   })
 
   resumeBtn.addEventListener("click", () => {
     if (videoRecorder && videoRecorder.state == "paused") {
       videoRecorder.resume()
-      timer.start()
+      timer.start(true)
     }
   })
 
@@ -147,7 +153,7 @@ import { FileUploadEvents } from "./events/file-upload.events"
     }
 
     videoRecorder.onstart = function (e) {
-      timer.start()
+      timer.start(true)
       updateRecorderState("recording")
     }
 
@@ -244,10 +250,10 @@ import { FileUploadEvents } from "./events/file-upload.events"
   }
 
   const clearView = () => {
-    // const screenOverlay = document.getElementById("__screen__")
-    // if (screenOverlay) {
-    //   screenOverlay.remove()
-    // }
+    const countdown = document.getElementById("fullscreen_countdown")
+    if (countdown) {
+      countdown.innerHTML = "3"
+    }
 
     const canvasVideo = document.getElementById("__canvas_video_stream__")
     if (canvasVideo) {
@@ -322,6 +328,7 @@ import { FileUploadEvents } from "./events/file-upload.events"
         .on("drag", ({ target, left, top }) => {
           target!.style.left = `${left}px`
           target!.style.top = `${top}px`
+          window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         })
         .on("dragEnd", () => {
           window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -351,6 +358,7 @@ import { FileUploadEvents } from "./events/file-upload.events"
         .on("drag", ({ target, left, top }) => {
           target!.style.left = `${left}px`
           target!.style.top = `${top}px`
+          window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         })
         .on("dragEnd", () => {
           window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -445,6 +453,14 @@ import { FileUploadEvents } from "./events/file-upload.events"
       initRecord(data)
     }
   )
+
+  // window.electronAPI.ipcRenderer.on(
+  //   "record-settings-change",
+  //   (event, data: StreamSettings) => {
+  //     lastStreamSettings = data
+  //     initRecord(data)
+  //   }
+  // )
 
   window.electronAPI.ipcRenderer.on(
     "start-recording",
@@ -544,8 +560,10 @@ import { FileUploadEvents } from "./events/file-upload.events"
       }
 
       if (["stopped"].includes(state["recordingState"])) {
+        stopRecording()
         window.electronAPI.ipcRenderer.send("stop-recording", {})
         lastScreenAction = undefined
+        controlPanel.classList.remove("is-recording")
         const settings: StreamSettings =
           lastStreamSettings.action == "cropVideo"
             ? { ...lastStreamSettings, action: "fullScreenVideo" }
@@ -558,6 +576,15 @@ import { FileUploadEvents } from "./events/file-upload.events"
       }
 
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    }
+  )
+
+  window.electronAPI.ipcRenderer.on(
+    APIEvents.GET_ORGANIZATION_LIMITS,
+    (event, limits: IOrganizationLimits) => {
+      if (limits.max_upload_duration) {
+        timer = new Timer(timerDisplay, limits.max_upload_duration || 0)
+      }
     }
   )
 })()

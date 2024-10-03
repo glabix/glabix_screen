@@ -40,6 +40,7 @@ function initMovable() {
     .on("drag", ({ target, left, top }) => {
       target!.style.left = `${left}px`
       target!.style.top = `${top}px`
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     })
     .on("dragEnd", ({ target, isDrag, clientX, clientY }) => {
       target.classList.remove("moveable-dragging")
@@ -101,6 +102,7 @@ function stopStream() {
   videoContainer.setAttribute("hidden", "")
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
+  window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 
   if (currentStream) {
     const tracks = currentStream.getTracks()

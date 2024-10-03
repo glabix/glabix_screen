@@ -28,6 +28,7 @@ import {
   IAuthData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IOrganizationLimits,
   IMediaDevicesAccess,
   ISimpleStoreData,
   IUser,
@@ -42,6 +43,8 @@ import { Chunk } from "./file-uploader/chunk"
 import { autoUpdater } from "electron-updater"
 import { getTitle } from "./helpers/get-title"
 import { setLog } from "./helpers/set-log"
+import { getOrganizationLimits } from "./commands/organization-limits.query"
+import { APIEvents } from "./events/api.events"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "./helpers/open-external-link"
@@ -61,6 +64,7 @@ let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout
 let checkForUpdatesInterval: NodeJS.Timeout
+let checkOrganizationLimitsInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -74,8 +78,9 @@ let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
-app.commandLine.appendSwitch("force-compositing-mode")
 app.commandLine.appendSwitch("enable-transparent-visuals")
+app.commandLine.appendSwitch("disable-software-rasterizer")
+app.commandLine.appendSwitch("disable-gpu-compositing")
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -83,6 +88,11 @@ function clearAllIntervals() {
   if (deviceAccessInterval) {
     clearInterval(deviceAccessInterval)
     deviceAccessInterval = undefined
+  }
+
+  if (checkOrganizationLimitsInterval) {
+    clearInterval(checkOrganizationLimitsInterval)
+    checkOrganizationLimitsInterval = undefined
   }
 
   if (checkForUpdatesInterval) {
@@ -134,6 +144,15 @@ function appReload() {
   }
 }
 
+function checkOrganizationLimits() {
+  if (tokenStorage.dataIsActual()) {
+    getOrganizationLimits(
+      tokenStorage.token.access_token,
+      tokenStorage.organizationId
+    )
+  }
+}
+
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -176,6 +195,11 @@ if (!gotTheLock) {
     // )
     try {
       tokenStorage.readAuthData()
+      checkOrganizationLimits()
+      checkOrganizationLimitsInterval = setInterval(
+        checkOrganizationLimits,
+        2000
+      )
       createMenu()
     } catch (e) {
       setLog(`tokenStorage.readAuthData catch(e): ${e}`, app.isPackaged)
@@ -468,26 +492,28 @@ function createModal(parentWindow) {
     dropdownWindow.hide()
   })
   modalWindow.on("ready-to-show", () => {
-    modalWindow.webContents.send(
-      "mediaDevicesAccess:get",
-      getMediaDevicesAccess()
-    )
-    modalWindow.webContents.send("app:version", app.getVersion())
+    checkOrganizationLimits()
   })
+
   modalWindow.on("show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
     mainWindow.webContents.send("app:show")
+    modalWindow.webContents.send("app:version", app.getVersion())
+
+    checkOrganizationLimits()
+
+    setTimeout(() => {
+      if (checkOrganizationLimitsInterval) {
+        clearInterval(checkOrganizationLimitsInterval)
+        checkOrganizationLimitsInterval = undefined
+      }
+    }, 3000)
   })
-  modalWindow.on("blur", () => {
-    // if (modalWindow.isAlwaysOnTop()) {
-    //   if (modalWindow.isAlwaysOnTop()) {
-    //     // mainWindow.focus()
-    //   }
-    // }
-  })
+
+  modalWindow.on("blur", () => {})
 
   modalWindow.on("focus", () => {})
 
@@ -570,7 +596,10 @@ function createDropdownWindow(parentWindow) {
         : modalX + modalBounds.width + gap
     const y = modalY + dropdownWindowOffsetY
 
-    dropdownWindow.setBounds({ width: dropdownWindowWidth })
+    dropdownWindow.setBounds({
+      width: dropdownWindowWidth,
+      height: dropdownBounds.height,
+    })
     dropdownWindow.setPosition(x, y)
     mainWindow.setBounds(screenBounds)
   })
@@ -604,6 +633,10 @@ function createLoginWindow() {
 
   loginWindow.once("ready-to-show", () => {
     showWindows()
+  })
+
+  loginWindow.on("hide", () => {
+    checkOrganizationLimits()
   })
 
   loginWindow.on("close", (event) => {
@@ -779,7 +812,8 @@ app.on("before-quit", () => {
 // ipcMain.on("mediaDevicesAccess:check", (event) => {
 //   watchMediaDevicesAccessChange()
 // })
-ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
+
+ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win.setIgnoreMouseEvents(ignore, options)
 })
@@ -886,15 +920,22 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 
   dropdownWindow.show()
-  dropdownWindow.webContents.send("dropdown:open", data)
+
+  if (dropdownWindow) {
+    dropdownWindow.webContents.send("dropdown:open", data)
+  }
 })
 
 ipcMain.on("start-recording", (event, data) => {
-  mainWindow.webContents.send("start-recording", data)
+  if (mainWindow) {
+    mainWindow.webContents.send("start-recording", data)
+  }
   modalWindow.hide()
 })
 ipcMain.on("stop-recording", (event, data) => {
-  mainWindow.webContents.send("stop-recording")
+  if (mainWindow) {
+    mainWindow.webContents.send("stop-recording")
+  }
   modalWindow.show()
 })
 ipcMain.on("windows:minimize", (event, data) => {
@@ -907,8 +948,13 @@ ipcMain.on("windows:close", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
-  mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  if (mainWindow) {
+    mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
+
+  if (modalWindow) {
+    modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
@@ -920,6 +966,12 @@ ipcMain.on("invalidate-shadow", (event, data) => {
   if (os.platform() == "darwin") {
     mainWindow.invalidateShadow()
   }
+})
+ipcMain.on("redirect:app", (event, route) => {
+  const url = route.replace("%orgId%", tokenStorage.organizationId)
+  const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
+  openExternalLink(link)
+  hideWindows()
 })
 
 ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
@@ -933,6 +985,7 @@ ipcMain.on(LoginEvents.LOGIN_ATTEMPT, (event, credentials) => {
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   setLog(`LOGIN_SUCCESS`, app.isPackaged)
+  checkOrganizationLimits()
   contextMenu.getMenuItemById("menuLogOutItem").visible = true
   loginWindow.hide()
   mainWindow.show()
@@ -978,6 +1031,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   )
   chunkStorage.addStorage(chunks, uuid).then(() => {
     checkUnprocessedFiles()
+    checkOrganizationLimits()
   })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
@@ -1047,6 +1101,17 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   contextMenu.getMenuItemById("menuLogOutItem").visible = false
+})
+ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
+  const limits = data as IOrganizationLimits
+
+  if (mainWindow) {
+    mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  }
+
+  if (modalWindow) {
+    modalWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
+  }
 })
 
 ipcMain.on("log", (evt, data) => {
