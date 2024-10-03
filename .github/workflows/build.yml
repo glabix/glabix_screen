@@ -27,6 +27,7 @@ jobs:
       - name: Set package name
         run: |
           npm pkg set name=${{ vars.PACKAGE_NAME }}
+          npm pkg set description=${{ vars.PACKAGE_NAME }}
 
       - name: Build/release Electron app
         uses: Dozorengel/action-electron-builder@v1.7.0
