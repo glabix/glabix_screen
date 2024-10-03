@@ -53,6 +53,7 @@ import { loggerInit } from "./initializators/logger.init"
 import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed-files.service"
 import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
+import { LoggerEvents } from "./events/logger.events"
 
 const APP_ID = "com.glabix.screen"
 
@@ -88,6 +89,21 @@ app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 app.commandLine.appendSwitch("disable-gpu-compositing")
+
+autoUpdater.on("update-downloaded", (info) => {
+  logSender.sendLog(
+    "app_update.download_complete",
+    JSON.stringify({ old_version: getVersion(), new_version: info.version })
+  )
+})
+autoUpdater.on("download-progress", (info) => {
+  if (info.percent === 0) {
+    logSender.sendLog(
+      "app_update.download_started",
+      JSON.stringify({ old_version: getVersion(), new_version: info.version })
+    )
+  }
+})
 
 loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor
@@ -1096,7 +1112,8 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
         } else {
           setLog(
             LogLevel.ERROR,
-            "FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR callback error:",
+            FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR,
+            "callback error:",
             err
           )
           const params = { filename: fileName, fileChunks: [...chunks] }
@@ -1248,4 +1265,9 @@ ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
 
 ipcMain.on("log", (evt, data) => {
   setLog(LogLevel.DEBUG, data)
+})
+
+ipcMain.on(LoggerEvents.SEND_LOG, (evt, data) => {
+  const { title, body } = data
+  logSender.sendLog(title, body)
 })

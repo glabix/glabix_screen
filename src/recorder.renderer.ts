@@ -11,6 +11,7 @@ import {
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "./events/file-upload.events"
 import { APIEvents } from "./events/api.events"
+import { LoggerEvents } from "./events/logger.events"
 ;(function () {
   const countdownContainer = document.querySelector(
     ".fullscreen-countdown-container"
@@ -75,6 +76,10 @@ import { APIEvents } from "./events/api.events"
 
   stopBtn.addEventListener("click", () => {
     stopRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.finished",
+      body: JSON.stringify({ type: "manual" }),
+    })
   })
   cancelBtn.addEventListener("click", () => {
     cancelRecording()
@@ -487,6 +492,14 @@ import { APIEvents } from "./events/api.events"
   window.electronAPI.ipcRenderer.on(
     "start-recording",
     (event, data: StreamSettings) => {
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "recording.started",
+        body: JSON.stringify({
+          microphone: data.audioDeviceId,
+          webcam: data.cameraDeviceId,
+          mode: data.action,
+        }),
+      })
       if (data.action == "fullScreenVideo") {
         countdownContainer.removeAttribute("hidden")
         let timeleft = 2

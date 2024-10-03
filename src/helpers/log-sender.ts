@@ -11,10 +11,10 @@ export class LogSender {
   }
   sendLog(title: string, body: string = "") {
     setLog(LogLevel.SILLY, "send log: ", title, body)
-    const token = this.tokenStorage.token.access_token
-    const orgId = this.tokenStorage.organizationId
+    const token = this.tokenStorage?.token?.access_token
+    const orgId = this.tokenStorage?.organizationId
     const app_version = getVersion()
-    if (token) {
+    if (token && orgId) {
       createAppLogAuthCommand(token, orgId, app_version, title, body)
     } else {
       createAppLogNoAuthCommand(app_version, title, body)

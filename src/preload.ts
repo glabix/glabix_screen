@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron"
 import { openExternalLink } from "./helpers/open-external-link"
+import { LoggerEvents } from "./events/logger.events"
 let isIgnoreMouseEventsFreeze = false
 // rename "electronAPI" ? to more suitable
 export const electronAPI = {
@@ -33,6 +34,9 @@ export const electronAPI = {
 
     startBtn.disabled = isRecording
     stopBtn.disabled = !isRecording
+  },
+  loggerSender: (title: string, body: string) => {
+    ipcRenderer.send(LoggerEvents.SEND_LOG, { title, body })
   },
 }
 
