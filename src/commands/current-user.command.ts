@@ -9,7 +9,7 @@ export function getCurrentUser(token: string) {
       ipcMain.emit(LoginEvents.USER_VERIFIED, res.data)
     })
     .catch((e) => {
-      if (e.response.status == 401) {
+      if (e.response && e.response.status == 401) {
         ipcMain.emit("app:logout")
       }
     })
