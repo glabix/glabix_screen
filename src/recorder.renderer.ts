@@ -600,6 +600,7 @@ import { LoggerEvents } from "./events/logger.events"
             ? { ...lastStreamSettings, action: "fullScreenVideo" }
             : lastStreamSettings
         initRecord(settings)
+        lastStreamSettings = settings
         window.electronAPI.ipcRenderer.send(
           "modal-window:render",
           settings.action

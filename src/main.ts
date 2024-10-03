@@ -70,7 +70,6 @@ let deviceAccessInterval: NodeJS.Timeout
 let checkForUpdatesInterval: NodeJS.Timeout
 let checkUnloadedChunksInterval: NodeJS.Timeout
 let checkUnprocessedFilesInterval: NodeJS.Timeout
-let checkOrganizationLimitsInterval: NodeJS.Timeout
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -117,11 +116,6 @@ function clearAllIntervals() {
     deviceAccessInterval = undefined
   }
 
-  if (checkOrganizationLimitsInterval) {
-    clearInterval(checkOrganizationLimitsInterval)
-    checkOrganizationLimitsInterval = undefined
-  }
-
   if (checkForUpdatesInterval) {
     clearInterval(checkForUpdatesInterval)
     checkForUpdatesInterval = undefined
@@ -141,7 +135,9 @@ function clearAllIntervals() {
 function init(url: string) {
   // Someone tried to run a second instance, we should focus our window.
   if (mainWindow) {
-    showWindows()
+    checkOrganizationLimits().then(() => {
+      showWindows()
+    })
   }
   // const url = commandLine.pop()
   try {
@@ -181,13 +177,23 @@ function appReload() {
   }
 }
 
-function checkOrganizationLimits() {
-  if (tokenStorage && tokenStorage.dataIsActual()) {
-    getOrganizationLimits(
-      tokenStorage.token.access_token,
-      tokenStorage.organizationId
-    )
-  }
+function checkOrganizationLimits(): Promise<any> {
+  return new Promise((resolve) => {
+    if (tokenStorage && tokenStorage.dataIsActual()) {
+      getOrganizationLimits(
+        tokenStorage.token.access_token,
+        tokenStorage.organizationId
+      )
+        .then(() => {
+          resolve(true)
+        })
+        .catch((e) => {
+          resolve(true)
+        })
+    } else {
+      resolve(true)
+    }
+  })
 }
 
 function checkForUpdates() {
@@ -235,11 +241,7 @@ if (!gotTheLock) {
       logSender.sendLog("user.read_auth_data")
       tokenStorage.readAuthData()
       logSender.sendLog("user.read_auth_data.success")
-      checkOrganizationLimits()
-      checkOrganizationLimitsInterval = setInterval(
-        checkOrganizationLimits,
-        2000
-      )
+      logSender.sendLog("app.started")
       createMenu()
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", JSON.stringify({ e }), e)
@@ -593,16 +595,7 @@ function createModal(parentWindow) {
     )
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
-
     checkOrganizationLimits()
-
-    setTimeout(() => {
-      if (checkOrganizationLimitsInterval) {
-        clearInterval(checkOrganizationLimitsInterval)
-        checkOrganizationLimitsInterval = undefined
-      } else {
-      }
-    }, 3000)
   })
 
   modalWindow.on("blur", () => {})
@@ -713,11 +706,9 @@ function createLoginWindow() {
   }
 
   loginWindow.once("ready-to-show", () => {
-    showWindows()
-  })
-
-  loginWindow.on("hide", () => {
-    checkOrganizationLimits()
+    checkOrganizationLimits().then(() => {
+      showWindows()
+    })
   })
 
   loginWindow.on("close", (event) => {
@@ -1066,17 +1057,12 @@ ipcMain.on("app:logout", (event) => {
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   logSender.sendLog("user.login.success")
 
-  if (app.isPackaged) {
-    appReload()
-  } else {
+  checkOrganizationLimits().then(() => {
     contextMenu.getMenuItemById("menuLogOutItem").visible = true
     loginWindow.hide()
-
-    setTimeout(() => {
-      mainWindow.show()
-      modalWindow.show()
-    })
-  }
+    mainWindow.show()
+    modalWindow.show()
+  })
 })
 
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {
