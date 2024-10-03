@@ -88,7 +88,7 @@ app.setAppUserModelId(APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
-app.commandLine.appendSwitch("disable-gpu-compositing")
+// app.commandLine.appendSwitch("disable-gpu-compositing")
 
 autoUpdater.on("update-downloaded", (info) => {
   logSender.sendLog(
@@ -182,7 +182,7 @@ function appReload() {
 }
 
 function checkOrganizationLimits() {
-  if (tokenStorage.dataIsActual()) {
+  if (tokenStorage && tokenStorage.dataIsActual()) {
     getOrganizationLimits(
       tokenStorage.token.access_token,
       tokenStorage.organizationId
@@ -600,6 +600,7 @@ function createModal(parentWindow) {
       if (checkOrganizationLimitsInterval) {
         clearInterval(checkOrganizationLimitsInterval)
         checkOrganizationLimitsInterval = undefined
+      } else {
       }
     }, 3000)
   })
@@ -1064,11 +1065,18 @@ ipcMain.on("app:logout", (event) => {
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   logSender.sendLog("user.login.success")
-  checkOrganizationLimits()
-  contextMenu.getMenuItemById("menuLogOutItem").visible = true
-  loginWindow.hide()
-  mainWindow.show()
-  modalWindow.show()
+
+  if (app.isPackaged) {
+    appReload()
+  } else {
+    contextMenu.getMenuItemById("menuLogOutItem").visible = true
+    loginWindow.hide()
+
+    setTimeout(() => {
+      mainWindow.show()
+      modalWindow.show()
+    })
+  }
 })
 
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {

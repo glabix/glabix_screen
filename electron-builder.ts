@@ -2,18 +2,16 @@ import { Configuration } from "app-builder-lib"
 
 const isReview = process.env.MODE === "review"
 
-let imagePath: string
-switch (process.env.MODE) {
-  case "dev":
-    imagePath = "public/logo-square-dev.png"
-    break
-  case "review":
-    imagePath = "public/logo-square-review.png"
-    break
-  case "production":
-  default:
-    imagePath = "public/logo-square.png"
-    break
+const getIconPath = (): string => {
+  switch (process.env.MODE) {
+    case "dev":
+      return "public/logo-square-dev.png"
+    case "review":
+      return "public/logo-square-review.png"
+    case "production":
+    default:
+      return "public/logo-square.png"
+  }
 }
 
 const options: Configuration = {
@@ -26,7 +24,7 @@ const options: Configuration = {
   // "store" | “normal" | "maximum" - For testing builds, use 'store' to reduce build time significantly.
   compression: "store",
   files: ["!out/"],
-  icon: imagePath,
+  icon: getIconPath(),
   artifactName: "${name}-${os}-${arch}.${ext}",
   executableName: process.env.PRODUCT_NAME,
   win: {
