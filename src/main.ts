@@ -703,6 +703,7 @@ function createLoginWindow() {
 }
 
 function showWindows() {
+  logSender.sendLog("app.activated")
   registerShortCuts()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) {
@@ -717,6 +718,7 @@ function showWindows() {
 }
 
 function hideWindows() {
+  logSender.sendLog("app.disactivated")
   unregisterShortCuts()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
@@ -863,6 +865,7 @@ app.on("activate", () => {
 })
 
 app.on("before-quit", () => {
+  logSender.sendLog("app.exitted")
   clearAllIntervals()
   unregisterShortCuts()
   isAppQuitting = true
