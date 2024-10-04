@@ -5,14 +5,12 @@ import { createAppLogNoAuthCommand } from "../commands/create-app-log-no-auth.co
 import { LogLevel, setLog } from "./set-log"
 
 export class LogSender {
-  tokenStorage: TokenStorage
-  constructor(tokenStorage: TokenStorage) {
-    this.tokenStorage = tokenStorage
-  }
-  sendLog(title: string, body: string = "", err = false) {
+  static tokenStorage: TokenStorage
+
+  static sendLog(title: string, body: string = "", err = false) {
     setLog(err ? LogLevel.ERROR : LogLevel.SILLY, "send log:", title, body)
-    const token = this.tokenStorage?.token?.access_token
-    const orgId = this.tokenStorage?.organizationId
+    const token = LogSender.tokenStorage?.token?.access_token
+    const orgId = LogSender.tokenStorage?.organizationId
     const app_version = getVersion()
     if (token && orgId) {
       createAppLogAuthCommand(token, orgId, app_version, title, body)

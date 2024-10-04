@@ -1,4 +1,7 @@
-import { LogLevel, setLog } from "./set-log"
+import { stringify } from "./stringify"
+import { LogSender } from "./log-sender"
+
+const logSender = new LogSender()
 
 export function logAxiosError(error) {
   let errorMessage = `Axios Error: ${error.message}`
@@ -18,5 +21,5 @@ export function logAxiosError(error) {
   errorMessage += `\nConfig: ${JSON.stringify(error.config, null, 2)}`
 
   // Логируем все в одно сообщение
-  setLog(LogLevel.ERROR, errorMessage)
+  logSender.sendLog("errors.global", stringify({ e }), true)
 }
