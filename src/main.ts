@@ -951,6 +951,7 @@ ipcMain.on("dropdown:close", (event, data) => {
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   modalWindow.webContents.send("dropdown:select", data)
+
   dropdownWindow.hide()
 })
 
@@ -1347,5 +1348,5 @@ ipcMain.on("log", (evt, data) => {
 ipcMain.on(LoggerEvents.SEND_LOG, (evt, data) => {
   const { title, body, error } = data
   const isError = !!error
-  logSender.sendLog(title, body, isError)
+  logSender.sendLog(title, stringify(body), isError)
 })

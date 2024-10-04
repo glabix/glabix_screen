@@ -492,14 +492,6 @@ import { LoggerEvents } from "./events/logger.events"
   window.electronAPI.ipcRenderer.on(
     "start-recording",
     (event, data: StreamSettings) => {
-      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-        title: "recording.started",
-        body: JSON.stringify({
-          microphone: data.audioDeviceId,
-          webcam: data.cameraDeviceId,
-          mode: data.action,
-        }),
-      })
       if (data.action == "fullScreenVideo") {
         countdownContainer.removeAttribute("hidden")
         let timeleft = 2
