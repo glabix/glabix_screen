@@ -4,7 +4,7 @@ on: [push, workflow_dispatch]
 
 jobs:
   release:
-    runs-on: macos-latest
+    runs-on: self-hosted
 
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
