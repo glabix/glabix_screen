@@ -352,6 +352,7 @@ type PageViewType = "modal" | "permissions" | "limits"
 
   window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
     openedDropdownType = undefined
+    isAllowRecords = undefined
   })
 
   window.electronAPI.ipcRenderer.on("dropdown:hide", (event) => {
@@ -370,7 +371,7 @@ type PageViewType = "modal" | "permissions" | "limits"
     APIEvents.GET_ORGANIZATION_LIMITS,
     (event, limits: IOrganizationLimits) => {
       isAllowRecords = limits.upload_allowed
-      if (!isAllowRecords && activePageView != "permissions") {
+      if (isAllowRecords === false && activePageView != "permissions") {
         setPageView("limits")
       }
     }
