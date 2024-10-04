@@ -1,4 +1,4 @@
-import { logAxiosError } from "../helpers/log-axios-error"
+import { logAxiosError } from "/src/helpers/log-axios-error"
 import axios from "axios"
 
 // Добавление интерсептора для обработки ошибок во всех запросах

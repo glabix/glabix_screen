@@ -54,6 +54,7 @@ import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed
 import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "./events/logger.events"
+import { stringify } from "./helpers/stringify"
 
 const APP_ID = "com.glabix.screen"
 
@@ -78,6 +79,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 
 const tokenStorage = new TokenStorage()
 const logSender = new LogSender(tokenStorage)
+
 const appState = new AppState()
 const store = new SimpleStore()
 let unprocessedFilesService: UnprocessedFilesService
@@ -236,14 +238,13 @@ if (!gotTheLock) {
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
     // )
-    logSender.sendLog("app.started")
     try {
       logSender.sendLog("user.read_auth_data")
       tokenStorage.readAuthData()
       logSender.sendLog("user.read_auth_data.success")
       createMenu()
     } catch (e) {
-      logSender.sendLog("user.read_auth_data.error", JSON.stringify({ e }), e)
+      logSender.sendLog("user.read_auth_data.error", stringify({ e }), e)
     }
     createWindow()
 
@@ -447,7 +448,6 @@ if (process.defaultApp) {
 
 function checkUnprocessedFiles(byTimer = false) {
   //todo
-  setLog(LogLevel.SILLY, `check unprocessed files`)
   if (unprocessedFilesService.isProcessedNowFileName) {
     setLog(LogLevel.SILLY, `File is processed now!`)
     return
@@ -470,8 +470,6 @@ function checkUnprocessedFiles(byTimer = false) {
 }
 
 function checkUnprocessedChunks(timer = false) {
-  setLog(LogLevel.SILLY, `check Unprocessed Chunks`)
-
   const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
   if (chunkCurrentlyLoading) {
     setLog(
@@ -493,8 +491,6 @@ function checkUnprocessedChunks(timer = false) {
     } else {
       setLog(LogLevel.SILLY, `No next chunk`)
     }
-  } else {
-    setLog(LogLevel.SILLY, `No unprocessed chunks!`)
   }
 }
 
@@ -1090,7 +1086,7 @@ ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
     .catch((e) => {
       logSender.sendLog(
         "record.raw_file.save.error",
-        JSON.stringify({ err: e }),
+        stringify({ err: e }),
         true
       )
     })
@@ -1119,9 +1115,10 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
           const params = { uuid, chunks, rawFileName: timestampRawFileName }
           ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
         } else {
+          console.log(err)
           logSender.sendLog(
             "api.uploads.multipart_upload.create.error",
-            JSON.stringify({ err }),
+            stringify({ err }),
             true
           )
           const params = { filename: fileName, fileChunks: [...chunks] }
@@ -1173,7 +1170,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
         .catch((e) => {
           logSender.sendLog(
             "record.raw_file.delete.error",
-            JSON.stringify({ e }),
+            stringify({ e }),
             true
           )
         })
@@ -1181,7 +1178,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
     .catch((e) => {
       logSender.sendLog(
         "recording.uploads.chunks.stored.error",
-        JSON.stringify({ e }),
+        stringify({ e }),
         true
       )
     })
@@ -1255,7 +1252,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
         .catch((e) => {
           logSender.sendLog(
             "chunks.storage.delete.error",
-            JSON.stringify({
+            stringify({
               chunk_number: chunkNumber,
               chunk_size: typedChunk.size,
               file_uuid: typedChunk.fileUuid,
@@ -1267,7 +1264,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
     } else {
       logSender.sendLog(
         "api.uploads.chunks.upload_error",
-        JSON.stringify({
+        stringify({
           chunk_number: chunkNumber,
           chunk_size: typedChunk.size,
           file_uuid: typedChunk.fileUuid,
@@ -1293,7 +1290,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
     .catch((e) => {
       logSender.sendLog(
         "chunks.storage.getData.error",
-        JSON.stringify({
+        stringify({
           chunk_number: chunkNumber,
           chunk_size: typedChunk.size,
           file_uuid: typedChunk.fileUuid,
@@ -1333,7 +1330,7 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
-
+  logSender.sendLog("api.limits.get", stringify(data))
   if (mainWindow) {
     mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   }
@@ -1348,6 +1345,7 @@ ipcMain.on("log", (evt, data) => {
 })
 
 ipcMain.on(LoggerEvents.SEND_LOG, (evt, data) => {
-  const { title, body } = data
-  logSender.sendLog(title, body)
+  const { title, body, error } = data
+  const isError = !!error
+  logSender.sendLog(title, body, isError)
 })
