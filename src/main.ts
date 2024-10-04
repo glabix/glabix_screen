@@ -78,8 +78,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 
 const tokenStorage = new TokenStorage()
-const logSender = LogSender
-logSender.tokenStorage = tokenStorage
+const logSender = new LogSender(tokenStorage)
 
 const appState = new AppState()
 const store = new SimpleStore()
@@ -247,7 +246,6 @@ if (!gotTheLock) {
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), e)
     }
-    logSender.sendLog("app.started")
     createWindow()
 
     chunkStorage.initStorages()
@@ -450,7 +448,6 @@ if (process.defaultApp) {
 
 function checkUnprocessedFiles(byTimer = false) {
   //todo
-  setLog(LogLevel.SILLY, `check unprocessed files`)
   if (unprocessedFilesService.isProcessedNowFileName) {
     setLog(LogLevel.SILLY, `File is processed now!`)
     return
@@ -473,8 +470,6 @@ function checkUnprocessedFiles(byTimer = false) {
 }
 
 function checkUnprocessedChunks(timer = false) {
-  setLog(LogLevel.SILLY, `check Unprocessed Chunks`)
-
   const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
   if (chunkCurrentlyLoading) {
     setLog(
@@ -496,8 +491,6 @@ function checkUnprocessedChunks(timer = false) {
     } else {
       setLog(LogLevel.SILLY, `No next chunk`)
     }
-  } else {
-    setLog(LogLevel.SILLY, `No unprocessed chunks!`)
   }
 }
 
@@ -1337,7 +1330,7 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
-
+  logSender.sendLog("api.limits.get", stringify(data))
   if (mainWindow) {
     mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   }

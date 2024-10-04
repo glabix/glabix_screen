@@ -1,6 +1,11 @@
 import axios from "axios"
 import { ipcMain } from "electron"
 import { APIEvents } from "/src/events/api.events"
+import { stringify } from "/src/helpers/stringify"
+import { LogSender } from "/src/helpers/log-sender"
+
+const logSender = new LogSender()
+
 export function getOrganizationLimits(
   token: string,
   orgId: number
@@ -17,6 +22,7 @@ export function getOrganizationLimits(
         if (e.response && e.response.status == 401) {
           ipcMain.emit("app:logout")
         }
+        logSender.sendLog("api.limits.get.error", stringify(e))
         resolve(false)
       })
   })

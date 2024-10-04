@@ -1,5 +1,5 @@
-import { ISimpleStoreData, SimpleStoreEvents } from "./types"
-import { LoggerEvents } from "../events/logger.events"
+import { ISimpleStoreData, SimpleStoreEvents } from "/src/helpers/types"
+import { LoggerEvents } from "/src/events/logger.events"
 
 export class Timer {
   constructor(container: Element, limitSeconds: number) {
