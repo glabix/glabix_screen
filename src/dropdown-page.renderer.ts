@@ -6,6 +6,8 @@ import {
   ScreenAction,
 } from "./helpers/types"
 import "./styles/dropdown-page.scss"
+import { LoggerEvents } from "/src/events/logger.events"
+
 ;(function () {
   const template = document.querySelector(
     "#dropdown_item_tpl"
@@ -45,6 +47,27 @@ import "./styles/dropdown-page.scss"
   window.electronAPI.ipcRenderer.on(
     "dropdown:open",
     (event, data: IDropdownPageData) => {
+      switch (data.list.type) {
+        case "videoDevices":
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "webcam.settings.clicked",
+            body: { state: "opened" },
+          })
+          break
+        case "audioDevices":
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "microphone.settings.clicked",
+            body: { state: "opened" },
+          })
+          break
+        case "screenActions":
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "screen.settings.clicked",
+            body: { state: "opened" },
+          })
+          break
+      }
+
       container.innerHTML = null
       currentData = data
       data.list.items.forEach((item) => {
