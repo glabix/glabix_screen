@@ -11,5 +11,10 @@ export function createAppLogNoAuthCommand(
     title,
     version: app_version,
   }
-  axios.post(url, params, {}).then((response) => {})
+  try {
+    axios
+      .post(url, params, {})
+      .then((response) => {})
+      .catch((e) => {})
+  } catch (e) {}
 }
