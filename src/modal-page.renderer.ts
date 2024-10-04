@@ -14,6 +14,7 @@ import {
   StreamSettings,
 } from "./helpers/types"
 import { APIEvents } from "./events/api.events"
+import { LoggerEvents } from "/src/events/logger.events"
 type PageViewType = "modal" | "permissions" | "limits"
 ;(function () {
   let isAllowRecords: boolean | undefined = undefined
@@ -341,6 +342,13 @@ type PageViewType = "modal" | "permissions" | "limits"
         activeVideoDevice = videoDevicesList.find(
           (d) => d.deviceId == data.cameraDeviceId
         )
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "mode.video.camera.selected",
+          body: {
+            cameraDeviceName: activeVideoDevice.label,
+            cameraDeviceId: data.cameraDeviceId,
+          },
+        })
         videoDeviceContainer.innerHTML = null
         videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
       }
@@ -556,7 +564,22 @@ type PageViewType = "modal" | "permissions" | "limits"
       if (streamSettings.action == "fullScreenVideo") {
         sendSettings()
       }
-
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "recording.started",
+        body: JSON.stringify({
+          microphoneId: streamSettings.audioDeviceId,
+          webcamId: streamSettings.cameraDeviceId,
+          webcam:
+            videoDevicesList.find(
+              (a) => a.deviceId === streamSettings.cameraDeviceId
+            )?.label || "",
+          microphone:
+            audioDevicesList.find(
+              (a) => a.deviceId === streamSettings.audioDeviceId
+            )?.label || "",
+          mode: streamSettings.action,
+        }),
+      })
       window.electronAPI.ipcRenderer.send("start-recording", streamSettings)
     },
     false
