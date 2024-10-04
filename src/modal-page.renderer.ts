@@ -325,6 +325,10 @@ type PageViewType = "modal" | "permissions" | "limits"
       streamSettings = { ...streamSettings, ...data }
 
       if (data.action && data.action != activeScreenAction) {
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "mode.video.selected",
+          body: data.action,
+        })
         activeScreenAction = data.action
         activeScreenActionItem = data.item
         renderScreenSettings(data.item)
@@ -334,6 +338,13 @@ type PageViewType = "modal" | "permissions" | "limits"
         activeAudioDevice = audioDevicesList.find(
           (d) => d.deviceId == data.audioDeviceId
         )
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "mode.audio.selected",
+          body: {
+            activeAudioDeviceName: activeAudioDevice.label,
+            activeAudioDeviceId: data.audioDeviceId,
+          },
+        })
         audioDeviceContainer.innerHTML = null
         audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
       }
@@ -343,7 +354,7 @@ type PageViewType = "modal" | "permissions" | "limits"
           (d) => d.deviceId == data.cameraDeviceId
         )
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: "mode.video.camera.selected",
+          title: "mode.camera.selected",
           body: {
             cameraDeviceName: activeVideoDevice.label,
             cameraDeviceId: data.cameraDeviceId,

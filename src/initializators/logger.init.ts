@@ -11,8 +11,7 @@ export const loggerInit = () => {
   log.transports.console.level = LogLevel.SILLY
   log.transports.file.level = LogLevel.DEBUG
   log.transports.file.maxSize = 5 * 1024 * 1024 // 5 MB
-  log.transports.file.archiveLogFn = (fileName) =>
-    `${fileName}-${new Date().toISOString().split("T")[0]}.gz`
+  log.transports.file.fileName = "main-log.log"
   log.transports.console.format = "[{h}:{i}:{s}.{ms}] [{level}] {text}"
 
   // Глобальный обработчик для перехвата необработанных исключений

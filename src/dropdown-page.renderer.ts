@@ -7,7 +7,6 @@ import {
 } from "./helpers/types"
 import "./styles/dropdown-page.scss"
 import { LoggerEvents } from "/src/events/logger.events"
-
 ;(function () {
   const template = document.querySelector(
     "#dropdown_item_tpl"
@@ -69,6 +68,23 @@ import { LoggerEvents } from "/src/events/logger.events"
       }
 
       container.innerHTML = null
+      switch (currentData?.list?.type) {
+        case "videoDevices":
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "webcam.settings.close",
+          })
+          break
+        case "audioDevices":
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "microphone.settings.close",
+          })
+          break
+        case "screenActions":
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "screen.settings.close",
+          })
+          break
+      }
       currentData = data
       data.list.items.forEach((item) => {
         container.appendChild(renderItem(item))
