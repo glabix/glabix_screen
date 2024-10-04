@@ -1,6 +1,6 @@
 import axios from "axios"
 import { ipcMain } from "electron"
-import { APIEvents } from "../events/api.events"
+import { APIEvents } from "/src/events/api.events"
 export function getOrganizationLimits(
   token: string,
   orgId: number

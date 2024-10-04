@@ -1,6 +1,6 @@
 import axios from "axios"
 import { ipcMain } from "electron"
-import { LoginEvents } from "../events/login.events"
+import { LoginEvents } from "/src/events/login.events"
 export function getCurrentUser(token: string) {
   const url = `${import.meta.env.VITE_API_PATH}/identities/current`
   axios
