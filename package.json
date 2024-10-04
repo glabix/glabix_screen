@@ -1,6 +1,6 @@
 {
   "name": "glabix-screen",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "author": "Глабикс",
   "description": "Глабикс.Экран",
   "main": ".vite/build/main.js",
