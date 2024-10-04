@@ -13,9 +13,12 @@ export function createAppLogAuthCommand(
     title,
     version: app_version,
   }
-  axios
-    .post(url, params, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    .then((response) => {})
+  try {
+    axios
+      .post(url, params, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((response) => {})
+      .catch((e) => {})
+  } catch (e) {}
 }
