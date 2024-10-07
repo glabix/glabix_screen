@@ -70,7 +70,7 @@ jobs:
           MODE: ${MODE}
           PACKAGE_NAME: ${PACKAGE_NAME}
           PRODUCT_NAME: $PRODUCT_NAME
-          UPDATE_URL: ${UPDATE_URL}
+          UPDATE_URL: $UPDATE_URL
 
           CSC_LINK: ${CSC_LINK}
           CSC_KEY_PASSWORD: ${CSC_KEY_PASSWORD}
