@@ -1169,7 +1169,6 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
           checkUnprocessedFiles()
           checkUnprocessedChunks()
           checkOrganizationLimits()
-          // todo
         })
         .catch((e) => {
           logSender.sendLog(
