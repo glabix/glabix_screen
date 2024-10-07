@@ -30,6 +30,7 @@ jobs:
           npm -v
           echo "Initial package.json version: $(npm pkg get version | tr -d '"')"
           echo "Package name: ${PACKAGE_NAME}"
+          echo "Product name: ${PRODUCT_NAME}"
           npm pkg set name=${PACKAGE_NAME}
           npm pkg set description=${PRODUCT_NAME}
           [[ ${{ github.ref_name }} != main ]] && npm pkg set version=$(npm pkg get version | tr -d '"')-${{ github.ref_name }}
