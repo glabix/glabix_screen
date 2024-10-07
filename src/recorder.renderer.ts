@@ -411,11 +411,10 @@ import { LoggerEvents } from "./events/logger.events"
       cropMoveable
         .on("dragStart", () => {
           window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-
-          target!.style.left = `${left}px`
-          target!.style.top = `${top}px`
         })
         .on("drag", ({ target, left, top }) => {
+          target!.style.left = `${left}px`
+          target!.style.top = `${top}px`
           window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         })
         .on("dragEnd", () => {
