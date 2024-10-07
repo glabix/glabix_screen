@@ -1,4 +1,5 @@
 import axios from "axios"
+
 export function createAppLogAuthCommand(
   token: string,
   orgId: number,

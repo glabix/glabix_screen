@@ -1,4 +1,5 @@
 import axios from "axios"
+
 export function createAppLogNoAuthCommand(
   app_version: string,
   title: string,

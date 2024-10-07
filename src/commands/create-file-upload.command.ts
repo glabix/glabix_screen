@@ -1,5 +1,4 @@
 import axios from "axios"
-import { LogLevel, setLog } from "../helpers/set-log"
 
 export function createFileUploadCommand(
   token: string,

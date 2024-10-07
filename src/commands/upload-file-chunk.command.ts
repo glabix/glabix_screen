@@ -25,6 +25,7 @@ export function uploadFileChunkCommand(
       }
     })
     .catch((e) => {
+      console.log(e)
       callback(e, null)
     })
 }
