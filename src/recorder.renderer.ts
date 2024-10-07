@@ -121,12 +121,36 @@ import { LoggerEvents } from "./events/logger.events"
     }
   })
 
+  const mergeAudioStreams = (
+    desktopStream: MediaStream,
+    voiceStream: MediaStream
+  ): MediaStreamTrack[] => {
+    const context = new AudioContext()
+
+    const source1 = context.createMediaStreamSource(desktopStream)
+    const source2 = context.createMediaStreamSource(voiceStream)
+    const combine = context.createMediaStreamDestination()
+
+    const desktopGain = context.createGain()
+    const voiceGain = context.createGain()
+
+    desktopGain.gain.value = 0.9
+    voiceGain.gain.value = 0.9
+
+    source1.connect(desktopGain).connect(combine)
+    source2.connect(voiceGain).connect(combine)
+
+    return combine.stream.getAudioTracks()
+  }
+
   const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
-    let videoStream: MediaStream = new MediaStream()
-    let audioStream: MediaStream = new MediaStream()
+    let desktopStream: MediaStream = new MediaStream()
+    let voiceStream: MediaStream = new MediaStream()
+
+    const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
     if (settings.audioDeviceId) {
-      audioStream = await navigator.mediaDevices.getUserMedia({
+      voiceStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           deviceId: settings.audioDeviceId,
           echoCancellation: true,
@@ -138,28 +162,32 @@ import { LoggerEvents } from "./events/logger.events"
     }
 
     if (settings.action == "fullScreenVideo") {
-      videoStream = await navigator.mediaDevices.getDisplayMedia({
+      desktopStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false,
+        audio: isWindows,
       })
     }
 
     if (settings.action == "cropVideo") {
-      videoStream = await navigator.mediaDevices.getDisplayMedia({
+      desktopStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false,
+        audio: isWindows,
       })
     }
 
     if (settings.action == "cameraOnly" && settings.cameraDeviceId) {
-      videoStream = await navigator.mediaDevices.getUserMedia({
+      desktopStream = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: settings.cameraDeviceId } },
       })
     }
 
+    const audioStreamTracks: MediaStreamTrack[] = isWindows
+      ? mergeAudioStreams(desktopStream, voiceStream)
+      : voiceStream.getAudioTracks()
+
     const combinedStream = new MediaStream([
-      ...videoStream.getVideoTracks(),
-      ...audioStream.getAudioTracks(),
+      ...desktopStream.getVideoTracks(),
+      ...audioStreamTracks,
     ])
 
     return combinedStream
