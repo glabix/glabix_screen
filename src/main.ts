@@ -1308,6 +1308,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event) => {
   const { filename, fileChunks } = event
   if (lastCreatedFileName === filename) {
+    lastCreatedFileName = null
     dialog.showMessageBox(mainWindow, {
       type: "error",
       title: "Ошибка. Не удалось загрузить файл на сервер",
