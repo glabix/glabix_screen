@@ -140,6 +140,9 @@ type PageViewType = "modal" | "permissions" | "limits"
     }
 
     container.innerHTML = null
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "screen.settings.close",
+    })
     container.appendChild(clone)
   }
 
@@ -329,6 +332,7 @@ type PageViewType = "modal" | "permissions" | "limits"
           title: "mode.video.selected",
           body: data.action,
         })
+
         activeScreenAction = data.action
         activeScreenActionItem = data.item
         renderScreenSettings(data.item)
@@ -346,6 +350,9 @@ type PageViewType = "modal" | "permissions" | "limits"
           },
         })
         audioDeviceContainer.innerHTML = null
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "microphone.settings.close",
+        })
         audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
       }
 
@@ -359,6 +366,9 @@ type PageViewType = "modal" | "permissions" | "limits"
             cameraDeviceName: activeVideoDevice.label,
             cameraDeviceId: data.cameraDeviceId,
           },
+        })
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "video.settings.close",
         })
         videoDeviceContainer.innerHTML = null
         videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
@@ -444,6 +454,9 @@ type PageViewType = "modal" | "permissions" | "limits"
         if (openedDropdownType == "screenActions") {
           window.electronAPI.ipcRenderer.send("dropdown:close", {})
           openedDropdownType = undefined
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "screen.settings.close",
+          })
         } else {
           const offsetY = btn.getBoundingClientRect().top
           const action = btn.dataset.action as ScreenAction
@@ -464,6 +477,9 @@ type PageViewType = "modal" | "permissions" | "limits"
         if (openedDropdownType == "videoDevices") {
           window.electronAPI.ipcRenderer.send("dropdown:close", {})
           openedDropdownType = undefined
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "webcam.settings.close",
+          })
         } else {
           const offsetY = btn.getBoundingClientRect().top
           const list: IDropdownList = {
@@ -482,6 +498,9 @@ type PageViewType = "modal" | "permissions" | "limits"
         if (openedDropdownType == "audioDevices") {
           window.electronAPI.ipcRenderer.send("dropdown:close", {})
           openedDropdownType = undefined
+          window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+            title: "microphone.settings.close",
+          })
         } else {
           const offsetY = btn.getBoundingClientRect().top
           const list: IDropdownList = {

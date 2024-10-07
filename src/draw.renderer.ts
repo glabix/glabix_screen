@@ -2,6 +2,7 @@ import { KonvaPointerEvent } from "konva/lib/PointerEvents"
 import Konva from "konva"
 import Moveable, { MoveableRefTargetType, MoveableRefType } from "moveable"
 import "./styles/panel.scss"
+import { LoggerEvents } from "/src/events/logger.events"
 
 const COUNTDOWN_DELAY = 2000
 
@@ -18,6 +19,28 @@ class Draw {
   constructor() {
     this.setListeners()
   }
+
+  debounce(func, wait) {
+    let timeoutId
+
+    return function (...args) {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
+      timeoutId = setTimeout(() => {
+        func(...args)
+      }, wait)
+    }
+  }
+
+  logWidthChange(laserStrokeWidth) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "tools.lazer.settings.change.width",
+      body: { width: laserStrokeWidth },
+    })
+  }
+
+  debouncedLogWidth = this.debounce(this.logWidthChange, 200)
 
   setListeners() {
     this.handleDrawToggle()
@@ -57,6 +80,9 @@ class Draw {
       .addEventListener("click", () => {
         this.closeSettings()
       })
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "tools.lazer.settings.close",
+    })
   }
 
   handleLaserColorChange() {
@@ -76,12 +102,16 @@ class Draw {
       .querySelector(".panel-slider")
       .addEventListener("input", (event) => {
         this.laserStrokeWidth = +(event.target as HTMLInputElement).value
+        this.debouncedLogWidth(this.laserStrokeWidth)
       })
   }
 
   private drawStart() {
     if (this.stage) return
-
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "tools.lazer.enabled",
+      body: { color: this.laserColor, width: this.laserStrokeWidth },
+    })
     this.drawToggle.classList.add("active")
 
     this.stage = new Konva.Stage({
@@ -107,6 +137,9 @@ class Draw {
     })
 
     this.stage.on("mousedown touchstart", () => {
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "tools.lazer.drawing.started",
+      })
       if (this.countdownTimer) {
         window.clearTimeout(this.countdownTimer)
       }
@@ -148,7 +181,9 @@ class Draw {
 
     this.stage.on("mouseup touchend", () => {
       isPaint = false
-
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "tools.lazer.drawing.finished",
+      })
       this.startCountdown().then(() => {
         const tween = new Konva.Tween({
           node: layer,
@@ -177,7 +212,9 @@ class Draw {
 
   private drawEnd() {
     this.drawToggle.classList.remove("active")
-
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "tools.lazer.disabled",
+    })
     if (this.stage) {
       this.stage.clear()
       this.stage.destroy()
@@ -204,6 +241,9 @@ class Draw {
   }
 
   private closeSettings() {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "tools.lazer.settings.close",
+    })
     this.panelDraw.classList.add("invisible")
     this.panelDraw.classList.remove("visible")
   }
@@ -220,6 +260,10 @@ class Draw {
     this.laserColor = getComputedStyle(
       document.documentElement
     ).getPropertyValue(`--${currentBullet.dataset.color}`)
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "tools.lazer.settings.color.change",
+      body: { color: this.laserColor },
+    })
   }
 }
 
