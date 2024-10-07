@@ -26,26 +26,26 @@ jobs:
 
       - name: Show all env variables
         run: |
-          echo "VITE_MODE: ${VITE_MODE}"
-          echo "VITE_API_PATH: ${VITE_API_PATH}"
-          echo "VITE_AUTH_APP_URL: ${VITE_AUTH_APP_URL}"
-          echo "VITE_LOGIN_IS_REQUIRED: ${VITE_LOGIN_IS_REQUIRED}"
-          echo "VITE_PROTOCOL_SCHEME: ${VITE_PROTOCOL_SCHEME}"
-          echo "VITE_PRODUCT_NAME: ${VITE_PRODUCT_NAME}"
+          echo "VITE_MODE: $VITE_MODE"
+          echo "VITE_API_PATH: $VITE_API_PATH"
+          echo "VITE_AUTH_APP_URL: $VITE_AUTH_APP_URL"
+          echo "VITE_LOGIN_IS_REQUIRED: $VITE_LOGIN_IS_REQUIRED"
+          echo "VITE_PROTOCOL_SCHEME: $VITE_PROTOCOL_SCHEME"
+          echo "VITE_PRODUCT_NAME: $VITE_PRODUCT_NAME"
 
-          echo "MODE: ${MODE}"
-          echo "PACKAGE_NAME: ${PACKAGE_NAME}"
-          echo "PRODUCT_NAME: ${PRODUCT_NAME}"
-          echo "UPDATE_URL: ${UPDATE_URL}"
+          echo "MODE: $MODE"
+          echo "PACKAGE_NAME: $PACKAGE_NAME"
+          echo "PRODUCT_NAME: $PRODUCT_NAME"
+          echo "UPDATE_URL: $UPDATE_URL"
 
-          echo "CSC_LINK: ${CSC_LINK}"
-          echo "CSC_KEY_PASSWORD: ${CSC_KEY_PASSWORD}"
-          echo "APPLE_API_KEY: ${APPLE_API_KEY}"
-          echo "APPLE_API_KEY_ID: ${APPLE_API_KEY_ID}"
-          echo "APPLE_API_ISSUER: ${APPLE_API_ISSUER}"
-          echo "APPLE_TEAM_ID: ${APPLE_TEAM_ID}"
-          echo "WIN_CSC_LINK: ${WIN_CSC_LINK}"
-          echo "WIN_CSC_KEY_PASSWORD: ${WIN_CSC_KEY_PASSWORD}"
+          echo "CSC_LINK: $CSC_LINK"
+          echo "CSC_KEY_PASSWORD: $CSC_KEY_PASSWORD"
+          echo "APPLE_API_KEY: $APPLE_API_KEY"
+          echo "APPLE_API_KEY_ID: $APPLE_API_KEY_ID"
+          echo "APPLE_API_ISSUER: $APPLE_API_ISSUER"
+          echo "APPLE_TEAM_ID: $APPLE_TEAM_ID"
+          echo "WIN_CSC_LINK: $WIN_CSC_LINK"
+          echo "WIN_CSC_KEY_PASSWORD: $WIN_CSC_KEY_PASSWORD"
 
       - name: Set package environment meta
         run: |
