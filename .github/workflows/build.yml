@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "npm version"
           npm -v
-          echo "Github Ref Name: ${github.ref_name}"
+          echo "Github Ref Name: ${{ github.ref_name }}"
           echo "Initial package.json version: $(npm pkg get version | tr -d '"')"
           npm pkg set name=${PACKAGE_NAME}
           npm pkg set description=${PRODUCT_NAME}
