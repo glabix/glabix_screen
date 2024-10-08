@@ -126,19 +126,18 @@ import { LoggerEvents } from "./events/logger.events"
     voiceStream: MediaStream
   ): MediaStreamTrack[] => {
     const context = new AudioContext()
+    const hasMicrophone = Boolean(voiceStream.getAudioTracks().length)
+    const desktopSource = context.createMediaStreamSource(desktopStream)
+    const voiceSource: MediaStreamAudioSourceNode | null = hasMicrophone
+      ? context.createMediaStreamSource(voiceStream)
+      : null
 
-    const source1 = context.createMediaStreamSource(desktopStream)
-    const source2 = context.createMediaStreamSource(voiceStream)
     const combine = context.createMediaStreamDestination()
+    desktopSource.connect(combine)
 
-    const desktopGain = context.createGain()
-    const voiceGain = context.createGain()
-
-    desktopGain.gain.value = 0.9
-    voiceGain.gain.value = 0.9
-
-    source1.connect(desktopGain).connect(combine)
-    source2.connect(voiceGain).connect(combine)
+    if (voiceSource) {
+      voiceSource.connect(combine)
+    }
 
     return combine.stream.getAudioTracks()
   }
@@ -148,6 +147,13 @@ import { LoggerEvents } from "./events/logger.events"
     let voiceStream: MediaStream = new MediaStream()
 
     const isWindows = navigator.userAgent.indexOf("Windows") != -1
+    const audioSettigs = {
+      noiseSuppression: true, // Включает подавление шума
+      echoCancellation: true, // Включает подавление эха
+      autoGainControl: true, // Автоматическая регулировка усиления
+      sampleRate: 44100, // Установите частоту дискретизации, если это необходимо
+      channelCount: 1, // Используйте стерео, если это возможно
+    }
 
     if (settings.audioDeviceId) {
       voiceStream = await navigator.mediaDevices.getUserMedia({
@@ -155,7 +161,9 @@ import { LoggerEvents } from "./events/logger.events"
           deviceId: settings.audioDeviceId,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
           sampleRate: 44100,
+          channelCount: 1,
         },
         video: false,
       })
@@ -164,14 +172,14 @@ import { LoggerEvents } from "./events/logger.events"
     if (settings.action == "fullScreenVideo") {
       desktopStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: isWindows,
+        audio: isWindows ? audioSettigs : false,
       })
     }
 
     if (settings.action == "cropVideo") {
       desktopStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: isWindows,
+        audio: isWindows ? audioSettigs : false,
       })
     }
 
