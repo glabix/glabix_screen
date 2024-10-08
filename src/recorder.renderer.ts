@@ -473,9 +473,16 @@ import { LoggerEvents } from "./events/logger.events"
     initView(data)
 
     if (data.action == "fullScreenVideo") {
-      initStream(data).then((stream) => {
-        createVideo(stream, undefined, undefined)
-      })
+      initStream(data)
+        .then((stream) => {
+          createVideo(stream, undefined, undefined)
+        })
+        .catch((e) => {
+          window.electronAPI.ipcRenderer.send(
+            "log",
+            `fullScreenVideo catch(e): ${e}`
+          )
+        })
     }
 
     if (data.action == "cameraOnly") {
@@ -493,6 +500,10 @@ import { LoggerEvents } from "./events/logger.events"
           createVideo(stream, undefined, video)
         })
         .catch((e) => {
+          window.electronAPI.ipcRenderer.send(
+            "log",
+            `cameraOnly catch(e): ${e}`
+          )
           if (e.toString().toLowerCase().includes("permission denied")) {
             showOnlyCameraError("no-permission")
           } else {
@@ -503,9 +514,13 @@ import { LoggerEvents } from "./events/logger.events"
 
     if (data.action == "cropVideo") {
       const canvas = document.querySelector("#crop_video_screen canvas")
-      initStream(data).then((stream) => {
-        createVideo(stream, canvas, undefined)
-      })
+      initStream(data)
+        .then((stream) => {
+          createVideo(stream, canvas, undefined)
+        })
+        .catch((e) => {
+          window.electronAPI.ipcRenderer.send("log", `cropVideo catch(e): ${e}`)
+        })
     }
   }
 
