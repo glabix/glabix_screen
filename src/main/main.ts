@@ -536,14 +536,6 @@ function createWindow() {
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
 
-  // if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-  //   mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/index.html`)
-  // } else {
-  //   mainWindow.loadFile(
-  //     path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
-  //   )
-  // }
-
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"])
   } else {
@@ -613,18 +605,6 @@ function createModal(parentWindow) {
     }
   })
 
-  // if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-  //   modalWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/modal.html`)
-  // } else {
-  //   modalWindow
-  //     .loadFile(
-  //       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/modal.html`)
-  //     )
-  //     .then(() => {
-  //       modalWindow.webContents.send("app:version", app.getVersion())
-  //     })
-  // }
-
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
   } else {
@@ -664,14 +644,6 @@ function createDropdownWindow(parentWindow) {
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
   }
-
-  // if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-  //   dropdownWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/dropdown.html`)
-  // } else {
-  //   dropdownWindow.loadFile(
-  //     path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/dropdown.html`)
-  //   )
-  // }
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     dropdownWindow.loadURL(
@@ -720,14 +692,6 @@ function createLoginWindow() {
       // contextIsolation: true,  // повышаем безопасность
     },
   })
-
-  // if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-  //   loginWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}/login.html`)
-  // } else {
-  //   loginWindow.loadFile(
-  //     path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/login.html`)
-  //   )
-  // }
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loginWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/login.html`)
@@ -791,19 +755,19 @@ function toggleWindows() {
 }
 
 function createTrayIcon(): Electron.NativeImage {
-  let imagePath: string
+  let iconName = ""
 
   if (os.platform() == "win32") {
     switch (import.meta.env.VITE_MODE) {
       case "dev":
-        imagePath = "tray-win-dev.png"
+        iconName = "tray-win-dev.png"
         break
       case "review":
-        imagePath = "tray-win-review.png"
+        iconName = "tray-win-review.png"
         break
       case "production":
       default:
-        imagePath = "tray-win.png"
+        iconName = "tray-win.png"
         break
     }
   }
@@ -811,14 +775,14 @@ function createTrayIcon(): Electron.NativeImage {
   if (os.platform() == "darwin") {
     switch (import.meta.env.VITE_MODE) {
       case "dev":
-        imagePath = "tray-macos-dev.png"
+        iconName = "tray-macos-dev.png"
         break
       case "review":
-        imagePath = "tray-macos-review.png"
+        iconName = "tray-macos-review.png"
         break
       case "production":
       default:
-        imagePath = nativeTheme.shouldUseDarkColors
+        iconName = nativeTheme.shouldUseDarkColors
           ? "tray-macos-light.png"
           : "tray-macos-dark.png"
         break
@@ -826,7 +790,7 @@ function createTrayIcon(): Electron.NativeImage {
   }
 
   const icon = nativeImage
-    .createFromPath(path.join(__dirname, imagePath))
+    .createFromPath(path.join(__dirname, "../../resources/icons", iconName))
     .resize({ width: 20, height: 20 })
 
   if (os.platform() == "darwin" && import.meta.env.VITE_MODE == "production") {

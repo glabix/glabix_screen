@@ -7,7 +7,7 @@
   "extends": [
     "eslint:recommended",
     "@electron-toolkit/eslint-config-ts/recommended",
-    "@electron-toolkit/eslint-config-prettier",
+    // "@electron-toolkit/eslint-config-prettier",
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
     // "plugin:n/recommended",

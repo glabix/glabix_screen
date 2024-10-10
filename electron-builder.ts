@@ -5,12 +5,12 @@ const isReview = process.env.MODE === "review"
 const getIconPath = (): string => {
   switch (process.env.MODE) {
     case "dev":
-      return "public/logo-square-dev.png"
+      return "resources/icons/logo-square-dev.png"
     case "review":
-      return "public/logo-square-review.png"
+      return "resources/icons/logo-square-review.png"
     case "production":
     default:
-      return "public/logo-square.png"
+      return "resources/icons/logo-square.png"
   }
 }
 
