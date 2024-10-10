@@ -6,6 +6,12 @@ export interface StreamSettings {
   audioDeviceId?: string
   cameraDeviceId?: string
   video?: boolean
+  audio?: boolean
+}
+
+export enum ModalWindowHeight {
+  WIN = 480,
+  MAC = 395,
 }
 
 export interface IAppState {

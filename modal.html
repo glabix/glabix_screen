@@ -179,6 +179,25 @@
       </div>
       <div id="video_device_container"></div>
       <div id="audio_device_container"></div>
+      <div class="mb-5 mt-6 system-audio-container" hidden>
+        <label class="flex items-center">
+          <div class="flex-grow-1">
+            <div class="font-weight-600 text-md">
+              Использовать системное аудио
+            </div>
+            <div class="text-xs text-gray-600">
+              Записывайте аудио из других приложений на вашем устройстве
+            </div>
+          </div>
+          <div class="form-toggle ml-2">
+            <input
+              class="form-toggle-input system-audio-checkbox"
+              type="checkbox"
+            />
+            <span class="form-toggle-label"></span>
+          </div>
+        </label>
+      </div>
       <div>
         <button type="button" id="startBtn" class="btn btn--primary">
           Начать запись
