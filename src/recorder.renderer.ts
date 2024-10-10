@@ -13,6 +13,7 @@ import { FileUploadEvents } from "./events/file-upload.events"
 import { APIEvents } from "./events/api.events"
 import { LoggerEvents } from "./events/logger.events"
 ;(function () {
+  const isWindows = navigator.userAgent.indexOf("Windows") != -1
   const countdownContainer = document.querySelector(
     ".fullscreen-countdown-container"
   )
@@ -123,14 +124,16 @@ import { LoggerEvents } from "./events/logger.events"
   const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
     let desktopStream: MediaStream = new MediaStream()
     let voiceStream: MediaStream = new MediaStream()
+    let systemAudioSettings: boolean | MediaTrackConstraints = false
 
-    const isWindows = navigator.userAgent.indexOf("Windows") != -1
-    const audioSettigs = {
-      noiseSuppression: true, // Включает подавление шума
-      echoCancellation: true, // Включает подавление эха
-      autoGainControl: true, // Автоматическая регулировка усиления
-      sampleRate: 44100, // Установите частоту дискретизации, если это необходимо
-      channelCount: 1, // Используйте стерео, если это возможно
+    if (settings.audio && isWindows) {
+      systemAudioSettings = {
+        noiseSuppression: true, // Включает подавление шума
+        echoCancellation: true, // Включает подавление эха
+        autoGainControl: true, // Автоматическая регулировка усиления
+        sampleRate: 44100, // Установите частоту дискретизации, если это необходимо
+        channelCount: 1, // Используйте стерео, если это возможно
+      }
     }
 
     if (settings.audioDeviceId) {
@@ -150,14 +153,14 @@ import { LoggerEvents } from "./events/logger.events"
     if (settings.action == "fullScreenVideo") {
       desktopStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: isWindows ? audioSettigs : false,
+        audio: systemAudioSettings,
       })
     }
 
     if (settings.action == "cropVideo") {
       desktopStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: isWindows ? audioSettigs : false,
+        audio: systemAudioSettings,
       })
     }
 
@@ -167,7 +170,12 @@ import { LoggerEvents } from "./events/logger.events"
       })
     }
 
-    const audioStreamTracks: MediaStreamTrack[] = isWindows
+    window.electronAPI.ipcRenderer.send(
+      "log",
+      `systemAudioSettings: ${JSON.stringify(systemAudioSettings)}`
+    )
+
+    const audioStreamTracks: MediaStreamTrack[] = systemAudioSettings
       ? mergeAudioStreams(desktopStream, voiceStream)
       : voiceStream.getAudioTracks()
 
