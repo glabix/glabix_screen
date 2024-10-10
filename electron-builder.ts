@@ -60,10 +60,7 @@ const options: Configuration = {
       provider: "generic",
       url: `${process.env.UPDATE_URL}`,
     },
-    {
-      provider: "github",
-      publishAutoUpdate: false,
-    },
+    "github",
   ],
 }
 
