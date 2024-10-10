@@ -40,10 +40,13 @@ jobs:
           VITE_LOGIN_IS_REQUIRED: ${{ vars.VITE_LOGIN_IS_REQUIRED }}
           VITE_PROTOCOL_SCHEME: ${{ vars.VITE_PROTOCOL_SCHEME }}
           VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
+          VITE_APP_ID: ${{ vars.VITE_APP_ID }}
 
           MODE: ${{ vars.MODE }}
           PACKAGE_NAME: ${{ vars.PACKAGE_NAME }}
           PRODUCT_NAME: ${{ vars.PRODUCT_NAME }}
+          PRODUCT_DESCRIPTION: ${{ vars.PRODUCT_DESCRIPTION }}
+          APP_ID: ${{ vars.APP_ID }}
           UPDATE_URL: ${{ vars.UPDATE_URL }}
 
           CSC_LINK: ${{ secrets.CSC_LINK }}

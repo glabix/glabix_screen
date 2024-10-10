@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title></title>
+  </head>
+
+  <body>
+    <div class="windows-toolbar" hidden>
+      <button
+        type="button"
+        id="windows_minimize"
+        class="windows-toolbar-btn minimize"
+      >
+        <i class="i i-minus"></i>
+      </button>
+      <button
+        type="button"
+        id="windows_close"
+        class="windows-toolbar-btn close"
+      >
+        <i class="i i-close"></i>
+      </button>
+    </div>
+
+    <div class="limits-content" hidden>
+      <div class="mb-6 pt-6 flex justify-center">
+        <svg
+          class="recorder-logo"
+          width="136"
+          height="40"
+          style="color: var(--primary)"
+        >
+          <use xlink:href="assets/recorder-logo.svg#logo"></use>
+        </svg>
+      </div>
+      <div class="text-center font-weight-600 mb-6 text-lg">
+        Вы израсходовали лимиты
+      </div>
+      <div class="mb-6 text-center">
+        Выберите один из доступных тарифных планов, чтобы увеличить лимиты
+      </div>
+      <button type="button" class="btn btn--primary" id="redirectToPlans">
+        Сменить тариф
+      </button>
+    </div>
+
+    <div class="permissions-content" hidden>
+      <div class="mb-4 flex justify-center">
+        <svg
+          class="recorder-logo"
+          width="136"
+          height="40"
+          style="color: var(--primary)"
+        >
+          <use xlink:href="assets/recorder-logo.svg#logo"></use>
+        </svg>
+      </div>
+      <div class="text-center font-weight-600 mb-2 text-lg">
+        Добро пожаловать в Глабикс Экран
+      </div>
+      <div class="mb-6 text-center">
+        Включите разрешения, чтобы начать работу
+      </div>
+      <div class="mb-3">
+        <div
+          class="media-device-panel items-center flex rounded-lg gap-2 bg-gray-200 p-3 justify-between js-permission-camera"
+        >
+          <div class="flex flex-grow-1 items-center gap-3">
+            <div class="flex-center-5">
+              <i class="i i--lg i-video"></i>
+            </div>
+            <div>
+              <div class="font-weight-600 text-md">Камера</div>
+              <div class="text-sm text-gray-600">
+                Чтобы зрители могли вас видеть
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              class="btn btn--default btn--sm js-device-access"
+              data-type="camera"
+            >
+              Включить
+            </button>
+            <div class="icon-access">
+              <div class="i i--xl i-check-circle-solid text-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div
+          class="media-device-panel items-center flex rounded-lg gap-2 bg-gray-200 p-3 justify-between js-permission-microphone"
+        >
+          <div class="flex flex-grow-1 items-center gap-3">
+            <div class="flex-center-5">
+              <i class="i i--lg i-microphone"></i>
+            </div>
+            <div>
+              <div class="font-weight-600 text-md">Микрофон</div>
+              <div class="text-sm text-gray-600">
+                Чтобы зрители могли вас слышать
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              class="btn btn--default btn--sm js-device-access"
+              data-type="microphone"
+            >
+              Включить
+            </button>
+            <div class="icon-access">
+              <div class="i i--xl i-check-circle-solid text-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div
+          class="media-device-panel items-center flex rounded-lg gap-2 bg-gray-200 p-3 justify-between js-permission-screen"
+        >
+          <div class="flex flex-grow-1 items-center gap-3">
+            <div class="flex-center-5">
+              <i class="i i--lg i-display"></i>
+            </div>
+            <div>
+              <div class="font-weight-600 text-md">Экран</div>
+              <div class="text-sm text-gray-600">
+                Чтобы поделиться своим экраном
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              class="btn btn--default btn--sm js-device-access"
+              data-type="screen"
+            >
+              Включить
+            </button>
+            <div class="icon-access">
+              <div class="i i--xl i-check-circle-solid text-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <button
+          type="button"
+          id="continueBtn"
+          disabled
+          class="btn btn--primary"
+        >
+          Продолжить
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-content" hidden>
+      <div class="mb-6 flex justify-center">
+        <svg
+          class="recorder-logo"
+          width="136"
+          height="40"
+          style="color: var(--primary)"
+        >
+          <use xlink:href="assets/recorder-logo.svg#logo"></use>
+        </svg>
+      </div>
+      <div class="mb-5">
+        <div id="screen_settings_container"></div>
+      </div>
+      <div id="video_device_container"></div>
+      <div id="audio_device_container"></div>
+      <div>
+        <button type="button" id="startBtn" class="btn btn--primary">
+          Начать запись
+        </button>
+      </div>
+    </div>
+
+    <div id="footer" class="text-center mt-5 text-xs text-gray-600" hidden>
+      &copy; 2024 ООО «Глабикс»
+      <span id="app_version"></span>
+    </div>
+
+    <template id="screen_settings_tpl">
+      <button
+        type="button"
+        class="btn js-btn-action-type justify-start text-overflow"
+      >
+        <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
+          <i class="i relative i--lg"></i>
+        </div>
+        <span
+          class="text-overflow text-left pointer-events-none flex-grow-1"
+        ></span>
+      </button>
+    </template>
+
+    <template id="media_device_tpl">
+      <div class="mb-3">
+        <button class="btn justify-start text-overflow items-center">
+          <div class="flex-center-5 pointer-events-none min-w-5 mr-3">
+            <i class="i i--lg"></i>
+          </div>
+          <span
+            class="text-overflow text-left flex-grow-1 pointer-events-none"
+          ></span>
+          <label class="form-toggle ml-1" hidden>
+            <input
+              class="form-toggle-input media-device-checkbox"
+              type="checkbox"
+            />
+            <span class="form-toggle-label"></span>
+          </label>
+        </button>
+      </div>
+    </template>
+    <script type="module" src="./src/modal-page.renderer.ts"></script>
+  </body>
+</html>
