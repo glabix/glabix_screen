@@ -26,8 +26,8 @@ jobs:
 
       - name: Set package environment meta
         run: |
-          npm pkg set name=${{ vars.PACKAGE_NAME }}
-          npm pkg set description=${{ vars.PRODUCT_DESCRIPTION }}
+          npm pkg set name="${{ vars.PACKAGE_NAME }}"
+          npm pkg set description="${{ vars.PRODUCT_DESCRIPTION }}"
           [[ ${{ github.ref_name }} != main ]] && npm pkg set version=$(npm pkg get version | tr -d '"')-${{ github.ref_name }}
           echo "New package.json version: $(npm pkg get version | tr -d '"')"
 
