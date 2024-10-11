@@ -37,6 +37,8 @@ import { LoggerEvents } from "./events/logger.events"
   let cropMoveable: Moveable
   let cameraMoveable: Moveable
   let lastStreamSettings: StreamSettings
+  let desktopStream: MediaStream = new MediaStream()
+  let voiceStream: MediaStream = new MediaStream()
 
   function stopRecording() {
     if (videoRecorder) {
@@ -128,8 +130,9 @@ import { LoggerEvents } from "./events/logger.events"
   }
 
   const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
-    let desktopStream: MediaStream = new MediaStream()
-    let voiceStream: MediaStream = new MediaStream()
+    desktopStream.getTracks().forEach((track) => track.stop())
+    voiceStream.getTracks().forEach((track) => track.stop())
+
     let systemAudioSettings: boolean | MediaTrackConstraints = false
 
     if (settings.audio && isWindows) {
@@ -156,18 +159,18 @@ import { LoggerEvents } from "./events/logger.events"
       })
     }
 
-    if (settings.action == "fullScreenVideo") {
-      desktopStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: systemAudioSettings,
-      })
-    }
-
-    if (settings.action == "cropVideo") {
-      desktopStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: systemAudioSettings,
-      })
+    if (["fullScreenVideo", "cropVideo"].includes(settings.action)) {
+      try {
+        desktopStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: systemAudioSettings,
+        })
+      } catch (e) {
+        window.electronAPI.ipcRenderer.send(
+          "log",
+          ` initStream action: ${settings.action},  desktopStream catch (e): ${e}`
+        )
+      }
     }
 
     if (settings.action == "cameraOnly" && settings.cameraDeviceId) {
