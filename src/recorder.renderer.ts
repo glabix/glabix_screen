@@ -37,6 +37,8 @@ import { LoggerEvents } from "./events/logger.events"
   let cropMoveable: Moveable
   let cameraMoveable: Moveable
   let lastStreamSettings: StreamSettings
+  let desktopStream: MediaStream = new MediaStream()
+  let voiceStream: MediaStream = new MediaStream()
 
   function debounce(func, wait) {
     let timeoutId
@@ -150,8 +152,8 @@ import { LoggerEvents } from "./events/logger.events"
   }
 
   const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
-    let desktopStream: MediaStream = new MediaStream()
-    let voiceStream: MediaStream = new MediaStream()
+    desktopStream.getTracks().forEach((track) => track.stop())
+    voiceStream.getTracks().forEach((track) => track.stop())
     let systemAudioSettings: boolean | MediaTrackConstraints = false
 
     if (settings.audio && isWindows) {
