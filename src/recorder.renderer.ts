@@ -127,14 +127,20 @@ import { LoggerEvents } from "./events/logger.events"
     voiceStream: MediaStream
   ): MediaStreamTrack[] => {
     const context = new AudioContext()
+    const hasSystemAudio = Boolean(desktopStream.getAudioTracks().length)
     const hasMicrophone = Boolean(voiceStream.getAudioTracks().length)
-    const desktopSource = context.createMediaStreamSource(desktopStream)
+    const desktopSource: MediaStreamAudioSourceNode | null = hasSystemAudio
+      ? context.createMediaStreamSource(desktopStream)
+      : null
     const voiceSource: MediaStreamAudioSourceNode | null = hasMicrophone
       ? context.createMediaStreamSource(voiceStream)
       : null
 
     const combine = context.createMediaStreamDestination()
-    desktopSource.connect(combine)
+
+    if (desktopSource) {
+      desktopSource.connect(combine)
+    }
 
     if (voiceSource) {
       voiceSource.connect(combine)
@@ -192,12 +198,7 @@ import { LoggerEvents } from "./events/logger.events"
       })
     }
 
-    window.electronAPI.ipcRenderer.send(
-      "log",
-      `systemAudioSettings: ${JSON.stringify(systemAudioSettings)}`
-    )
-
-    const audioStreamTracks: MediaStreamTrack[] = systemAudioSettings
+    const audioStreamTracks: MediaStreamTrack[] = isWindows
       ? mergeAudioStreams(desktopStream, voiceStream)
       : voiceStream.getAudioTracks()
 
