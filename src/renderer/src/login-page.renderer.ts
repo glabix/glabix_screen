@@ -1,5 +1,5 @@
-import "../styles/login-page.scss"
-import { LoginEvents } from "../../shared/events/login.events"
+import "@renderer/styles/login-page.scss"
+import { LoginEvents } from "@shared/events/login.events"
 
 document.addEventListener("DOMContentLoaded", () => {
   const authLink = import.meta.env.VITE_AUTH_APP_URL + "recorder/auth"

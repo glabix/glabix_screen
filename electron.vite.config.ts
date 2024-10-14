@@ -15,6 +15,14 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        "@main": path.resolve(__dirname, "./src/main"),
+        "@preload": path.resolve(__dirname, "./src/preload"),
+        "@renderer": path.resolve(__dirname, "./src/renderer"),
+        "@shared": path.resolve(__dirname, "./src/shared"),
+      },
+    },
   },
   renderer: {
     build: {
@@ -25,6 +33,14 @@ export default defineConfig({
           login_window: resolve(__dirname, "src/renderer/login.html"),
           dropdown_window: resolve(__dirname, "src/renderer/dropdown.html"),
         },
+      },
+    },
+    resolve: {
+      alias: {
+        "@main": path.resolve(__dirname, "./src/main"),
+        "@preload": path.resolve(__dirname, "./src/preload"),
+        "@renderer": path.resolve(__dirname, "./src/renderer"),
+        "@shared": path.resolve(__dirname, "./src/shared"),
       },
     },
     css: {

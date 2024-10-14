@@ -1,8 +1,8 @@
 import axios from "axios"
 import { ipcMain } from "electron"
-import { APIEvents } from "../../shared/events/api.events"
-import { stringify } from "../helpers/stringify"
-import { LogSender } from "../helpers/log-sender"
+import { APIEvents } from "@shared/events/api.events"
+import { stringify } from "@main/helpers/stringify"
+import { LogSender } from "@main/helpers/log-sender"
 
 const logSender = new LogSender()
 

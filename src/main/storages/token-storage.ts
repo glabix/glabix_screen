@@ -1,10 +1,10 @@
 import { app, ipcMain, safeStorage } from "electron"
 import * as fs from "fs"
-import { IAuthData, IJWTToken } from "../../shared/types/types"
-import { LoginEvents } from "../../shared/events/login.events"
+import { IAuthData, IJWTToken } from "@shared/types/types"
+import { LoginEvents } from "@shared/events/login.events"
 import os from "os"
 import path from "path"
-import { LogLevel, setLog } from "../helpers/set-log"
+import { LogLevel, setLog } from "@main/helpers/set-log"
 
 export class TokenStorage {
   private _token: IJWTToken | null = null

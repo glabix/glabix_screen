@@ -1,4 +1,4 @@
-import "../styles/panel.scss"
+import "@renderer/styles/panel.scss"
 import { KonvaPointerEvent } from "konva/lib/PointerEvents"
 import Konva from "konva"
 import Moveable, { MoveableRefTargetType, MoveableRefType } from "moveable"

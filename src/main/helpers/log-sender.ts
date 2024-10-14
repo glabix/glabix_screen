@@ -1,7 +1,7 @@
-import { createAppLogAuthCommand } from "../commands/create-app-log-auth.command"
-import { TokenStorage } from "../storages/token-storage"
+import { createAppLogAuthCommand } from "@main/commands/create-app-log-auth.command"
+import { TokenStorage } from "@main/storages/token-storage"
 import { getVersion } from "./get-version"
-import { createAppLogNoAuthCommand } from "../commands/create-app-log-no-auth.command"
+import { createAppLogNoAuthCommand } from "@main/commands/create-app-log-no-auth.command"
 import { LogLevel, setLog } from "./set-log"
 
 export class LogSender {

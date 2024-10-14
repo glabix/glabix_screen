@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron"
 import { electronAPI } from "@electron-toolkit/preload"
-import { openExternalLink } from "../shared/helpers/open-external-link"
+import { openExternalLink } from "@shared/helpers/open-external-link"
 
 // Custom APIs for renderer
 export const api = {

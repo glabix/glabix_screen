@@ -1,11 +1,11 @@
-import "../styles/dropdown-page.scss"
+import "@renderer/styles/dropdown-page.scss"
 import {
   IDropdownItem,
   IDropdownPageData,
   IDropdownPageSelectData,
   ScreenAction,
-} from "../../shared/types/types"
-import { LoggerEvents } from "../../shared/events/logger.events"
+} from "@shared/types/types"
+import { LoggerEvents } from "@shared/events/logger.events"
 
 const template = document.querySelector(
   "#dropdown_item_tpl"

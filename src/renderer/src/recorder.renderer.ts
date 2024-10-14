@@ -1,4 +1,4 @@
-import "../styles/index-page.scss"
+import "@renderer/styles/index-page.scss"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import {
   IOrganizationLimits,
@@ -7,11 +7,11 @@ import {
   ScreenAction,
   SimpleStoreEvents,
   StreamSettings,
-} from "../../shared/types/types"
+} from "@shared/types/types"
 import { Timer } from "./helpers/timer"
-import { FileUploadEvents } from "../../shared/events/file-upload.events"
-import { APIEvents } from "../../shared/events/api.events"
-import { LoggerEvents } from "../../shared/events/logger.events"
+import { FileUploadEvents } from "@shared/events/file-upload.events"
+import { APIEvents } from "@shared/events/api.events"
+import { LoggerEvents } from "@shared/events/logger.events"
 
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"

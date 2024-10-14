@@ -1,4 +1,4 @@
-import "../styles/modal-page.scss"
+import "@renderer/styles/modal-page.scss"
 import {
   DropdownListType,
   IDropdownItem,
@@ -9,9 +9,9 @@ import {
   MediaDeviceType,
   ScreenAction,
   StreamSettings,
-} from "../../shared/types/types"
-import { APIEvents } from "../../shared/events/api.events"
-import { LoggerEvents } from "../../shared/events/logger.events"
+} from "@shared/types/types"
+import { APIEvents } from "@shared/events/api.events"
+import { LoggerEvents } from "@shared/events/logger.events"
 type PageViewType = "modal" | "permissions" | "limits"
 
 let isAllowRecords: boolean | undefined = undefined

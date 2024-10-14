@@ -4,7 +4,7 @@ import { ChunksStorage } from "./chunk-storage"
 import { Chunk } from "./chunk"
 import os from "os"
 import { app } from "electron"
-import { LogLevel, setLog } from "../helpers/set-log"
+import { LogLevel, setLog } from "@main/helpers/set-log"
 
 export class ChunkStorageService {
   _storages: ChunksStorage[] = []

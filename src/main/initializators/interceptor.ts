@@ -1,4 +1,4 @@
-import { logAxiosError } from "../helpers/log-axios-error"
+import { logAxiosError } from "@main/helpers/log-axios-error"
 import axios, { AxiosError } from "axios"
 
 let flag = false

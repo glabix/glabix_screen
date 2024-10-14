@@ -1,8 +1,8 @@
 // Optional, initialize the logger for any renderer process
 import log from "electron-log/main.js"
-import { LogLevel } from "../helpers/set-log"
-import { LogSender } from "../helpers/log-sender"
-import { stringify } from "../helpers/stringify"
+import { LogLevel } from "@main/helpers/set-log"
+import { LogSender } from "@main/helpers/log-sender"
+import { stringify } from "@main/helpers/stringify"
 
 const logSender = new LogSender()
 

@@ -1,8 +1,5 @@
-import {
-  ISimpleStoreData,
-  SimpleStoreEvents,
-} from "../../../shared/types/types"
-import { LoggerEvents } from "../../../shared/events/logger.events"
+import { ISimpleStoreData, SimpleStoreEvents } from "@shared/types/types"
+import { LoggerEvents } from "@shared/events/logger.events"
 
 export class Timer {
   constructor(container: Element, limitSeconds: number) {
