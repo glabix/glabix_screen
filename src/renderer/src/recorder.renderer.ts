@@ -13,6 +13,7 @@ import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 
+const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
 )
@@ -36,6 +37,8 @@ let stream: MediaStream
 let cropMoveable: Moveable
 let cameraMoveable: Moveable
 let lastStreamSettings: StreamSettings
+let desktopStream: MediaStream = new MediaStream()
+let voiceStream: MediaStream = new MediaStream()
 
 function debounce(func, wait) {
   let timeoutId
@@ -121,45 +124,90 @@ pauseBtn.addEventListener("click", () => {
   }
 })
 
+const mergeAudioStreams = (
+  desktopStream: MediaStream,
+  voiceStream: MediaStream
+): MediaStreamTrack[] => {
+  const context = new AudioContext()
+  const hasSystemAudio = Boolean(desktopStream.getAudioTracks().length)
+  const hasMicrophone = Boolean(voiceStream.getAudioTracks().length)
+  const desktopSource: MediaStreamAudioSourceNode | null = hasSystemAudio
+    ? context.createMediaStreamSource(desktopStream)
+    : null
+  const voiceSource: MediaStreamAudioSourceNode | null = hasMicrophone
+    ? context.createMediaStreamSource(voiceStream)
+    : null
+
+  const combine = context.createMediaStreamDestination()
+
+  if (desktopSource) {
+    desktopSource.connect(combine)
+  }
+
+  if (voiceSource) {
+    voiceSource.connect(combine)
+  }
+
+  return combine.stream.getAudioTracks()
+}
+
 const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
-  let videoStream: MediaStream = new MediaStream()
-  let audioStream: MediaStream = new MediaStream()
+  desktopStream.getTracks().forEach((track) => track.stop())
+  voiceStream.getTracks().forEach((track) => track.stop())
+
+  let systemAudioSettings: boolean | MediaTrackConstraints = false
+
+  if (settings.audio && isWindows) {
+    systemAudioSettings = {
+      noiseSuppression: true, // Включает подавление шума
+      echoCancellation: true, // Включает подавление эха
+      autoGainControl: true, // Автоматическая регулировка усиления
+      sampleRate: 44100, // Установите частоту дискретизации, если это необходимо
+      channelCount: 1, // Используйте стерео, если это возможно
+    }
+  }
 
   if (settings.audioDeviceId) {
-    audioStream = await navigator.mediaDevices.getUserMedia({
+    voiceStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         deviceId: settings.audioDeviceId,
         echoCancellation: true,
         noiseSuppression: true,
+        autoGainControl: true,
         sampleRate: 44100,
+        channelCount: 1,
       },
       video: false,
     })
   }
 
-  if (settings.action == "fullScreenVideo") {
-    videoStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: false,
-    })
-  }
-
-  if (settings.action == "cropVideo") {
-    videoStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: false,
-    })
+  if (["fullScreenVideo", "cropVideo"].includes(settings.action)) {
+    try {
+      desktopStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: systemAudioSettings,
+      })
+    } catch (e) {
+      window.electronAPI.ipcRenderer.send(
+        "log",
+        ` initStream action: ${settings.action},  desktopStream catch (e): ${e}`
+      )
+    }
   }
 
   if (settings.action == "cameraOnly" && settings.cameraDeviceId) {
-    videoStream = await navigator.mediaDevices.getUserMedia({
+    desktopStream = await navigator.mediaDevices.getUserMedia({
       video: { deviceId: { exact: settings.cameraDeviceId } },
     })
   }
 
+  const audioStreamTracks: MediaStreamTrack[] = isWindows
+    ? mergeAudioStreams(desktopStream, voiceStream)
+    : voiceStream.getAudioTracks()
+
   const combinedStream = new MediaStream([
-    ...videoStream.getVideoTracks(),
-    ...audioStream.getAudioTracks(),
+    ...desktopStream.getVideoTracks(),
+    ...audioStreamTracks,
   ])
 
   return combinedStream
@@ -468,9 +516,16 @@ function initRecord(data: StreamSettings) {
   initView(data)
 
   if (data.action == "fullScreenVideo") {
-    initStream(data).then((stream) => {
-      createVideo(stream, undefined, undefined)
-    })
+    initStream(data)
+      .then((stream) => {
+        createVideo(stream, undefined, undefined)
+      })
+      .catch((e) => {
+        window.electronAPI.ipcRenderer.send(
+          "log",
+          `fullScreenVideo catch(e): ${e}`
+        )
+      })
   }
 
   if (data.action == "cameraOnly") {
@@ -488,6 +543,7 @@ function initRecord(data: StreamSettings) {
         createVideo(stream, undefined, video)
       })
       .catch((e) => {
+        window.electronAPI.ipcRenderer.send("log", `cameraOnly catch(e): ${e}`)
         if (e.toString().toLowerCase().includes("permission denied")) {
           showOnlyCameraError("no-permission")
         } else {
@@ -498,9 +554,13 @@ function initRecord(data: StreamSettings) {
 
   if (data.action == "cropVideo") {
     const canvas = document.querySelector("#crop_video_screen canvas")
-    initStream(data).then((stream) => {
-      createVideo(stream, canvas, undefined)
-    })
+    initStream(data)
+      .then((stream) => {
+        createVideo(stream, canvas, undefined)
+      })
+      .catch((e) => {
+        window.electronAPI.ipcRenderer.send("log", `cropVideo catch(e): ${e}`)
+      })
   }
 }
 

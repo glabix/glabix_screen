@@ -9,6 +9,7 @@ import {
   MediaDeviceType,
   ScreenAction,
   StreamSettings,
+  ModalWindowHeight,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -306,7 +307,7 @@ window.electronAPI.ipcRenderer.on(
         window.electronAPI.ipcRenderer.send("modal-window:resize", {
           alwaysOnTop: true,
           width: 300,
-          height: 395,
+          height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
         })
         setPageView("modal")
       }
@@ -404,9 +405,13 @@ const windowsToolbar = document.querySelector(".windows-toolbar")
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")
 const windowsCloseBtn = document.querySelector("#windows_close")
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
+const systemAudioEl = document.querySelector(".system-audio-container")
+
 if (isWindows) {
+  systemAudioEl.removeAttribute("hidden")
   windowsToolbar.removeAttribute("hidden")
 }
+
 windowsMinimizeBtn.addEventListener(
   "click",
   () => {
@@ -579,6 +584,18 @@ deviceAccessBtn.forEach((btn) => {
   )
 })
 
+const systemAudioCheckbox = document.querySelector(
+  ".system-audio-checkbox"
+) as HTMLInputElement
+systemAudioCheckbox.addEventListener(
+  "change",
+  (event) => {
+    const input = event.target as HTMLInputElement
+    streamSettings = { ...streamSettings, audio: input.checked }
+    sendSettings()
+  },
+  false
+)
 const startBtn = document.querySelector("#startBtn")
 startBtn.addEventListener(
   "click",

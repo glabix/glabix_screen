@@ -34,6 +34,7 @@ import {
   IUser,
   MediaDeviceType,
   SimpleStoreEvents,
+  ModalWindowHeight,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -558,7 +559,8 @@ function createModal(parentWindow) {
     maximizable: false,
     resizable: false,
     width: 300,
-    height: 395,
+    height:
+      os.platform() == "win32" ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
     show: false,
     alwaysOnTop: true,
     parent: parentWindow,
