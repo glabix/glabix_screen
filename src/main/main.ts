@@ -513,7 +513,7 @@ function createWindow() {
     width,
     height,
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.mjs"),
+      preload: join(import.meta.dirname, "../preload/preload.mjs"),
       zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -539,7 +539,7 @@ function createWindow() {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"])
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"))
+    mainWindow.loadFile(join(import.meta.dirname, "../renderer/index.html"))
   }
 
   mainWindow.webContents.setFrameRate(60)
@@ -564,7 +564,7 @@ function createModal(parentWindow) {
     parent: parentWindow,
     minimizable: false,
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.mjs"),
+      preload: join(import.meta.dirname, "../preload/preload.mjs"),
       zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -608,9 +608,11 @@ function createModal(parentWindow) {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
   } else {
-    modalWindow.loadFile(join(__dirname, "../renderer/modal.html")).then(() => {
-      modalWindow.webContents.send("app:version", app.getVersion())
-    })
+    modalWindow
+      .loadFile(join(import.meta.dirname, "../renderer/modal.html"))
+      .then(() => {
+        modalWindow.webContents.send("app:version", app.getVersion())
+      })
   }
 
   createDropdownWindow(modalWindow)
@@ -632,7 +634,7 @@ function createDropdownWindow(parentWindow) {
     minimizable: false,
     movable: false,
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.mjs"),
+      preload: join(import.meta.dirname, "../preload/preload.mjs"),
       zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -651,7 +653,7 @@ function createDropdownWindow(parentWindow) {
     )
   } else {
     dropdownWindow
-      .loadFile(join(__dirname, "../renderer/dropdown.html"))
+      .loadFile(join(import.meta.dirname, "../renderer/dropdown.html"))
       .then(() => {
         dropdownWindow.webContents.send("app:version", app.getVersion())
       })
@@ -685,7 +687,7 @@ function createLoginWindow() {
     frame: false,
     roundedCorners: true,
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
+      preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
       zoomFactor: 1.0,
       devTools: !app.isPackaged,
@@ -696,9 +698,11 @@ function createLoginWindow() {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loginWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/login.html`)
   } else {
-    loginWindow.loadFile(join(__dirname, "../renderer/login.html")).then(() => {
-      loginWindow.webContents.send("app:version", app.getVersion())
-    })
+    loginWindow
+      .loadFile(join(import.meta.dirname, "../renderer/login.html"))
+      .then(() => {
+        loginWindow.webContents.send("app:version", app.getVersion())
+      })
   }
 
   loginWindow.once("ready-to-show", () => {
@@ -790,7 +794,9 @@ function createTrayIcon(): Electron.NativeImage {
   }
 
   const icon = nativeImage
-    .createFromPath(path.join(__dirname, "../../resources/icons", iconName))
+    .createFromPath(
+      path.join(import.meta.dirname, "../../resources/icons", iconName)
+    )
     .resize({ width: 20, height: 20 })
 
   if (os.platform() == "darwin" && import.meta.env.VITE_MODE == "production") {

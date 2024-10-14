@@ -1,15 +1,15 @@
 import { defineConfig, externalizeDepsPlugin } from "electron-vite"
-import path, { resolve } from "path"
+import { resolve } from "path"
 
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        "@main": path.resolve(__dirname, "./src/main"),
-        "@preload": path.resolve(__dirname, "./src/preload"),
-        "@renderer": path.resolve(__dirname, "./src/renderer"),
-        "@shared": path.resolve(__dirname, "./src/shared"),
+        "@main": resolve(import.meta.dirname, "./src/main"),
+        "@preload": resolve(import.meta.dirname, "./src/preload"),
+        "@renderer": resolve(import.meta.dirname, "./src/renderer"),
+        "@shared": resolve(import.meta.dirname, "./src/shared"),
       },
     },
   },
@@ -17,10 +17,10 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        "@main": path.resolve(__dirname, "./src/main"),
-        "@preload": path.resolve(__dirname, "./src/preload"),
-        "@renderer": path.resolve(__dirname, "./src/renderer"),
-        "@shared": path.resolve(__dirname, "./src/shared"),
+        "@main": resolve(import.meta.dirname, "./src/main"),
+        "@preload": resolve(import.meta.dirname, "./src/preload"),
+        "@renderer": resolve(import.meta.dirname, "./src/renderer"),
+        "@shared": resolve(import.meta.dirname, "./src/shared"),
       },
     },
   },
@@ -28,19 +28,22 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          main_window: resolve(__dirname, "src/renderer/index.html"),
-          modal_window: resolve(__dirname, "src/renderer/modal.html"),
-          login_window: resolve(__dirname, "src/renderer/login.html"),
-          dropdown_window: resolve(__dirname, "src/renderer/dropdown.html"),
+          main_window: resolve(import.meta.dirname, "src/renderer/index.html"),
+          modal_window: resolve(import.meta.dirname, "src/renderer/modal.html"),
+          login_window: resolve(import.meta.dirname, "src/renderer/login.html"),
+          dropdown_window: resolve(
+            import.meta.dirname,
+            "src/renderer/dropdown.html"
+          ),
         },
       },
     },
     resolve: {
       alias: {
-        "@main": path.resolve(__dirname, "./src/main"),
-        "@preload": path.resolve(__dirname, "./src/preload"),
-        "@renderer": path.resolve(__dirname, "./src/renderer"),
-        "@shared": path.resolve(__dirname, "./src/shared"),
+        "@main": resolve(import.meta.dirname, "./src/main"),
+        "@preload": resolve(import.meta.dirname, "./src/preload"),
+        "@renderer": resolve(import.meta.dirname, "./src/renderer"),
+        "@shared": resolve(import.meta.dirname, "./src/shared"),
       },
     },
     css: {
