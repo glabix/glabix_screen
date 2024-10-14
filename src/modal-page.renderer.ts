@@ -12,6 +12,7 @@ import {
   ScreenAction,
   SimpleStoreEvents,
   StreamSettings,
+  ModalWindowHeight,
 } from "./helpers/types"
 import { APIEvents } from "./events/api.events"
 import { LoggerEvents } from "/src/events/logger.events"
@@ -314,7 +315,7 @@ type PageViewType = "modal" | "permissions" | "limits"
           window.electronAPI.ipcRenderer.send("modal-window:resize", {
             alwaysOnTop: true,
             width: 300,
-            height: 395,
+            height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
           })
           setPageView("modal")
         }
@@ -412,9 +413,13 @@ type PageViewType = "modal" | "permissions" | "limits"
   const windowsMinimizeBtn = document.querySelector("#windows_minimize")
   const windowsCloseBtn = document.querySelector("#windows_close")
   const isWindows = navigator.userAgent.indexOf("Windows") != -1
+  const systemAudioEl = document.querySelector(".system-audio-container")
+
   if (isWindows) {
+    systemAudioEl.removeAttribute("hidden")
     windowsToolbar.removeAttribute("hidden")
   }
+
   windowsMinimizeBtn.addEventListener(
     "click",
     () => {
@@ -587,6 +592,18 @@ type PageViewType = "modal" | "permissions" | "limits"
     )
   })
 
+  const systemAudioCheckbox = document.querySelector(
+    ".system-audio-checkbox"
+  ) as HTMLInputElement
+  systemAudioCheckbox.addEventListener(
+    "change",
+    (event) => {
+      const input = event.target as HTMLInputElement
+      streamSettings = { ...streamSettings, audio: input.checked }
+      sendSettings()
+    },
+    false
+  )
   const startBtn = document.querySelector("#startBtn")
   startBtn.addEventListener(
     "click",
