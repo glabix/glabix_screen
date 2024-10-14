@@ -47,8 +47,8 @@ import { APIEvents } from "@shared/events/api.events"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "@shared/helpers/open-external-link"
-import { errorsInterceptor } from "./initializators/interceptor"
-import { loggerInit } from "./initializators/logger.init"
+import { errorsInterceptor } from "./initializers/interceptor"
+import { loggerInit } from "./initializers/logger.init"
 import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed-files.service"
 import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
@@ -882,7 +882,7 @@ app.on("activate", () => {
 })
 
 app.on("before-quit", () => {
-  logSender.sendLog("app.exitted")
+  logSender.sendLog("app.exited")
   clearAllIntervals()
   unregisterShortCuts()
   isAppQuitting = true
