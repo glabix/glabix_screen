@@ -4,7 +4,7 @@ import {
   IDropdownPageData,
   IDropdownPageSelectData,
   ScreenAction,
-} from "../../main/helpers/types"
+} from "../../shared/types/types"
 import { LoggerEvents } from "../../shared/events/logger.events"
 
 const template = document.querySelector(

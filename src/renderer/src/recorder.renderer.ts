@@ -7,7 +7,7 @@ import {
   ScreenAction,
   SimpleStoreEvents,
   StreamSettings,
-} from "../../main/helpers/types"
+} from "../../shared/types/types"
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "../../shared/events/file-upload.events"
 import { APIEvents } from "../../shared/events/api.events"

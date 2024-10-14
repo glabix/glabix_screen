@@ -1,4 +1,4 @@
-import { IAppState } from "../helpers/types"
+import { IAppState } from "../../shared/types/types"
 
 export class AppState {
   private _state: IAppState

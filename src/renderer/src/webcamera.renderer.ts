@@ -1,4 +1,4 @@
-import { StreamSettings } from "../../main/helpers/types"
+import { StreamSettings } from "../../shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 
 const videoContainer = document.getElementById(

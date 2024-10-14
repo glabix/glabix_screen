@@ -1,6 +1,6 @@
 import { app, ipcMain, safeStorage } from "electron"
 import * as fs from "fs"
-import { IAuthData, IJWTToken } from "../helpers/types"
+import { IAuthData, IJWTToken } from "../../shared/types/types"
 import { LoginEvents } from "../../shared/events/login.events"
 import os from "os"
 import path from "path"

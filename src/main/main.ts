@@ -34,7 +34,7 @@ import {
   IUser,
   MediaDeviceType,
   SimpleStoreEvents,
-} from "./helpers/types"
+} from "../shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
 import { ChunkStorageService } from "./file-uploader/chunk-storage.service"

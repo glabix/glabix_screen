@@ -1,7 +1,7 @@
 import {
   ISimpleStoreData,
   SimpleStoreEvents,
-} from "../../../main/helpers/types"
+} from "../../../shared/types/types"
 import { LoggerEvents } from "../../../shared/events/logger.events"
 
 export class Timer {

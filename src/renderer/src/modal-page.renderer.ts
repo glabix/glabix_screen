@@ -9,7 +9,7 @@ import {
   MediaDeviceType,
   ScreenAction,
   StreamSettings,
-} from "../../main/helpers/types"
+} from "../../shared/types/types"
 import { APIEvents } from "../../shared/events/api.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 type PageViewType = "modal" | "permissions" | "limits"
