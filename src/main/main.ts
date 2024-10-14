@@ -1129,7 +1129,10 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
             stringify({ err }),
             true
           )
-          const params = { filename: fileName, fileChunks: [...chunks] }
+          const params = {
+            filename: timestampRawFileName,
+            fileChunks: [...chunks],
+          }
           ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
         }
       }
@@ -1173,7 +1176,6 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
           checkUnprocessedFiles()
           checkUnprocessedChunks()
           checkOrganizationLimits()
-          // todo
         })
         .catch((e) => {
           logSender.sendLog(
@@ -1200,9 +1202,10 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   if (lastCreatedFileName === rawFileName) {
     openExternalLink(shared)
   } else {
+    const t = getTitle(rawFileName)
     if (Notification.isSupported()) {
       const notification = new Notification({
-        body: `Запись экрана ${getTitle(rawFileName)} загружается на на сервер, и будет доступна для просмотра после обработки. Нажмите на уведомление, чтобы открыть в браузере`,
+        body: `Запись экрана ${t} загружается на на сервер, и будет доступна для просмотра после обработки. Нажмите на уведомление, чтобы открыть в браузере`,
       })
       notification.show()
       notification.on("click", () => {
@@ -1311,7 +1314,8 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
 
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event) => {
   const { filename, fileChunks } = event
-  if (lastCreatedFileName === rawFileName) {
+  if (lastCreatedFileName === filename) {
+    lastCreatedFileName = null
     dialog.showMessageBox(mainWindow, {
       type: "error",
       title: "Ошибка. Не удалось загрузить файл на сервер",

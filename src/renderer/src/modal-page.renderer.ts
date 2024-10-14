@@ -137,6 +137,9 @@ function renderScreenSettings(item: IDropdownItem) {
   }
 
   container.innerHTML = null
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "screen.settings.close",
+  })
   container.appendChild(clone)
 }
 
@@ -321,6 +324,7 @@ window.electronAPI.ipcRenderer.on(
         title: "mode.video.selected",
         body: data.action,
       })
+
       activeScreenAction = data.action
       activeScreenActionItem = data.item
       renderScreenSettings(data.item)
@@ -338,6 +342,9 @@ window.electronAPI.ipcRenderer.on(
         },
       })
       audioDeviceContainer.innerHTML = null
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "microphone.settings.close",
+      })
       audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
     }
 
@@ -351,6 +358,9 @@ window.electronAPI.ipcRenderer.on(
           cameraDeviceName: activeVideoDevice.label,
           cameraDeviceId: data.cameraDeviceId,
         },
+      })
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "video.settings.close",
       })
       videoDeviceContainer.innerHTML = null
       videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
@@ -436,6 +446,9 @@ document.addEventListener(
       if (openedDropdownType == "screenActions") {
         window.electronAPI.ipcRenderer.send("dropdown:close", {})
         openedDropdownType = undefined
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "screen.settings.close",
+        })
       } else {
         const offsetY = btn.getBoundingClientRect().top
         const action = btn.dataset.action as ScreenAction
@@ -456,6 +469,9 @@ document.addEventListener(
       if (openedDropdownType == "videoDevices") {
         window.electronAPI.ipcRenderer.send("dropdown:close", {})
         openedDropdownType = undefined
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "webcam.settings.close",
+        })
       } else {
         const offsetY = btn.getBoundingClientRect().top
         const list: IDropdownList = {
@@ -474,6 +490,9 @@ document.addEventListener(
       if (openedDropdownType == "audioDevices") {
         window.electronAPI.ipcRenderer.send("dropdown:close", {})
         openedDropdownType = undefined
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "microphone.settings.close",
+        })
       } else {
         const offsetY = btn.getBoundingClientRect().top
         const list: IDropdownList = {

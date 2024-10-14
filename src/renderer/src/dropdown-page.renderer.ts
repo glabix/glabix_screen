@@ -67,23 +67,6 @@ window.electronAPI.ipcRenderer.on(
     }
 
     container.innerHTML = null
-    switch (currentData?.list?.type) {
-      case "videoDevices":
-        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: "webcam.settings.close",
-        })
-        break
-      case "audioDevices":
-        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: "microphone.settings.close",
-        })
-        break
-      case "screenActions":
-        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: "screen.settings.close",
-        })
-        break
-    }
     currentData = data
     data.list.items.forEach((item) => {
       container.appendChild(renderItem(item))

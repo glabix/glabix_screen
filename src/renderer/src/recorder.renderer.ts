@@ -37,6 +37,28 @@ let cropMoveable: Moveable
 let cameraMoveable: Moveable
 let lastStreamSettings: StreamSettings
 
+function debounce(func, wait) {
+  let timeoutId
+
+  return function (...args) {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+    timeoutId = setTimeout(() => {
+      func(...args)
+    }, wait)
+  }
+}
+
+const logResize = (x1, x2, y1, y2) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "mode.video.region.scaled",
+    body: { x1, x2, y1, y2 },
+  })
+}
+
+const debouncedLogResize = debounce(logResize, 400)
+
 function stopRecording() {
   if (videoRecorder) {
     videoRecorder.stop()
@@ -398,7 +420,12 @@ const initView = (settings: StreamSettings, force?: boolean) => {
     /* resizable */
     cropMoveable.on("resize", (data) => {
       const { target, width, height, drag } = data
-
+      debouncedLogResize(
+        drag.left,
+        drag.left + width,
+        drag.top,
+        drag.top + height
+      )
       target.style.top = `${drag.top}px`
       target.style.left = `${drag.left}px`
       target.style.width = `${width}px`
