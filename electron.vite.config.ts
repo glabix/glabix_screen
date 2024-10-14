@@ -1,9 +1,17 @@
 import { defineConfig, externalizeDepsPlugin } from "electron-vite"
-import { resolve } from "path"
+import path, { resolve } from "path"
 
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        "@main": path.resolve(__dirname, "./src/main"),
+        "@preload": path.resolve(__dirname, "./src/preload"),
+        "@renderer": path.resolve(__dirname, "./src/renderer"),
+        "@shared": path.resolve(__dirname, "./src/shared"),
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
