@@ -5,17 +5,17 @@ const isReview = process.env.MODE === "review"
 const getIconPath = (): string => {
   switch (process.env.MODE) {
     case "dev":
-      return "public/logo-square-dev.png"
+      return "resources/icons/logo-square-dev.png"
     case "review":
-      return "public/logo-square-review.png"
+      return "resources/icons/logo-square-review.png"
     case "production":
     default:
-      return "public/logo-square.png"
+      return "resources/icons/logo-square.png"
   }
 }
 
 const options: Configuration = {
-  appId: isReview ? "com.glabix.screen-review" : "com.glabix.screen",
+  appId: process.env.APP_ID,
   productName: process.env.PRODUCT_NAME,
   protocols: {
     name: `${process.env.PRODUCT_NAME}`,
@@ -23,7 +23,15 @@ const options: Configuration = {
   },
   // "store" | “normal" | "maximum" - For testing builds, use 'store' to reduce build time significantly.
   compression: "store",
-  files: ["!out/"],
+  files: [
+    "!**/.vscode/*",
+    "!src/*",
+    "!docs/*",
+    "!electron.vite.config.{js,ts,mjs,cjs}",
+    "!{.eslintignore,.eslintrc.js,.prettierignore,.prettierrc.yaml,devappupdate.yml,CHANGELOG.md,README.md}",
+    "!{.env,.env.*,electron-builder.env,electron-builder.env.*,.npmrc,pnpmlock.yaml}",
+    "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}",
+  ],
   icon: getIconPath(),
   artifactName: "${name}-${os}-${arch}.${ext}",
   executableName: process.env.PRODUCT_NAME,

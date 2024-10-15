@@ -26,8 +26,8 @@ jobs:
 
       - name: Set package environment meta
         run: |
-          npm pkg set name=${{ vars.PACKAGE_NAME }}
-          npm pkg set description=${{ vars.PRODUCT_NAME }}
+          npm pkg set name="${{ vars.PACKAGE_NAME }}"
+          npm pkg set description="${{ vars.PRODUCT_DESCRIPTION }}"
           [[ ${{ github.ref_name }} != main ]] && npm pkg set version=$(npm pkg get version | tr -d '"')-${{ github.ref_name }}
           echo "New package.json version: $(npm pkg get version | tr -d '"')"
 
@@ -40,10 +40,13 @@ jobs:
           VITE_LOGIN_IS_REQUIRED: ${{ vars.VITE_LOGIN_IS_REQUIRED }}
           VITE_PROTOCOL_SCHEME: ${{ vars.VITE_PROTOCOL_SCHEME }}
           VITE_PRODUCT_NAME: ${{ vars.VITE_PRODUCT_NAME }}
+          VITE_APP_ID: ${{ vars.VITE_APP_ID }}
 
           MODE: ${{ vars.MODE }}
           PACKAGE_NAME: ${{ vars.PACKAGE_NAME }}
           PRODUCT_NAME: ${{ vars.PRODUCT_NAME }}
+          PRODUCT_DESCRIPTION: ${{ vars.PRODUCT_DESCRIPTION }}
+          APP_ID: ${{ vars.APP_ID }}
           UPDATE_URL: ${{ vars.UPDATE_URL }}
 
           CSC_LINK: ${{ secrets.CSC_LINK }}

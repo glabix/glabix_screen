@@ -1,0 +1,14 @@
+{
+  "extends": [
+    "@electron-toolkit/tsconfig/tsconfig.node.json",
+    "./tsconfig.json"
+  ],
+  "include": [
+    "src/renderer/**/*.ts",
+    "src/preload/*.d.ts",
+    "src/shared/**/*.ts"
+  ],
+  "compilerOptions": {
+    "composite": true
+  }
+}

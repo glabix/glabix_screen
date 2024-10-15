@@ -89,7 +89,7 @@ electron-builder.env
 # Vite
 .vite/
 
-# Electron-Forge
+# Electron Vite
 out/
 
 # Electron Builder

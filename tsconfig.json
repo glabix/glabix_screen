@@ -1,18 +1,27 @@
 {
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.web.json" }
+  ],
   "compilerOptions": {
     "target": "ESNext",
-    "module": "commonjs",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    // "noImplicitAny": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "noUncheckedIndexedAccess": true,
+    "strictPropertyInitialization": false,
     "paths": {
-      "/*": ["./*"]
+      "@*": ["./src/*"]
     }
   }
 }
