@@ -59,17 +59,16 @@ import { optimizer, is } from "@electron-toolkit/utils"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
-let dropdownWindowOffsetY = 0
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
 let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
-let deviceAccessInterval: NodeJS.Timeout
-let checkForUpdatesInterval: NodeJS.Timeout
-let checkUnloadedChunksInterval: NodeJS.Timeout
-let checkUnprocessedFilesInterval: NodeJS.Timeout
+let deviceAccessInterval: NodeJS.Timeout | undefined
+let checkForUpdatesInterval: NodeJS.Timeout | undefined
+let checkUnloadedChunksInterval: NodeJS.Timeout | undefined
+let checkUnprocessedFilesInterval: NodeJS.Timeout | undefined
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -100,7 +99,10 @@ getAutoUpdater().on("download-progress", (info) => {
   if (info.percent === 0) {
     logSender.sendLog(
       "app_update.download_started",
-      JSON.stringify({ old_version: getVersion(), new_version: info.version })
+      JSON.stringify({
+        old_version: getVersion(),
+        new_version: (info as any).version,
+      })
     )
   }
 })
@@ -147,17 +149,17 @@ function init(url: string) {
     const refresh_token = u.searchParams.get("refresh_token")
     let expires_at = u.searchParams.get("expires_at")
     const organization_id = u.searchParams.get("organization_id")
-    if ((access_token, refresh_token, expires_at, organization_id)) {
-      if (expires_at.includes("00:00") && !expires_at.includes("T00:00")) {
+    if (organization_id) {
+      if (expires_at!.includes("00:00") && !expires_at!.includes("T00:00")) {
         //небольшой хак, чтобы дата распарсилась корректно
-        expires_at = expires_at.replace("00:00", "+00:00") // Заменяем на корректный формат ISO
+        expires_at = expires_at!.replace("00:00", "+00:00") // Заменяем на корректный формат ISO
         expires_at = expires_at.replace(" ", "") // Заменяем на корректный формат ISO
       }
       const authData: IAuthData = {
         token: {
-          access_token,
-          refresh_token,
-          expires_at,
+          access_token: access_token!,
+          refresh_token: refresh_token!,
+          expires_at: expires_at!,
         },
         organization_id: +organization_id,
       }
@@ -182,8 +184,8 @@ function checkOrganizationLimits(): Promise<any> {
   return new Promise((resolve) => {
     if (tokenStorage && tokenStorage.dataIsActual()) {
       getOrganizationLimits(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId
+        tokenStorage.token!.access_token,
+        tokenStorage.organizationId!
       )
         .then(() => {
           resolve(true)
@@ -216,7 +218,7 @@ if (!gotTheLock) {
   if (os.platform() == "win32") {
     app.on("second-instance", (event, commandLine, workingDirectory) => {
       const url = commandLine.pop()
-      init(url)
+      init(url!)
     })
   }
 
@@ -247,7 +249,7 @@ if (!gotTheLock) {
       logSender.sendLog("app.started")
       createMenu()
     } catch (e) {
-      logSender.sendLog("user.read_auth_data.error", stringify({ e }), e)
+      logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
     createWindow()
 
@@ -442,7 +444,7 @@ if (process.defaultApp) {
     app.setAsDefaultProtocolClient(
       import.meta.env.VITE_PROTOCOL_SCHEME,
       process.execPath,
-      [path.resolve(process.argv[1])]
+      [path.resolve(process.argv[1]!)]
     )
   }
 } else {
@@ -899,7 +901,7 @@ app.on("before-quit", () => {
 
 ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
-  win.setIgnoreMouseEvents(ignore, options)
+  win?.setIgnoreMouseEvents(ignore, options)
 })
 
 ipcMain.on("modal-window:render", (event, data) => {
@@ -981,7 +983,6 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
     screenBounds.x
   const positionY = modalWindowBounds.y + data.offsetY
   const diffX = screenBounds.width - positionRight
-  dropdownWindowOffsetY = data.offsetY
 
   if (diffX < 0) {
     dropdownWindow.setPosition(
@@ -1063,21 +1064,21 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   logSender.sendLog("user.login.success")
 
   checkOrganizationLimits().then(() => {
-    contextMenu.getMenuItemById("menuLogOutItem").visible = true
+    contextMenu.getMenuItemById("menuLogOutItem")!.visible = true
     loginWindow.hide()
     mainWindow.show()
     modalWindow.show()
   })
 })
 
-ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event) => {
+ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
   logSender.sendLog("sessions.created")
   const { token, organization_id } = event as IAuthData
   tokenStorage.encryptAuthData({ token, organization_id })
-  getCurrentUser(tokenStorage.token.access_token)
+  getCurrentUser(tokenStorage.token!.access_token)
 })
 
-ipcMain.on(LoginEvents.USER_VERIFIED, (event) => {
+ipcMain.on(LoginEvents.USER_VERIFIED, (event: unknown) => {
   logSender.sendLog("user.verified")
   const user = event as IUser
   appState.set({ ...appState.state, user })
@@ -1102,8 +1103,8 @@ ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
     })
 })
 
-ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
-  const { rawFileName: timestampRawFileName } = event
+ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
+  const { rawFileName: timestampRawFileName } = event as { rawFileName: any }
   logSender.sendLog(
     "api.uploads.multipart_upload.try_to_create",
     JSON.stringify({ rawFileName: timestampRawFileName })
@@ -1120,7 +1121,7 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
       const chunks = [...chunksSlicer.allChunks]
       const title = getTitle(timestampRawFileName)
       const fileName = title + ".mp4"
-      const callback = (err, uuid: string) => {
+      const callback = (err: null | Error, uuid: string | null) => {
         if (!err) {
           const params = { uuid, chunks, rawFileName: timestampRawFileName }
           ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
@@ -1139,8 +1140,8 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
         }
       }
       createFileUploadCommand(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId,
+        tokenStorage.token!.access_token,
+        tokenStorage.organizationId!,
         fileName,
         chunks.length,
         title,
@@ -1152,8 +1153,12 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event) => {
   })
 })
 
-ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
-  const { uuid, chunks, rawFileName } = event
+ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event: unknown) => {
+  const { uuid, chunks, rawFileName } = event as {
+    uuid: string
+    chunks: any[]
+    rawFileName: any
+  }
   logSender.sendLog(
     "api.uploads.multipart_upload.create.success",
     JSON.stringify({ uuid })
@@ -1222,8 +1227,8 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event) => {
   lastCreatedFileName = null
 })
 
-ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
-  const { chunk } = event
+ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
+  const { chunk } = event as { chunk: Chunk }
   const typedChunk = chunk as Chunk
   const uuid = typedChunk.fileUuid
   const chunkNumber = typedChunk.index + 1
@@ -1292,8 +1297,8 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
     .then((data) => {
       typedChunk.startProcess()
       uploadFileChunkCommand(
-        tokenStorage.token.access_token,
-        tokenStorage.organizationId,
+        tokenStorage.token!.access_token,
+        tokenStorage.organizationId!,
         uuid,
         data,
         chunkNumber,
@@ -1314,8 +1319,8 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event) => {
     })
 })
 
-ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event) => {
-  const { filename, fileChunks } = event
+ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
+  const { filename, fileChunks } = event as { filename: any; fileChunks: any }
   if (lastCreatedFileName === filename) {
     lastCreatedFileName = null
     dialog.showMessageBox(mainWindow, {
@@ -1329,8 +1334,8 @@ ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event) => {
   unprocessedFilesService.isProcessedNowFileName = null
 })
 
-ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
-  const { uuid, chunkNumber } = event
+ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event: unknown) => {
+  const { uuid, chunkNumber } = event as { uuid: any; chunkNumber: any }
   setLog(
     LogLevel.SILLY,
     `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`
@@ -1340,7 +1345,7 @@ ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event) => {
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   logSender.sendLog("sessions.deleted")
-  contextMenu.getMenuItemById("menuLogOutItem").visible = false
+  contextMenu.getMenuItemById("menuLogOutItem")!.visible = false
 })
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits

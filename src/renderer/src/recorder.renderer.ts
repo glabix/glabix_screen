@@ -16,27 +16,27 @@ import { LoggerEvents } from "@shared/events/logger.events"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
-)
-const countdown = document.querySelector("#fullscreen_countdown")
+)!
+const countdown = document.querySelector("#fullscreen_countdown")!
 let startTimer: NodeJS.Timeout
 const timerDisplay = document.getElementById(
   "timerDisplay"
-) as HTMLButtonElement
-const controlPanel = document.querySelector(".panel-wrapper")
+)! as HTMLButtonElement
+const controlPanel = document.querySelector(".panel-wrapper")!
 let timer = new Timer(timerDisplay, 0)
-const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement
-const cancelBtn = document.getElementById("cancelBtn") as HTMLButtonElement
-const pauseBtn = document.getElementById("pauseBtn") as HTMLButtonElement
-const resumeBtn = document.getElementById("resumeBtn") as HTMLButtonElement
+const stopBtn = document.getElementById("stopBtn")! as HTMLButtonElement
+const cancelBtn = document.getElementById("cancelBtn")! as HTMLButtonElement
+const pauseBtn = document.getElementById("pauseBtn")! as HTMLButtonElement
+const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
 const changeCameraOnlySizeBtn = document.querySelectorAll(
   ".js-camera-only-size"
-)
-let lastScreenAction: ScreenAction = "fullScreenVideo"
-let videoRecorder: MediaRecorder
-let stream: MediaStream
-let cropMoveable: Moveable
-let cameraMoveable: Moveable
-let lastStreamSettings: StreamSettings
+)!
+let lastScreenAction: ScreenAction | undefined = "fullScreenVideo"
+let videoRecorder: MediaRecorder | undefined
+let stream: MediaStream | undefined
+let cropMoveable: Moveable | undefined
+let cameraMoveable: Moveable | undefined
+let lastStreamSettings: StreamSettings | undefined
 let desktopStream: MediaStream = new MediaStream()
 let voiceStream: MediaStream = new MediaStream()
 
@@ -74,8 +74,12 @@ function stopRecording() {
 function cancelRecording() {
   if (startTimer) {
     clearInterval(startTimer)
-    initView(lastStreamSettings, true)
-    initRecord(lastStreamSettings)
+
+    if (lastStreamSettings) {
+      initView(lastStreamSettings, true)
+      initRecord(lastStreamSettings)
+    }
+
     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     window.electronAPI.ipcRenderer.send("modal-window:open", {})
   }
@@ -86,8 +90,8 @@ changeCameraOnlySizeBtn.forEach((button) => {
     "click",
     (event) => {
       const target = event.target as HTMLElement
-      const size = target.dataset.size
-      const container = document.querySelector(".webcamera-only-container")
+      const size = target.dataset.size!
+      const container = document.querySelector(".webcamera-only-container")!
       container.classList.remove("sm", "lg", "xl")
       container.classList.add(size)
 
@@ -187,18 +191,39 @@ const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
         video: true,
         audio: systemAudioSettings,
       })
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `${settings.action}.mediaStream.init`,
+        body: JSON.stringify({
+          video: true,
+          audio: systemAudioSettings,
+        }),
+      })
     } catch (e) {
-      window.electronAPI.ipcRenderer.send(
-        "log",
-        ` initStream action: ${settings.action},  desktopStream catch (e): ${e}`
-      )
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `${settings.action}.mediaStream.error`,
+        body: `${e}`,
+      })
     }
   }
 
   if (settings.action == "cameraOnly" && settings.cameraDeviceId) {
-    desktopStream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: settings.cameraDeviceId } },
-    })
+    try {
+      desktopStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: settings.cameraDeviceId } },
+      })
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `${settings.action}.mediaStream.init`,
+        body: JSON.stringify({
+          video: true,
+          audio: systemAudioSettings,
+        }),
+      })
+    } catch (e) {
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `${settings.action}.mediaStream.error`,
+        body: `${e}`,
+      })
+    }
   }
 
   const audioStreamTracks: MediaStreamTrack[] = isWindows
@@ -220,11 +245,11 @@ const createVideo = (_stream, _canvas, _video) => {
         ..._stream.getAudioTracks(),
       ])
     : _stream
-  videoRecorder = new MediaRecorder(stream, {
+  videoRecorder = new MediaRecorder(stream!, {
     mimeType: "video/mp4",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
-  let chunks = []
+  let chunks: any[] = []
 
   if (_video) {
     _video.srcObject = new MediaStream([..._stream.getVideoTracks()])
@@ -243,15 +268,24 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 
   videoRecorder.onpause = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onpause",
+    })
     updateRecorderState("paused")
   }
 
   videoRecorder.onstart = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onstart",
+    })
     timer.start(true)
     updateRecorderState("recording")
   }
 
   videoRecorder.onresume = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onresume",
+    })
     updateRecorderState("recording")
   }
 
@@ -260,6 +294,9 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 
   videoRecorder.onstop = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onstop",
+    })
     timer.stop()
     const blob = new Blob(chunks, { type: "video/webm" })
     chunks = [] // Reset the chunks for the next recording
@@ -285,7 +322,7 @@ const createVideo = (_stream, _canvas, _video) => {
     // a.click()
     // window.URL.revokeObjectURL(url)
 
-    stream.getTracks().forEach((track) => track.stop())
+    stream!.getTracks().forEach((track) => track.stop())
 
     if (_canvas) {
       _stream.getTracks().forEach((track) => track.stop())
@@ -304,7 +341,9 @@ const createVideo = (_stream, _canvas, _video) => {
     }
 
     if (_video) {
-      const videoContainer = document.querySelector(".webcamera-only-container")
+      const videoContainer = document.querySelector(
+        ".webcamera-only-container"
+      )!
       videoContainer.setAttribute("hidden", "")
       _video.srcObject = null
     }
@@ -324,12 +363,6 @@ const updateRecorderState = (state: RecorderState) => {
   const data: ISimpleStoreData = {
     key: "recordingState",
     value: state,
-  }
-
-  if (state == "recording") {
-    controlPanel.classList.add("is-recording")
-  } else {
-    controlPanel.classList.remove("is-recording")
   }
 
   window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
@@ -406,10 +439,10 @@ const initView = (settings: StreamSettings, force?: boolean) => {
   clearView()
 
   if (settings.action == "cameraOnly") {
-    const videoContainer = document.querySelector(".webcamera-only-container")
+    const videoContainer = document.querySelector(".webcamera-only-container")!
     const video = document.querySelector(
       "#webcam_only_video"
-    ) as HTMLVideoElement
+    )! as HTMLVideoElement
     videoContainer.removeAttribute("hidden")
     const rect = videoContainer.getBoundingClientRect()
     video.width = rect.width
@@ -437,10 +470,10 @@ const initView = (settings: StreamSettings, force?: boolean) => {
   }
 
   if (settings.action == "cropVideo") {
-    const screenContainer = document.querySelector(".crop-screen-container")
+    const screenContainer = document.querySelector(".crop-screen-container")!
     screenContainer.removeAttribute("hidden")
-    const screen = screenContainer.querySelector("#crop_video_screen")
-    const canvasVideo = screen.querySelector("canvas")
+    const screen = screenContainer.querySelector("#crop_video_screen")!
+    const canvasVideo = screen.querySelector("canvas")!
     canvasVideo.width = screen.getBoundingClientRect().width
     canvasVideo.height = screen.getBoundingClientRect().height
 
@@ -488,11 +521,11 @@ const initView = (settings: StreamSettings, force?: boolean) => {
 }
 
 const showOnlyCameraError = (errorType?: "no-permission" | "no-camera") => {
-  const error = document.querySelector(".webcamera-only-no-device")
+  const error = document.querySelector(".webcamera-only-no-device")!
   const errorPermission = document.querySelector(
     ".webcamera-only-no-permission"
-  )
-  const errorCamera = document.querySelector(".webcamera-only-no-camera")
+  )!
+  const errorCamera = document.querySelector(".webcamera-only-no-camera")!
   if (errorType == "no-permission") {
     errorPermission.removeAttribute("hidden")
   } else if (errorType == "no-camera") {
@@ -502,11 +535,11 @@ const showOnlyCameraError = (errorType?: "no-permission" | "no-camera") => {
   }
 }
 const hideOnlyCameraError = () => {
-  const error = document.querySelector(".webcamera-only-no-device")
+  const error = document.querySelector(".webcamera-only-no-device")!
   const errorPermission = document.querySelector(
     ".webcamera-only-no-permission"
-  )
-  const errorCamera = document.querySelector(".webcamera-only-no-camera")
+  )!
+  const errorCamera = document.querySelector(".webcamera-only-no-camera")!
   error.setAttribute("hidden", "")
   errorPermission.setAttribute("hidden", "")
   errorCamera.setAttribute("hidden", "")
@@ -519,12 +552,15 @@ function initRecord(data: StreamSettings) {
     initStream(data)
       .then((stream) => {
         createVideo(stream, undefined, undefined)
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `${data.action}.combineStream.init`,
+        })
       })
       .catch((e) => {
-        window.electronAPI.ipcRenderer.send(
-          "log",
-          `fullScreenVideo catch(e): ${e}`
-        )
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `${data.action}.combineStream.error`,
+          body: `${e}`,
+        })
       })
   }
 
@@ -541,9 +577,16 @@ function initRecord(data: StreamSettings) {
     initStream(data)
       .then((stream) => {
         createVideo(stream, undefined, video)
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `${data.action}.combineStream.init`,
+        })
       })
       .catch((e) => {
-        window.electronAPI.ipcRenderer.send("log", `cameraOnly catch(e): ${e}`)
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `${data.action}.combineStream.error`,
+          body: `${e}`,
+        })
+
         if (e.toString().toLowerCase().includes("permission denied")) {
           showOnlyCameraError("no-permission")
         } else {
@@ -557,9 +600,15 @@ function initRecord(data: StreamSettings) {
     initStream(data)
       .then((stream) => {
         createVideo(stream, canvas, undefined)
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `${data.action}.combineStream.init`,
+        })
       })
       .catch((e) => {
-        window.electronAPI.ipcRenderer.send("log", `cropVideo catch(e): ${e}`)
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `${data.action}.combineStream.error`,
+          body: `${e}`,
+        })
       })
   }
 }
@@ -597,14 +646,14 @@ window.electronAPI.ipcRenderer.on(
       if (data.action == "cropVideo") {
         const screen = document.querySelector(
           "#crop_video_screen"
-        ) as HTMLElement
+        )! as HTMLElement
         screen.classList.add("is-recording")
-        const screenMove = cropMoveable.getControlBoxElement()
+        const screenMove = cropMoveable!.getControlBoxElement()
         screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
 
         const canvasVideo = document.querySelector(
           "#__canvas_video_stream__"
-        ) as HTMLVideoElement
+        )! as HTMLVideoElement
         canvasVideo.play()
 
         // Координаты области экрана для захвата
@@ -622,7 +671,7 @@ window.electronAPI.ipcRenderer.on(
 
         // Обновление canvas с захваченной областью экрана
         function updateCanvas() {
-          ctx.drawImage(
+          ctx!.drawImage(
             canvasVideo,
             captureX,
             captureY,
@@ -645,9 +694,14 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "simpleStore.recordingState",
+    body: JSON.stringify({ state: state["recordingState"] }),
+  })
   if (["recording", "paused"].includes(state["recordingState"])) {
     document.body.classList.add("body--is-recording")
     stopBtn.classList.add("panel-btn--stop")
+    controlPanel.classList.add("is-recording")
   } else {
     stopBtn.classList.remove("panel-btn--stop")
     document.body.classList.remove("body--is-recording")
@@ -667,13 +721,18 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     lastScreenAction = undefined
     controlPanel.classList.remove("is-recording")
     const settings: StreamSettings =
-      lastStreamSettings.action == "cropVideo"
+      lastStreamSettings!.action == "cropVideo"
         ? { ...lastStreamSettings, action: "fullScreenVideo" }
-        : lastStreamSettings
+        : lastStreamSettings!
     initRecord(settings)
     lastStreamSettings = settings
     window.electronAPI.ipcRenderer.send("modal-window:render", settings.action)
   }
+
+  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //   title: 'simpleStore.recordingState',
+  //   body: JSON.stringify({state: state["recordingState"]})
+  // })
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 })
@@ -687,8 +746,8 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 window.electronAPI.ipcRenderer.on("screen:change", (event) => {
-  if (lastStreamSettings.action == "cropVideo") {
-    initView(lastStreamSettings, true)
-    initRecord(lastStreamSettings)
+  if (lastStreamSettings!.action == "cropVideo") {
+    initView(lastStreamSettings!, true)
+    initRecord(lastStreamSettings!)
   }
 })

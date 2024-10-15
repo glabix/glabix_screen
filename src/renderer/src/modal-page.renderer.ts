@@ -18,12 +18,12 @@ type PageViewType = "modal" | "permissions" | "limits"
 let isAllowRecords: boolean | undefined = undefined
 let activePageView: PageViewType
 let openedDropdownType: DropdownListType | undefined = undefined
-const modalContent = document.querySelector(".modal-content")
-const permissionsContent = document.querySelector(".permissions-content")
-const limitsContent = document.querySelector(".limits-content")
+const modalContent = document.querySelector(".modal-content")!
+const permissionsContent = document.querySelector(".permissions-content")!
+const limitsContent = document.querySelector(".limits-content")!
 
-const audioDeviceContainer = document.querySelector("#audio_device_container")
-const videoDeviceContainer = document.querySelector("#video_device_container")
+const audioDeviceContainer = document.querySelector("#audio_device_container")!
+const videoDeviceContainer = document.querySelector("#video_device_container")!
 const screenActionsList: IDropdownItem[] = [
   {
     id: "fullScreenVideo",
@@ -50,7 +50,7 @@ const screenActionsList: IDropdownItem[] = [
     },
   },
 ]
-let activeScreenActionItem: IDropdownItem = screenActionsList[0]
+let activeScreenActionItem: IDropdownItem | undefined = screenActionsList[0]!
 let audioDevicesList: MediaDeviceInfo[] = []
 let activeAudioDevice: MediaDeviceInfo
 let hasCamera = false
@@ -70,13 +70,15 @@ const noAudioDevice: MediaDeviceInfo = {
   toJSON: () => {},
 }
 let videoDevicesList: MediaDeviceInfo[] = []
-let activeVideoDevice: MediaDeviceInfo
+let activeVideoDevice: MediaDeviceInfo | undefined
 let activeScreenAction: ScreenAction = "fullScreenVideo"
 let streamSettings: StreamSettings = {
   action: activeScreenAction,
   video: true,
 }
-const recorderLogos = document.querySelectorAll(".recorder-logo")
+const recorderLogos = document.querySelectorAll(
+  ".recorder-logo"
+) as NodeListOf<HTMLElement>
 recorderLogos.forEach((logo) => {
   if (import.meta.env.VITE_MODE === "dev") {
     logo.style.color = "#d91615"
@@ -92,10 +94,10 @@ async function setupMediaDevices() {
   hasCamera = devices.some((d) => d.kind == "videoinput")
   audioDevicesList = devices.filter((d) => d.kind == "audioinput")
   audioDevicesList = [noAudioDevice, ...audioDevicesList]
-  activeAudioDevice = audioDevicesList[0]
+  activeAudioDevice = audioDevicesList[0]!
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
-  activeVideoDevice = videoDevicesList[0]
+  activeVideoDevice = videoDevicesList[0]!
 }
 
 setupMediaDevices()
@@ -113,15 +115,15 @@ setupMediaDevices()
 function renderScreenSettings(item: IDropdownItem) {
   const container = document.querySelector(
     "#screen_settings_container"
-  ) as HTMLElement
+  )! as HTMLElement
   const template = document.querySelector(
     "#screen_settings_tpl"
-  ) as HTMLTemplateElement
+  )! as HTMLTemplateElement
 
   const clone = template.content.cloneNode(true) as HTMLElement
-  const btn = clone.querySelector("button")
-  const text = clone.querySelector("span")
-  const icon = clone.querySelector("i")
+  const btn = clone.querySelector("button")!
+  const text = clone.querySelector("span")!
+  const icon = clone.querySelector("i")!
 
   btn.setAttribute("data-action", item.id)
 
@@ -137,7 +139,7 @@ function renderScreenSettings(item: IDropdownItem) {
     icon.classList.add(item.extraData.icon)
   }
 
-  container.innerHTML = null
+  container.innerHTML = ""
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "screen.settings.close",
   })
@@ -149,14 +151,14 @@ renderScreenSettings(activeScreenActionItem)
 function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
   const template = document.querySelector(
     "#media_device_tpl"
-  ) as HTMLTemplateElement
+  )! as HTMLTemplateElement
   const clone = template.content.cloneNode(true) as HTMLElement
-  const btn = clone.querySelector("button")
+  const btn = clone.querySelector("button")!
   const checkbox = clone.querySelector(
     "input[type='checkbox']"
-  ) as HTMLInputElement
-  const text = clone.querySelector("span")
-  const icon = clone.querySelector("i")
+  )! as HTMLInputElement
+  const text = clone.querySelector("span")!
+  const icon = clone.querySelector("i")!
 
   const btnClass =
     device.kind == "videoinput" ? "js-video-device" : "js-audio-device"
@@ -187,7 +189,7 @@ function getDropdownItems(type: DropdownListType): IDropdownItem[] {
       return {
         label: item.label,
         id: item.id,
-        isSelected: item.id == activeScreenActionItem.id,
+        isSelected: item.id == activeScreenActionItem?.id,
         extraData: item.extraData,
       }
     })
@@ -198,7 +200,7 @@ function getDropdownItems(type: DropdownListType): IDropdownItem[] {
       return {
         label: d.label,
         id: d.deviceId,
-        isSelected: d.deviceId == activeVideoDevice.deviceId,
+        isSelected: d.deviceId == activeVideoDevice?.deviceId,
         extraData: {
           icon: d.deviceId == "no-camera" ? "i-video-slash" : "i-video",
         },
@@ -239,7 +241,7 @@ function sendSettings() {
 
 function setPageView(view: PageViewType) {
   const sections = [modalContent, permissionsContent, limitsContent]
-  const footer = document.querySelector("#footer")
+  const footer = document.querySelector("#footer")!
   sections.forEach((s) => s.setAttribute("hidden", ""))
   footer.removeAttribute("hidden")
   activePageView = view
@@ -264,7 +266,7 @@ function setPageView(view: PageViewType) {
 
 // IPC
 window.electronAPI.ipcRenderer.on("app:version", (event, version) => {
-  const versionEl = document.querySelector("#app_version")
+  const versionEl = document.querySelector("#app_version")!
   versionEl.innerHTML = `, v${version}`
 })
 
@@ -279,8 +281,8 @@ window.electronAPI.ipcRenderer.on(
       const noMicrophoneAccess = hasMicrophone && !permissions.microphone
       const noScreenAccess = !permissions.screen
 
-      Object.keys(permissions).forEach((deviceName: MediaDeviceType) => {
-        const deviceEl = document.querySelector(`.js-permission-${deviceName}`)
+      Object.keys(permissions).forEach((deviceName) => {
+        const deviceEl = document.querySelector(`.js-permission-${deviceName}`)!
 
         if (permissions[deviceName]) {
           deviceEl.classList.add("has-access")
@@ -334,7 +336,7 @@ window.electronAPI.ipcRenderer.on(
     if (data.audioDeviceId) {
       activeAudioDevice = audioDevicesList.find(
         (d) => d.deviceId == data.audioDeviceId
-      )
+      )!
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "mode.audio.selected",
         body: {
@@ -342,7 +344,7 @@ window.electronAPI.ipcRenderer.on(
           activeAudioDeviceId: data.audioDeviceId,
         },
       })
-      audioDeviceContainer.innerHTML = null
+      audioDeviceContainer.innerHTML = ""
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "microphone.settings.close",
       })
@@ -352,7 +354,7 @@ window.electronAPI.ipcRenderer.on(
     if (data.cameraDeviceId) {
       activeVideoDevice = videoDevicesList.find(
         (d) => d.deviceId == data.cameraDeviceId
-      )
+      )!
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "mode.camera.selected",
         body: {
@@ -363,7 +365,7 @@ window.electronAPI.ipcRenderer.on(
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "video.settings.close",
       })
-      videoDeviceContainer.innerHTML = null
+      videoDeviceContainer.innerHTML = ""
       videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
     }
 
@@ -386,7 +388,7 @@ window.electronAPI.ipcRenderer.on("modal-window:render", (event, action) => {
   activeScreenAction = action
   activeScreenActionItem = item
   streamSettings = { ...streamSettings, action }
-  renderScreenSettings(item)
+  renderScreenSettings(item!)
 })
 
 window.electronAPI.ipcRenderer.on(
@@ -399,13 +401,15 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-document.addEventListener("DOMContentLoaded", () => {})
-const redirectToPlansBtn = document.querySelector("#redirectToPlans")
-const windowsToolbar = document.querySelector(".windows-toolbar")
-const windowsMinimizeBtn = document.querySelector("#windows_minimize")
-const windowsCloseBtn = document.querySelector("#windows_close")
+document.addEventListener("DOMContentLoaded", () => {
+  sendSettings()
+})
+const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
+const windowsToolbar = document.querySelector(".windows-toolbar")!
+const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
+const windowsCloseBtn = document.querySelector("#windows_close")!
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
-const systemAudioEl = document.querySelector(".system-audio-container")
+const systemAudioEl = document.querySelector(".system-audio-container")!
 
 if (isWindows) {
   systemAudioEl.removeAttribute("hidden")
@@ -596,13 +600,13 @@ systemAudioCheckbox.addEventListener(
   },
   false
 )
-const startBtn = document.querySelector("#startBtn")
+const startBtn = document.querySelector("#startBtn")!
 startBtn.addEventListener(
   "click",
   () => {
-    if (streamSettings.action == "fullScreenVideo") {
-      sendSettings()
-    }
+    // if (streamSettings.action == "fullScreenVideo") {
+    //   sendSettings()
+    // }
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "recording.started",
       body: JSON.stringify({
