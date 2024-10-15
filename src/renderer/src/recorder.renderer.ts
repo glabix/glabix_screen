@@ -249,6 +249,19 @@ const createVideo = (_stream, _canvas, _video) => {
     mimeType: "video/mp4",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "videoRecorder.init",
+    body: JSON.stringify(videoRecorder),
+  })
+
+  videoRecorder.onerror = (event) => {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onerror",
+      body: JSON.stringify(event),
+    })
+  }
+
   let chunks: any[] = []
 
   if (_video) {
