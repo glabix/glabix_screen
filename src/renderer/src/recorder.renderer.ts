@@ -382,7 +382,15 @@ const updateRecorderState = (state: RecorderState) => {
 }
 
 const startRecording = () => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `startRecording.function`,
+  })
+
   if (videoRecorder) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `startRecording.videoRecorder`,
+      body: JSON.stringify(videoRecorder),
+    })
     videoRecorder.start()
   }
 }
