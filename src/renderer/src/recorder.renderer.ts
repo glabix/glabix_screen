@@ -245,6 +245,21 @@ const createVideo = (_stream, _canvas, _video) => {
         ..._stream.getAudioTracks(),
       ])
     : _stream
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "createVideo.init",
+    body: `
+      videoRecorder.state: ${videoRecorder?.state}
+      stream: ${stream} 
+      stream tracks.length: ${stream?.getTracks().length} 
+    `,
+  })
+
+  if (videoRecorder) {
+    videoRecorder.stop()
+    videoRecorder = undefined
+  }
+
   videoRecorder = new MediaRecorder(stream!, {
     mimeType: "video/mp4",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
@@ -372,6 +387,11 @@ const createVideo = (_stream, _canvas, _video) => {
 
   if (_canvas) {
     _stream.oninactive = () => {
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `_stream.oninactive`,
+        body: `videoRecorder: ${videoRecorder}`,
+      })
+
       if (videoRecorder) {
         videoRecorder.stop()
       }
