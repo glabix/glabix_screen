@@ -303,6 +303,9 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 
   videoRecorder.ondataavailable = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.ondataavailable",
+    })
     chunks.push(e.data)
   }
 
@@ -388,8 +391,8 @@ const startRecording = () => {
 
   if (videoRecorder) {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: `startRecording.videoRecorder`,
-      body: JSON.stringify(videoRecorder),
+      title: `startRecording.videoRecorder.start`,
+      body: JSON.stringify(videoRecorder.start),
     })
     videoRecorder.start()
   }
@@ -709,7 +712,9 @@ window.electronAPI.ipcRenderer.on(
         updateCanvas()
       }
 
-      startRecording()
+      setTimeout(() => {
+        startRecording()
+      })
     }
   }
 )
