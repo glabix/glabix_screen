@@ -226,7 +226,7 @@ const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
     }
   }
 
-  const audioStreamTracks: MediaStreamTrack[] = isWindows
+  const audioStreamTracks: MediaStreamTrack[] = systemAudioSettings
     ? mergeAudioStreams(desktopStream, voiceStream)
     : voiceStream.getAudioTracks()
 
