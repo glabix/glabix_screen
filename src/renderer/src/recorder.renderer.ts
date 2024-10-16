@@ -359,20 +359,21 @@ const createVideo = (_stream, _canvas, _video) => {
       videoContainer.setAttribute("hidden", "")
       _video.srcObject = null
     }
+
     updateRecorderState("stopped")
-  }
 
-  if (_canvas) {
-    _stream.oninactive = () => {
-      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-        title: `_stream.oninactive`,
-        body: `videoRecorder: ${videoRecorder}`,
-      })
+    // if (_canvas) {
+    //   _stream.oninactive = () => {
+    //     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    //       title: `_stream.oninactive`,
+    //       body: `videoRecorder: ${videoRecorder}`,
+    //     })
 
-      if (videoRecorder) {
-        videoRecorder.stop()
-      }
-    }
+    //     if (videoRecorder) {
+    //       videoRecorder.stop()
+    //     }
+    //   }
+    // }
   }
 }
 
