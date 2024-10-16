@@ -401,9 +401,6 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-document.addEventListener("DOMContentLoaded", () => {
-  sendSettings()
-})
 const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
@@ -604,9 +601,9 @@ const startBtn = document.querySelector("#startBtn")!
 startBtn.addEventListener(
   "click",
   () => {
-    // if (streamSettings.action == "fullScreenVideo") {
-    //   sendSettings()
-    // }
+    if (streamSettings.action == "fullScreenVideo") {
+      sendSettings()
+    }
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "recording.started",
       body: JSON.stringify({
