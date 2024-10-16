@@ -246,32 +246,9 @@ const createVideo = (_stream, _canvas, _video) => {
       ])
     : _stream
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "createVideo.init",
-    body: `
-      videoRecorder.state: ${videoRecorder?.state}
-      stream: ${stream} 
-      stream tracks.length: ${stream?.getTracks().length} 
-    `,
-  })
-
-  if (videoRecorder) {
-    videoRecorder.stop()
-    videoRecorder = undefined
-  }
-
   videoRecorder = new MediaRecorder(stream!, {
     mimeType: "video/mp4",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
-  })
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "videoRecorder.init",
-    body: `
-      videoRecorder.state: ${videoRecorder.state}
-      stream: ${stream} 
-      stream tracks.length: ${stream?.getTracks().length} 
-    `,
   })
 
   videoRecorder.onerror = (event) => {
@@ -778,11 +755,6 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     lastStreamSettings = settings
     window.electronAPI.ipcRenderer.send("modal-window:render", settings.action)
   }
-
-  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //   title: 'simpleStore.recordingState',
-  //   body: JSON.stringify({state: state["recordingState"]})
-  // })
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 })
