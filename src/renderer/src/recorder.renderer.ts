@@ -241,7 +241,7 @@ const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
 const createVideo = (_stream, _canvas, _video) => {
   stream = _canvas
     ? new MediaStream([
-        ..._canvas.captureStream(30).getVideoTracks(),
+        ..._canvas.captureStream().getVideoTracks(),
         ..._stream.getAudioTracks(),
       ])
     : _stream
@@ -386,16 +386,9 @@ const updateRecorderState = (state: RecorderState) => {
 }
 
 const startRecording = () => {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `startRecording.function`,
-  })
-
   if (videoRecorder) {
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: `startRecording.videoRecorder.start`,
-      body: `state: ${JSON.stringify(videoRecorder.state)}`,
-    })
     videoRecorder.start()
+    updateRecorderState("recording")
   }
 }
 
