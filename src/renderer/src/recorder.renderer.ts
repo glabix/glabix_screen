@@ -277,7 +277,7 @@ const createVideo = (_stream, _canvas, _video) => {
     const canvasVideo = document.createElement("video")
     canvasVideo.id = "__canvas_video_stream__"
     canvasVideo.style.cssText = `pointer-events: none; opacity: 0;`
-    canvasVideo.srcObject = new MediaStream([...stream!.getVideoTracks()])
+    canvasVideo.srcObject = new MediaStream([..._stream.getVideoTracks()])
     document.body.appendChild(canvasVideo)
   }
 
