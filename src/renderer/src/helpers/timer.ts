@@ -4,17 +4,23 @@ import { LoggerEvents } from "@shared/events/logger.events"
 export class Timer {
   constructor(container: Element, limitSeconds: number) {
     this.el = container
-    this.seconds = limitSeconds
-    this.limitSeconds = limitSeconds
 
-    this.setStartTime()
+    if (limitSeconds) {
+      this.updateLimits(limitSeconds)
+    }
   }
 
   private el: Element
-  private limitSeconds: number
+  private limitSeconds = 0
   private seconds = 0
-  private timerInterval: NodeJS.Timeout
+  private timerInterval: number
   private time = "00:00"
+
+  updateLimits(limitSeconds: number) {
+    this.seconds = limitSeconds
+    this.limitSeconds = limitSeconds
+    this.setStartTime()
+  }
 
   start(stopVideo?: boolean) {
     if (this.limitSeconds > 0) {
