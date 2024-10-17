@@ -39,6 +39,7 @@ let cameraMoveable: Moveable | undefined
 let lastStreamSettings: StreamSettings | undefined
 let desktopStream: MediaStream = new MediaStream()
 let voiceStream: MediaStream = new MediaStream()
+let requestId = 0
 
 function debounce(func, wait) {
   let timeoutId
@@ -66,6 +67,10 @@ function stopRecording() {
   if (videoRecorder) {
     videoRecorder.stop()
     videoRecorder = undefined
+
+    if (requestId) {
+      window.cancelAnimationFrame(requestId)
+    }
 
     clearView()
   }
@@ -272,7 +277,7 @@ const createVideo = (_stream, _canvas, _video) => {
     const canvasVideo = document.createElement("video")
     canvasVideo.id = "__canvas_video_stream__"
     canvasVideo.style.cssText = `pointer-events: none; opacity: 0;`
-    canvasVideo.srcObject = new MediaStream([..._stream.getVideoTracks()])
+    canvasVideo.srcObject = new MediaStream([...stream!.getVideoTracks()])
     document.body.appendChild(canvasVideo)
   }
 
@@ -283,13 +288,7 @@ const createVideo = (_stream, _canvas, _video) => {
     updateRecorderState("paused")
   }
 
-  videoRecorder.onstart = function (e) {
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "videoRecorder.onstart",
-    })
-    timer.start(true)
-    updateRecorderState("recording")
-  }
+  videoRecorder.onstart = function (e) {}
 
   videoRecorder.onresume = function (e) {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -389,6 +388,11 @@ const updateRecorderState = (state: RecorderState) => {
 const startRecording = () => {
   if (videoRecorder) {
     videoRecorder.start()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.start()",
+    })
+
+    timer.start(true)
     updateRecorderState("recording")
   }
 }
@@ -701,7 +705,7 @@ window.electronAPI.ipcRenderer.on(
             canvasPosition.width,
             canvasPosition.height
           )
-          requestAnimationFrame(updateCanvas)
+          requestId = requestAnimationFrame(updateCanvas)
         }
 
         updateCanvas()
@@ -757,7 +761,7 @@ window.electronAPI.ipcRenderer.on(
   APIEvents.GET_ORGANIZATION_LIMITS,
   (event, limits: IOrganizationLimits) => {
     if (limits.max_upload_duration) {
-      timer = new Timer(timerDisplay, limits.max_upload_duration || 0)
+      timer.updateLimits(limits.max_upload_duration)
     }
   }
 )
