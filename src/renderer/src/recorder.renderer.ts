@@ -274,6 +274,11 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 
   if (_canvas) {
+    const canvasVideoEl = document.getElementById("__canvas_video_stream__")
+    if (canvasVideoEl) {
+      canvasVideoEl.remove()
+    }
+
     const canvasVideo = document.createElement("video")
     canvasVideo.id = "__canvas_video_stream__"
     canvasVideo.style.cssText = `pointer-events: none; opacity: 0;`
@@ -760,9 +765,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 window.electronAPI.ipcRenderer.on(
   APIEvents.GET_ORGANIZATION_LIMITS,
   (event, limits: IOrganizationLimits) => {
-    if (limits.max_upload_duration) {
-      timer.updateLimits(limits.max_upload_duration)
-    }
+    timer.updateLimits(limits.max_upload_duration || 0)
   }
 )
 window.electronAPI.ipcRenderer.on("screen:change", (event) => {
