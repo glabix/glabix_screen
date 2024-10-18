@@ -760,9 +760,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 window.electronAPI.ipcRenderer.on(
   APIEvents.GET_ORGANIZATION_LIMITS,
   (event, limits: IOrganizationLimits) => {
-    if (limits.max_upload_duration) {
-      timer.updateLimits(limits.max_upload_duration)
-    }
+    timer.updateLimits(limits.max_upload_duration || 0)
   }
 )
 window.electronAPI.ipcRenderer.on("screen:change", (event) => {
