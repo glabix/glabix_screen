@@ -274,6 +274,11 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 
   if (_canvas) {
+    const canvasVideoEl = document.getElementById("__canvas_video_stream__")
+    if (canvasVideoEl) {
+      canvasVideoEl.remove()
+    }
+
     const canvasVideo = document.createElement("video")
     canvasVideo.id = "__canvas_video_stream__"
     canvasVideo.style.cssText = `pointer-events: none; opacity: 0;`
