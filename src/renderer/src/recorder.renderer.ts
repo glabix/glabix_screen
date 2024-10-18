@@ -246,7 +246,7 @@ const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
 const createVideo = (_stream, _canvas, _video) => {
   stream = _canvas
     ? new MediaStream([
-        ..._canvas.captureStream().getVideoTracks(),
+        ..._canvas.captureStream(30).getVideoTracks(),
         ..._stream.getAudioTracks(),
       ])
     : _stream
