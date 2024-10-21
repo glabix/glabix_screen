@@ -2,9 +2,8 @@ import "@renderer/styles/login-page.scss"
 import { LoginEvents } from "@shared/events/login.events"
 
 document.addEventListener("DOMContentLoaded", () => {
-  const authLink = import.meta.env.VITE_AUTH_APP_URL + "recorder/auth"
-  const registrationLink =
-    import.meta.env.VITE_AUTH_APP_URL + "recorder/registration"
+  const authLink = `${import.meta.env.VITE_AUTH_APP_URL}recorder/auth?protocol_scheme=${import.meta.env.VITE_PROTOCOL_SCHEME}`
+  const registrationLink = `${import.meta.env.VITE_AUTH_APP_URL}recorder/registration?protocol_scheme=${import.meta.env.VITE_PROTOCOL_SCHEME}`
   const authBtn = document.getElementById("auth-btn")
   const registrationBtn = document.getElementById("registration-btn")
   const recorderLogo = document.getElementById("recorder-logo")
