@@ -777,8 +777,8 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 window.electronAPI.ipcRenderer.on("screen:change", (event) => {
-  if (lastStreamSettings!.action == "cropVideo") {
-    initView(lastStreamSettings!, true)
-    initRecord(lastStreamSettings!)
+  if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
+    initView(lastStreamSettings, true)
+    initRecord(lastStreamSettings)
   }
 })

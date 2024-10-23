@@ -1,5 +1,6 @@
+import { LoggerEvents } from "@shared/events/logger.events"
 import { StreamSettings } from "@shared/types/types"
-import { Rectangle } from "electron"
+import { Display, Rectangle } from "electron"
 
 let canvasContainer = document.querySelector(
   ".crop-screenshot-container"
@@ -105,5 +106,14 @@ window.electronAPI.ipcRenderer.on(
     } else {
       canvasContainer.setAttribute("hidden", "")
     }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  "screen:change",
+  (event, display: Display) => {
+    canvas.width = display.bounds.width
+    canvas.height = display.bounds.height
+    initView()
   }
 )

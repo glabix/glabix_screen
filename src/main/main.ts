@@ -676,7 +676,7 @@ function createDropdownWindow(parentWindow) {
     const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
-      mainWindow.webContents.send("screen:change", {})
+      mainWindow.webContents.send("screen:change", currentScreen)
     }
 
     activeDisplay = currentScreen
