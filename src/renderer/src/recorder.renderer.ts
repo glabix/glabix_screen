@@ -267,10 +267,6 @@ const createVideo = (_stream, _canvas, _video) => {
 
   if (_video) {
     _video.srcObject = new MediaStream([..._stream.getVideoTracks()])
-
-    if (_stream.getVideoTracks()[0]) {
-      const stream_settings = _stream.getVideoTracks()[0].getSettings()
-    }
   }
 
   if (_canvas) {
@@ -643,15 +639,27 @@ function initRecord(data: StreamSettings) {
 
 window.electronAPI.ipcRenderer.on(
   "record-settings-change",
-  (event, data: StreamSettings) => {
-    lastStreamSettings = data
-    initRecord(data)
+  (event, settings: StreamSettings) => {
+    const action = ["fullScreenshot", "cropScreenshot"].includes(
+      settings.action
+    )
+      ? lastStreamSettings?.action
+      : settings.action
+    lastStreamSettings = { ...settings, action: action || "fullScreenVideo" }
+    initRecord(settings)
   }
 )
 
 window.electronAPI.ipcRenderer.on(
   "start-recording",
-  (event, data: StreamSettings) => {
+  (event, settings: StreamSettings) => {
+    const action = ["fullScreenshot", "cropScreenshot"].includes(
+      settings.action
+    )
+      ? lastStreamSettings?.action
+      : settings.action
+    const data = { ...settings, action: action || "fullScreenVideo" }
+
     if (data.action == "fullScreenVideo") {
       countdownContainer.removeAttribute("hidden")
       let timeleft = 2

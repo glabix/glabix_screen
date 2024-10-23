@@ -14,6 +14,7 @@ import {
   Tray,
   dialog,
   Notification,
+  Rectangle,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -56,9 +57,11 @@ import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
+import { getScreenshot } from "./helpers/get-screenshot"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
+let screenshotWindow: BrowserWindow
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -524,6 +527,7 @@ function createWindow() {
     },
   })
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
+  activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
 
   if (os.platform() == "darwin") {
     mainWindow.setWindowButtonVisibility(false)
@@ -549,6 +553,7 @@ function createWindow() {
   mainWindow.on("close", () => {
     app.quit()
   })
+
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
@@ -708,16 +713,67 @@ function createLoginWindow() {
         loginWindow.webContents.send("app:version", app.getVersion())
       })
   }
+}
 
-  loginWindow.once("ready-to-show", () => {
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
+function createScreenshotWindow(dataURL: string) {
+  if (screenshotWindow) {
+    screenshotWindow.destroy()
+  }
+
+  const imageWidth = nativeImage
+    .createFromDataURL(dataURL)
+    .getSize(activeDisplay.scaleFactor).width
+  const ration = nativeImage
+    .createFromDataURL(dataURL)
+    .getAspectRatio(activeDisplay.scaleFactor)
+  const maxWidth = 0.75 * activeDisplay.bounds.width
+  const imageHeight = nativeImage
+    .createFromDataURL(dataURL)
+    .getSize(activeDisplay.scaleFactor).height
+  const maxHeight = Math.ceil(maxWidth / ration)
+
+  hideWindows()
+
+  screenshotWindow = new BrowserWindow({
+    titleBarStyle: "hidden",
+    fullscreenable: false,
+    maximizable: false,
+    // resizable: false,
+    minimizable: false,
+    width: imageWidth > maxWidth ? maxWidth : imageWidth,
+    height: maxHeight,
+    show: false,
+    // resizable: false,
+    // frame: false,
+    roundedCorners: true,
+    webPreferences: {
+      preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
+      nodeIntegration: true, // повышаем безопасность
+      zoomFactor: 1.0,
+      devTools: !app.isPackaged,
+      // contextIsolation: true,  // повышаем безопасность
+    },
   })
 
-  loginWindow.on("close", (event) => {
-    app.quit()
-  })
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    screenshotWindow
+      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
+      .then(() => {
+        screenshotWindow.show()
+        setTimeout(() => {
+          screenshotWindow.webContents.send("screenshot:getDataURL", dataURL)
+        })
+      })
+  } else {
+    screenshotWindow
+      .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
+      .then(() => {
+        screenshotWindow.show()
+        setTimeout(() => {
+          screenshotWindow.webContents.send("screenshot:getDataURL", dataURL)
+        })
+      })
+  }
 }
 
 function showWindows() {
@@ -964,6 +1020,18 @@ ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   modalWindow.webContents.send("dropdown:select", data)
 
   dropdownWindow.hide()
+
+  if (data.action == "cropScreenshot") {
+    modalWindow.hide()
+    mainWindow.focus()
+  }
+
+  if (data.action == "fullScreenshot") {
+    modalWindow.hide()
+    getScreenshot(activeDisplay).then((dataUrl) => {
+      createScreenshotWindow(dataUrl)
+    })
+  }
 })
 
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
@@ -1007,6 +1075,11 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 })
 
+ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
+  getScreenshot(activeDisplay, crop).then((dataUrl) => {
+    createScreenshotWindow(dataUrl)
+  })
+})
 ipcMain.on("start-recording", (event, data) => {
   if (mainWindow) {
     mainWindow.webContents.send("start-recording", data)
@@ -1347,6 +1420,7 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
   logSender.sendLog("sessions.deleted")
   contextMenu.getMenuItemById("menuLogOutItem")!.visible = false
 })
+
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
   logSender.sendLog("api.limits.get", stringify(data))

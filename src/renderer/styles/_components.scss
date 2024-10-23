@@ -35,3 +35,19 @@
     height: 16px;
   }
 }
+
+.dropdown-item-title {
+  align-items: flex-end;
+  padding-bottom: 8px;
+  color: var(--gray-600);
+  pointer-events: none !important;
+  &:hover,
+  & {
+    background-color: var(--gray-100) !important;
+    border: 1px solid var(--gray-100) !important;
+  }
+  .icon-wrapper,
+  .icon-selected {
+    display: none !important;
+  }
+}

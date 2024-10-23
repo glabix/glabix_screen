@@ -16,18 +16,24 @@
     <template id="dropdown_item_tpl">
       <div class="dropdown-item">
         <button type="button" class="btn justify-start text-overflow">
-          <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
+          <div
+            class="icon-wrapper flex-center-5 min-w-5 mr-3 pointer-events-none"
+          >
             <i class="i relative i--lg"></i>
           </div>
           <span
             class="text-overflow text-left pointer-events-none flex-grow-1"
           ></span>
           <div
-            class="js-is-selected pointer-events-none ml-3 flex-center-5 min-w-5"
+            class="icon-selected js-is-selected pointer-events-none ml-3 flex-center-5 min-w-5"
             hidden
           >
             <div class="i i--lg i-check-circle-solid text-primary"></div>
           </div>
+          <div
+            class="js-text-small fw-300 text-gray-600 text-xs text-overflow"
+            hidden
+          ></div>
         </button>
       </div>
     </template>

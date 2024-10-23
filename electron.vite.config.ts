@@ -35,6 +35,10 @@ export default defineConfig({
             import.meta.dirname,
             "src/renderer/dropdown.html"
           ),
+          screenshot_window: resolve(
+            import.meta.dirname,
+            "src/renderer/screenshot.html"
+          ),
         },
       },
     },
