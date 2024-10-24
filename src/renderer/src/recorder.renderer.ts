@@ -12,6 +12,7 @@ import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
+import { captureVideoFrame } from "./helpers/capture-video-frame"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const countdownContainer = document.querySelector(
@@ -249,7 +250,10 @@ const createVideo = (_stream, _canvas, _video) => {
         ..._canvas.captureStream(30).getVideoTracks(),
         ..._stream.getAudioTracks(),
       ])
-    : _stream
+    : new MediaStream([
+        ..._stream.getVideoTracks(),
+        ..._stream.getAudioTracks(),
+      ])
 
   videoRecorder = new MediaRecorder(stream!, {
     mimeType: "video/mp4",
@@ -390,6 +394,39 @@ const updateRecorderState = (state: RecorderState) => {
   window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
 }
 
+const createPreview = () => {
+  if (stream) {
+    let size = { width: window.innerWidth, height: window.innerHeight }
+
+    if (lastStreamSettings?.action == "cropVideo") {
+      const canvas = document.querySelector(
+        "#crop_video_screen canvas"
+      ) as HTMLCanvasElement
+      const position = canvas.getBoundingClientRect()
+      size = { width: position.width, height: position.height }
+    }
+
+    if (lastStreamSettings?.action == "cameraOnly") {
+      const video = document.querySelector(
+        ".webcamera-only-container video"
+      ) as HTMLVideoElement
+      size = { width: video.videoWidth, height: video.videoHeight }
+    }
+
+    captureVideoFrame(stream, size).then((previewDataURL) => {
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "captureVideoFrame",
+      })
+
+      const data: ISimpleStoreData = {
+        key: "lastVideoPreview",
+        value: previewDataURL,
+      }
+
+      window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
+    })
+  }
+}
 const startRecording = () => {
   if (videoRecorder) {
     videoRecorder.start()
@@ -399,6 +436,8 @@ const startRecording = () => {
 
     timer.start(true)
     updateRecorderState("recording")
+
+    createPreview()
   }
 }
 
@@ -769,8 +808,8 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 window.electronAPI.ipcRenderer.on("screen:change", (event) => {
-  if (lastStreamSettings!.action == "cropVideo") {
-    initView(lastStreamSettings!, true)
-    initRecord(lastStreamSettings!)
+  if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
+    initView(lastStreamSettings, true)
+    initRecord(lastStreamSettings)
   }
 })
