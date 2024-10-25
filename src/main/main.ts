@@ -1087,7 +1087,7 @@ ipcMain.on(LoginEvents.USER_VERIFIED, (event: unknown) => {
 })
 
 ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
-  const blob = new Blob([file], { type: "video/mp4;codecs=avc1" })
+  const blob = new Blob([file], { type: "video/mp4" })
   unprocessedFilesService
     .saveFileWithStreams(blob, Date.now() + "")
     .then((rawFileName) => {
