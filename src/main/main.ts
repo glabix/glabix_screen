@@ -56,6 +56,7 @@ import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
+import { dataURLToFile } from "./helpers/dataurl-to-file"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -1139,6 +1140,10 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
           ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
         }
       }
+      const lastVideoPreview = store.get()["lastVideoPreview"]
+      const preview = lastVideoPreview
+        ? dataURLToFile(lastVideoPreview, fileName)
+        : undefined
       createFileUploadCommand(
         tokenStorage.token!.access_token,
         tokenStorage.organizationId!,
@@ -1147,6 +1152,7 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
         title,
         fileSize,
         appVersion,
+        preview,
         callback
       )
     }
