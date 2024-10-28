@@ -251,9 +251,8 @@ const createVideo = (_stream, _canvas, _video) => {
       ])
     : _stream
 
-  MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
   videoRecorder = new MediaRecorder(stream!, {
-    mimeType: "video/mp4;codecs=avc1",
+    mimeType: "video/webm;codecs=h264",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
@@ -315,7 +314,7 @@ const createVideo = (_stream, _canvas, _video) => {
       title: "videoRecorder.onstop",
     })
     timer.stop()
-    const blob = new Blob(chunks, { type: "video/mp4;codecs=avc1" })
+    const blob = new Blob(chunks, { type: "video/webm;codecs=h264" })
     chunks = [] // Reset the chunks for the next recording
 
     const reader = new FileReader()
