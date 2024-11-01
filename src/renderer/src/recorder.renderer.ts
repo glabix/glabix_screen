@@ -256,7 +256,7 @@ const createVideo = (_stream, _canvas, _video) => {
       ])
 
   videoRecorder = new MediaRecorder(stream!, {
-    mimeType: "video/webm;codecs=h264",
+    mimeType: "video/mp4",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
@@ -318,7 +318,7 @@ const createVideo = (_stream, _canvas, _video) => {
       title: "videoRecorder.onstop",
     })
     timer.stop()
-    const blob = new Blob(chunks, { type: "video/webm;codecs=h264" })
+    const blob = new Blob(chunks, { type: "video/mp4" })
     chunks = [] // Reset the chunks for the next recording
 
     const reader = new FileReader()
