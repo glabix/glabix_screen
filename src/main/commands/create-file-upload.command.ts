@@ -8,20 +8,25 @@ export function createFileUploadCommand(
   title: string,
   file_size: number,
   version: string,
+  preview: File | undefined,
   callback: (err: null | Error, uuid: string | null) => void
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads`
-  const params = {
-    chunks_count,
-    filename,
-    title,
-    version,
-    file_size,
+  const formData = new FormData()
+  formData.append("title", title)
+  formData.append("filename", filename)
+  formData.append("chunks_count", chunks_count.toString())
+  formData.append("file_size", file_size.toString())
+  formData.append("version", version)
+
+  if (preview) {
+    formData.append("preview", preview)
   }
+
   axios
     .post<{
       uuid: string
-    }>(url, { ...params }, { headers: { Authorization: `Bearer ${token}` } })
+    }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
     .then((response) => {
       if (response.status === 200 || response.status === 201) {
         const uuid = response.data.uuid
