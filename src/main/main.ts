@@ -168,7 +168,7 @@ function init(url: string) {
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
-    setLog(LogLevel.ERROR, `init`, e)
+    logSender.sendLog("init_function.error", stringify({ url, e }), true)
   }
 }
 
@@ -1248,7 +1248,18 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
   )
   const callback = (err, data) => {
     typedChunk.cancelProcess()
-    if (!err) {
+    if (err?.error?.code === "conflict_request") {
+      logSender.sendLog(
+        "api.uploads.chunks.upload_conflict_request",
+        stringify({
+          chunk_number: chunkNumber,
+          chunk_size: typedChunk?.size,
+          file_uuid: typedChunk?.fileUuid,
+          e: err,
+        }),
+        false
+      )
+    } else if (!err) {
       logSender.sendLog(
         "api.uploads.chunks.upload_completed",
         JSON.stringify({
