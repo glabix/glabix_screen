@@ -244,6 +244,16 @@ const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
   return combinedStream
 }
 
+const getSupportedMimeType = () => {
+  const defaultMimeType = 'video/mp4'
+  const h264MimeType = 'video/webm;codecs=h264'
+  if (MediaRecorder.isTypeSupported(h264MimeType)) {
+    return h264MimeType
+  } else {
+    return defaultMimeType
+  }
+}
+
 const createVideo = (_stream, _canvas, _video) => {
   stream = _canvas
     ? new MediaStream([
@@ -255,8 +265,9 @@ const createVideo = (_stream, _canvas, _video) => {
         ..._stream.getAudioTracks(),
       ])
 
+  
   videoRecorder = new MediaRecorder(stream!, {
-    mimeType: "video/webm;codecs=h264",
+    mimeType: getSupportedMimeType(),
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
@@ -318,7 +329,7 @@ const createVideo = (_stream, _canvas, _video) => {
       title: "videoRecorder.onstop",
     })
     timer.stop()
-    const blob = new Blob(chunks, { type: "video/webm;codecs=h264" })
+    const blob = new Blob(chunks, { type: getSupportedMimeType() })
     chunks = [] // Reset the chunks for the next recording
 
     const reader = new FileReader()
