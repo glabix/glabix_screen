@@ -11,7 +11,9 @@ import { Text } from "konva/lib/shapes/Text"
 import { TransformerConfig } from "konva/lib/shapes/Transformer"
 import { Vector2d } from "konva/lib/types"
 
-type ShapeTypes = "arrow" | "text" | "line" | "ellipse" | "rect"
+type ShapeTypes = "arrow" | "text" | "line" | "ellipse" | "rect" | "curved_line"
+class CurvedLine extends Konva.Line {}
+
 const arrowIdSeparator = ":"
 const arrowCircleStartId = "arrow_start_id"
 const arrowCircleEndId = "arrow_end_id"
@@ -154,14 +156,21 @@ window.electronAPI?.ipcRenderer?.on(
 
 let shapes: any[] = []
 let clickedShapeId = ""
-let activeShape: Arrow | Text | Line | Ellipse | Rect | undefined = undefined
+let activeShape: Arrow | Text | Line | CurvedLine | Ellipse | Rect | undefined =
+  undefined
 let activeTextShape: Text | undefined = undefined
 let activeColor = "#ff24bd"
 let isMouseDown = false
 let isShapeCreated = false
 let activeShapeType: ShapeTypes = "arrow"
 let startPos: Vector2d = { x: 0, y: 0 }
-const mouseMoveTypes: ShapeTypes[] = ["arrow", "line", "ellipse", "rect"]
+const mouseMoveTypes: ShapeTypes[] = [
+  "arrow",
+  "line",
+  "ellipse",
+  "rect",
+  "curved_line",
+]
 
 const setActiveShapeBtn = (type: ShapeTypes) => {
   if (activeShapeType == type) {
@@ -267,10 +276,10 @@ const createShape = (type: ShapeTypes) => {
   if (type == "arrow") {
     activeShape = new Konva.Arrow({
       id: shapeId,
+      name: type,
       points: [startPos.x, startPos.y],
       stroke: activeColor,
       strokeWidth: 4,
-      fill: activeColor,
       draggable: true,
       hitStrokeWidth: 2,
     })
@@ -278,13 +287,27 @@ const createShape = (type: ShapeTypes) => {
     layer.add(activeShape)
   }
 
-  if (type == "line") {
-    activeShape = new Konva.Line({
+  if (type == "curved_line") {
+    activeShape = new CurvedLine({
       id: shapeId,
+      name: type,
       points: [startPos.x, startPos.y],
       stroke: activeColor,
       strokeWidth: 4,
-      fill: activeColor,
+      draggable: true,
+      hitStrokeWidth: 2,
+    }) as CurvedLine
+
+    layer.add(activeShape)
+  }
+
+  if (type == "line") {
+    activeShape = new Konva.Line({
+      id: shapeId,
+      name: type,
+      points: [startPos.x, startPos.y],
+      stroke: activeColor,
+      strokeWidth: 4,
       draggable: true,
       hitStrokeWidth: 2,
     })
@@ -295,6 +318,7 @@ const createShape = (type: ShapeTypes) => {
   if (type == "rect") {
     activeShape = new Konva.Rect({
       id: shapeId,
+      name: type,
       x: startPos.x,
       y: startPos.y,
       stroke: activeColor,
@@ -312,6 +336,7 @@ const createShape = (type: ShapeTypes) => {
   if (type == "ellipse") {
     activeShape = new Konva.Ellipse({
       id: shapeId,
+      name: type,
       draggable: true,
       x: startPos.x,
       y: startPos.y,
@@ -330,21 +355,22 @@ const createShape = (type: ShapeTypes) => {
   if (type == "text") {
     activeShape = new Konva.Text({
       id: shapeId,
+      name: type,
       x: startPos.x,
       y: startPos.y,
       text: "",
       fontSize: 30,
       fontFamily: "Arial",
-      fontStyle: "700",
+      fontStyle: "600",
       lineHeight: 1.2,
       fill: activeColor,
       draggable: true,
-      strokeWidth: 0.75,
+      strokeWidth: 2,
       stroke: "white",
-      shadowColor: "white",
-      shadowBlur: 2,
-      shadowOffset: { x: -1, y: -1 },
-      shadowOpacity: 0.5,
+      fillAfterStrokeEnabled: true,
+      shadowColor: "black",
+      shadowOffset: { x: 0, y: 1 },
+      shadowOpacity: 0.3,
     })
 
     layer.add(activeShape)
@@ -367,15 +393,12 @@ stage.on("mouseover", (event) => {
 stage.on("mousedown", (event) => {
   clickedShapeId = event.target.attrs.id
   const clickedShape = stage.findOne(`#${clickedShapeId}`)
-  // console.log('event', event)
-  // console.log('clickedShape', clickedShape)
 
-  // console.log('event.target.attrs.name', event.target.attrs.name?.indexOf('_anchor'))
   if (event.target.attrs.name?.indexOf("_anchor") >= 0) {
     return
   }
 
-  if (clickedShape instanceof Text) {
+  if (clickedShape instanceof Text || clickedShape instanceof CurvedLine) {
     tr.nodes([clickedShape])
     tr.setAttrs(trDefaultConfig)
     tr.moveToTop()
@@ -400,7 +423,10 @@ stage.on("mousedown", (event) => {
   }
 
   if (shapes.includes(clickedShapeId)) {
-    if (clickedShapeId.includes("arrow") || clickedShapeId.includes("line")) {
+    if (
+      clickedShape instanceof Arrow ||
+      (clickedShape instanceof Line && !(clickedShape instanceof CurvedLine))
+    ) {
       const clickableArrow = stage.findOne(`#${clickedShapeId}`)
 
       if (clickableArrow) {
@@ -429,7 +455,19 @@ stage.on("mousemove", (event) => {
       createShape(activeShapeType)
     }
 
-    if (activeShape instanceof Arrow || activeShape instanceof Line) {
+    if (activeShape instanceof CurvedLine) {
+      console.log("activeShape", activeShape)
+      const pos = stage.getPointerPosition()!
+      const newPoints = activeShape.points().concat([pos.x, pos.y])
+      activeShape.points(newPoints)
+
+      layer.batchDraw()
+    }
+
+    if (
+      activeShape instanceof Arrow ||
+      (activeShape instanceof Line && !(activeShape instanceof CurvedLine))
+    ) {
       const pos = stage.getPointerPosition()!
 
       if (pos.x == startPos.x && pos.y == startPos.y) {
@@ -505,7 +543,10 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
         shapes = shapes.filter((s) => s != clickedShapeId)
         stage.container().style.cursor = "default"
 
-        if (shape instanceof Arrow || shape instanceof Line) {
+        if (
+          shape instanceof Arrow ||
+          (shape instanceof Line && !(shape instanceof CurvedLine))
+        ) {
           hideArrowCircles()
         }
 
