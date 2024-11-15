@@ -64,8 +64,7 @@ const trDefaultConfig: TransformerConfig = {
     })
   },
 }
-const tr = new Konva.Transformer(trDefaultConfig)
-layer.add(tr)
+let tr = new Konva.Transformer(trDefaultConfig)
 
 // Init Arrows Transform Circles
 const transformCircleConfig: CircleConfig = {
@@ -95,6 +94,9 @@ let arrowCircleEnd = new Konva.Circle({
 const init = () => {
   arrowCircleStart.destroy()
   arrowCircleEnd.destroy()
+
+  tr = new Konva.Transformer(trDefaultConfig)
+  layer.add(tr)
 
   arrowCircleStart = new Konva.Circle({
     id: arrowCircleStartId,
@@ -376,16 +378,19 @@ stage.on("mousedown", (event) => {
   if (clickedShape instanceof Text) {
     tr.nodes([clickedShape])
     tr.setAttrs(trDefaultConfig)
+    tr.moveToTop()
     layer.batchDraw()
   } else if (clickedShape instanceof Ellipse || clickedShape instanceof Rect) {
     tr.nodes([clickedShape])
-    tr.moveToTop()
     tr.setAttrs({ resizeEnabled: true })
+    tr.moveToTop()
     layer.batchDraw()
   } else {
-    tr.nodes([])
-    tr.setAttrs(trDefaultConfig)
-    layer.batchDraw()
+    if (tr.nodes().length) {
+      tr.nodes([])
+      tr.setAttrs(trDefaultConfig)
+      layer.batchDraw()
+    }
   }
 
   if ([arrowCircleStart.id(), arrowCircleEnd.id()].includes(clickedShapeId)) {
