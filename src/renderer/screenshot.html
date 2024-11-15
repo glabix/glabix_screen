@@ -11,7 +11,39 @@
   </head>
 
   <body>
+    <div class="page-header" id="page_header">
+      <div class="flex justify-between">
+        <div></div>
+        <div>
+          <button class="btn btn--sm btn--primary js-copy-image">
+            Скопировать
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="page-container" id="page_container"></div>
     <img src="" alt="" class="js-screenshot" />
+    <div class="page-footer" id="page_footer">
+      <div class="flex justify-between">
+        <div class="flex items-center">
+          <button class="btn btn--sm hover" data-shape-type="arrow">
+            Стрелка
+          </button>
+          <button class="btn btn--sm" data-shape-type="text">Текст</button>
+          <button class="btn btn--sm" data-shape-type="line">Линия</button>
+          <button class="btn btn--sm" data-shape-type="ellipse">Овал</button>
+          <button class="btn btn--sm" data-shape-type="rect">
+            Прямоугольник
+          </button>
+        </div>
+        <div>
+          <button class="btn invisible btn--sm btn--primary">
+            Скопировать
+          </button>
+        </div>
+      </div>
+    </div>
+    <textarea class="textarea-ghost" id="textarea_ghost" hidden></textarea>
     <script type="module" src="./src/screenshot-page.renderer.ts"></script>
   </body>
 </html>

@@ -15,6 +15,7 @@ import {
   dialog,
   Notification,
   Rectangle,
+  clipboard,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -36,6 +37,7 @@ import {
   MediaDeviceType,
   SimpleStoreEvents,
   ModalWindowHeight,
+  IScreenshotImageData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -59,6 +61,7 @@ import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
 import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
+import { FULL_SCREENSHOT_DATA } from "@shared/helpers/mock"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -376,17 +379,36 @@ if (!gotTheLock) {
 
     //   return true
     // })
+
+    registerShortCuts()
   })
 }
 
 function registerShortCuts() {
+  globalShortcut.register("CommandOrControl+Shift+6", () => {
+    createScreenshot()
+  })
+
+  globalShortcut.register("CommandOrControl+Shift+5", () => {
+    if (tokenStorage && tokenStorage.dataIsActual()) {
+      modalWindow.webContents.send("dropdown:select", {
+        action: "cropScreenshot",
+      })
+      dropdownWindow.hide()
+      modalWindow.hide()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+function registerShortCutsOnShow() {
   globalShortcut.register("Command+H", () => {
     hideWindows()
   })
 }
 
-function unregisterShortCuts() {
-  globalShortcut.unregisterAll()
+function unregisterShortCutsOnHide() {
+  globalShortcut.unregister("Command+H")
 }
 
 function watchMediaDevicesAccessChange() {
@@ -558,6 +580,9 @@ function createWindow() {
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
+
+  // SCREENSHOT
+  createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -721,17 +746,28 @@ function createScreenshotWindow(dataURL: string) {
     screenshotWindow.destroy()
   }
 
-  const imageWidth = nativeImage
+  // const imageRation = nativeImage.createFromDataURL(dataURL).getAspectRatio(activeDisplay.scaleFactor)
+  const imageSize = nativeImage
     .createFromDataURL(dataURL)
-    .getSize(activeDisplay.scaleFactor).width
-  const ration = nativeImage
-    .createFromDataURL(dataURL)
-    .getAspectRatio(activeDisplay.scaleFactor)
-  const maxWidth = 0.75 * activeDisplay.bounds.width
-  const imageHeight = nativeImage
-    .createFromDataURL(dataURL)
-    .getSize(activeDisplay.scaleFactor).height
-  const maxHeight = Math.ceil(maxWidth / ration)
+    .getSize(activeDisplay.scaleFactor)
+  const minWidth = 750
+  const minHeight = 400
+  const maxWidth = 0.8 * activeDisplay.bounds.width
+  const maxHeight = 0.8 * activeDisplay.bounds.height
+  const imageWidth = imageSize.width
+  const imageHeight = imageSize.height
+  const imageData: IScreenshotImageData = {
+    scale: activeDisplay.scaleFactor,
+    width: imageWidth,
+    height: imageHeight,
+    url: dataURL,
+  }
+
+  const width = [imageWidth, maxWidth, minWidth].sort((a, b) => a - b)[1]
+  const height = [imageHeight, maxHeight, minHeight].sort((a, b) => a - b)[1]
+
+  console.log("-------imageWidth", imageWidth, width)
+  console.log("-------imageHeight", imageHeight, height)
 
   hideWindows()
 
@@ -741,10 +777,9 @@ function createScreenshotWindow(dataURL: string) {
     maximizable: false,
     // resizable: false,
     minimizable: false,
-    width: imageWidth > maxWidth ? maxWidth : imageWidth,
-    height: maxHeight,
+    width: width,
+    height: height! + 64,
     show: false,
-    // resizable: false,
     // frame: false,
     roundedCorners: true,
     webPreferences: {
@@ -762,7 +797,7 @@ function createScreenshotWindow(dataURL: string) {
       .then(() => {
         screenshotWindow.show()
         setTimeout(() => {
-          screenshotWindow.webContents.send("screenshot:getDataURL", dataURL)
+          screenshotWindow.webContents.send("screenshot:getImage", imageData)
         })
       })
   } else {
@@ -771,7 +806,7 @@ function createScreenshotWindow(dataURL: string) {
       .then(() => {
         screenshotWindow.show()
         setTimeout(() => {
-          screenshotWindow.webContents.send("screenshot:getDataURL", dataURL)
+          screenshotWindow.webContents.send("screenshot:getImage", imageData)
         })
       })
   }
@@ -779,7 +814,7 @@ function createScreenshotWindow(dataURL: string) {
 
 function showWindows() {
   logSender.sendLog("app.activated")
-  registerShortCuts()
+  registerShortCutsOnShow()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
@@ -794,7 +829,7 @@ function showWindows() {
 
 function hideWindows() {
   logSender.sendLog("app.disactivated")
-  unregisterShortCuts()
+  unregisterShortCutsOnHide()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
     if (modalWindow) modalWindow.hide()
@@ -923,6 +958,11 @@ function logOut() {
   modalWindow.hide()
   loginWindow.show()
 }
+function createScreenshot(crop?: Rectangle) {
+  getScreenshot(activeDisplay, crop).then((dataUrl) => {
+    createScreenshotWindow(dataUrl)
+  })
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -945,7 +985,7 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   logSender.sendLog("app.exited")
   clearAllIntervals()
-  unregisterShortCuts()
+  globalShortcut.unregisterAll()
   isAppQuitting = true
 })
 
@@ -1019,19 +1059,17 @@ ipcMain.on("dropdown:close", (event, data) => {
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   modalWindow.webContents.send("dropdown:select", data)
-
   dropdownWindow.hide()
 
+  // Screenshot actions
   if (data.action == "cropScreenshot") {
     modalWindow.hide()
     mainWindow.focus()
   }
 
   if (data.action == "fullScreenshot") {
-    modalWindow.hide()
-    getScreenshot(activeDisplay).then((dataUrl) => {
-      createScreenshotWindow(dataUrl)
-    })
+    hideWindows()
+    createScreenshot()
   }
 })
 
@@ -1076,10 +1114,12 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 })
 
+ipcMain.on("screenshot:copy", (event, imgDataUrl: string) => {
+  const image = nativeImage.createFromDataURL(imgDataUrl)
+  clipboard.writeImage(image)
+})
 ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
-  getScreenshot(activeDisplay, crop).then((dataUrl) => {
-    createScreenshotWindow(dataUrl)
-  })
+  createScreenshot(crop)
 })
 ipcMain.on("start-recording", (event, data) => {
   if (mainWindow) {

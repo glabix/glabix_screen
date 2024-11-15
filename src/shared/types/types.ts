@@ -99,3 +99,10 @@ export interface IOrganizationLimits {
   upload_allowed: boolean
   max_upload_duration: number
 }
+
+export interface IScreenshotImageData {
+  scale: number
+  width: number
+  height: number
+  url: string
+}

@@ -5,8 +5,8 @@
 *,
 *::after,
 *::before {
-  -webkit-user-drag: none;
-  -webkit-app-region: no-drag;
+  // -webkit-user-drag: none;
+  // -webkit-app-region: no-drag;
 }
 
 body,
@@ -25,4 +25,62 @@ body {
 img {
   max-width: 100%;
   display: block;
+}
+
+.img-box {
+  display: flex;
+}
+
+.page-container {
+  position: fixed;
+  left: 0;
+  top: 32px;
+  width: 100%;
+  bottom: 32px;
+  z-index: 1;
+  overflow: hidden;
+  background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+    linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+    linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
+}
+
+.page-header {
+  -webkit-app-region: drag;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  z-index: 2;
+  background-color: #fff;
+}
+
+.page-footer {
+  -webkit-app-region: drag;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: 2;
+  background-color: #fff;
+}
+
+.textarea-ghost {
+  position: absolute;
+  border: none;
+  overflow: hidden;
+  padding: 0;
+  background: none;
+  outline: none;
+  color: transparent;
+  caret-color: black;
+  resize: none;
+  z-index: 9;
+  min-width: 2px;
 }
