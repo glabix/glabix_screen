@@ -84,3 +84,23 @@ img {
   z-index: 9;
   min-width: 2px;
 }
+
+.active-color {
+  display: block;
+  border-radius: 20px;
+  width: 20px;
+  height: 20px;
+  background-color: #ff24bd;
+  border: solid 1px var(--gray-300);
+}
+
+.active-color-popover {
+  position: absolute;
+  z-index: 11;
+  bottom: 100%;
+  width: 186px;
+  left: 0;
+  background-color: #fff;
+  padding: 0.75rem;
+  border: solid 1px var(--gray-300);
+}

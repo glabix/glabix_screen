@@ -13,12 +13,70 @@ import { Vector2d } from "konva/lib/types"
 
 type ShapeTypes = "arrow" | "text" | "line" | "ellipse" | "rect" | "curved_line"
 class CurvedLine extends Konva.Line {}
+const COLORS_MAP = [
+  { name: "accent-0", hex: "#00962a" },
+  { name: "accent-1", hex: "#0061fd" },
+  { name: "accent-2", hex: "#ff8a00" },
+  { name: "accent-3", hex: "#04c1b6" },
+  { name: "accent-4", hex: "#6a1b9a" },
+  { name: "accent-5", hex: "#ab47bc" },
+  { name: "accent-6", hex: "#ff24bd" },
+  { name: "accent-7", hex: "#880e4f" },
+  { name: "accent-8", hex: "#d81b60" },
+  { name: "accent-9", hex: "#ff1744" },
+  { name: "accent-10", hex: "#795548" },
+  { name: "accent-11", hex: "#827717" },
+  { name: "accent-12", hex: "#bf360c" },
+  { name: "accent-13", hex: "#e65100" },
+  { name: "accent-14", hex: "#78909c" },
+  { name: "accent-15", hex: "#004d40" },
+  { name: "accent-16", hex: "#03a9f4" },
+  { name: "accent-17", hex: "#00838f" },
+  { name: "accent-18", hex: "#4caf50" },
+  { name: "accent-19", hex: "#283593" },
+  { name: "light", hex: "#ffffff" },
+]
 
 const arrowIdSeparator = ":"
 const arrowCircleStartId = "arrow_start_id"
 const arrowCircleEndId = "arrow_end_id"
 
-const img = document.querySelector(".js-screenshot") as HTMLImageElement
+let shapes: any[] = []
+let clickedShapeId = ""
+let activeShape: Arrow | Text | Line | CurvedLine | Ellipse | Rect | undefined =
+  undefined
+let activeTextShape: Text | undefined = undefined
+const LAST_COLOR = "LAST_COLOR"
+let activeColor = ""
+
+const LAST_SHAPE_WIDTH = "LAST_SHAPE_WIDTH"
+let activeShapeWidth = 4
+const fontSizeFactor = 6
+
+let isMouseDown = false
+let isShapeCreated = false
+let activeShapeType: ShapeTypes = "arrow"
+let startPos: Vector2d = { x: 0, y: 0 }
+const mouseMoveTypes: ShapeTypes[] = [
+  "arrow",
+  "line",
+  "ellipse",
+  "rect",
+  "curved_line",
+]
+
+const activeColorBtn = document.querySelector(
+  ".js-toggle-color"
+) as HTMLButtonElement
+const activeColorBtns = document.querySelectorAll(
+  "[data-color]"
+)! as NodeListOf<HTMLButtonElement>
+const colorPopover = document.querySelector(
+  ".js-active-color-popover"
+)! as HTMLDivElement
+const activeWidthSlider = document.querySelector(
+  ".js-slider-width"
+) as HTMLInputElement
 const pageContainer = document.querySelector(
   "#page_container"
 )! as HTMLDivElement
@@ -93,6 +151,56 @@ let arrowCircleEnd = new Konva.Circle({
   ...transformCircleConfig,
 })
 
+const getActiveColorByName = (colorName: string): string => {
+  return COLORS_MAP.find((c) => c.name == colorName)!.hex
+}
+const getActiveColorNameByHex = (hex: string): string => {
+  return COLORS_MAP.find((c) => c.hex == hex)!.name
+}
+
+const getFontSize = (strokeWidth: number): number => {
+  const width = strokeWidth < 2 ? 2 : strokeWidth
+  return fontSizeFactor * width
+}
+const getShapeWidthByFontSize = (fontSize: number): number => {
+  return Math.ceil(fontSize / fontSizeFactor)
+}
+
+const setActiveColor = (colorName?: string) => {
+  const lastColor = localStorage.getItem(LAST_COLOR)
+
+  if (colorName) {
+    activeColor = getActiveColorByName(colorName)
+    localStorage.setItem(LAST_COLOR, colorName)
+  } else {
+    activeColor = lastColor
+      ? getActiveColorByName(lastColor)
+      : getActiveColorByName("accent-6")
+  }
+
+  activeColorBtns.forEach((btn) => {
+    const color = colorName ? colorName : lastColor || "accent-6"
+    btn.classList.toggle("scale-140", btn.dataset.color?.includes(color))
+  })
+
+  activeColorBtn.querySelector("span")!.style.background = activeColor
+}
+setActiveColor()
+
+const setActiveShapeWidth = (width?: number) => {
+  const lastWidth = Number(localStorage.getItem(LAST_SHAPE_WIDTH))
+
+  if (width) {
+    activeShapeWidth = width
+    localStorage.setItem(LAST_SHAPE_WIDTH, String(activeShapeWidth))
+  } else {
+    activeShapeWidth = lastWidth ? lastWidth : 4
+  }
+
+  activeWidthSlider.value = String(activeShapeWidth)
+}
+setActiveShapeWidth()
+
 const init = () => {
   arrowCircleStart.destroy()
   arrowCircleEnd.destroy()
@@ -153,24 +261,6 @@ window.electronAPI?.ipcRenderer?.on(
     imageObj.src = data.url
   }
 )
-
-let shapes: any[] = []
-let clickedShapeId = ""
-let activeShape: Arrow | Text | Line | CurvedLine | Ellipse | Rect | undefined =
-  undefined
-let activeTextShape: Text | undefined = undefined
-let activeColor = "#ff24bd"
-let isMouseDown = false
-let isShapeCreated = false
-let activeShapeType: ShapeTypes = "arrow"
-let startPos: Vector2d = { x: 0, y: 0 }
-const mouseMoveTypes: ShapeTypes[] = [
-  "arrow",
-  "line",
-  "ellipse",
-  "rect",
-  "curved_line",
-]
 
 const setActiveShapeBtn = (type: ShapeTypes) => {
   if (activeShapeType == type) {
@@ -279,7 +369,7 @@ const createShape = (type: ShapeTypes) => {
       name: type,
       points: [startPos.x, startPos.y],
       stroke: activeColor,
-      strokeWidth: 4,
+      strokeWidth: activeShapeWidth,
       draggable: true,
       hitStrokeWidth: 2,
     })
@@ -293,7 +383,7 @@ const createShape = (type: ShapeTypes) => {
       name: type,
       points: [startPos.x, startPos.y],
       stroke: activeColor,
-      strokeWidth: 4,
+      strokeWidth: activeShapeWidth,
       draggable: true,
       hitStrokeWidth: 2,
     }) as CurvedLine
@@ -307,7 +397,7 @@ const createShape = (type: ShapeTypes) => {
       name: type,
       points: [startPos.x, startPos.y],
       stroke: activeColor,
-      strokeWidth: 4,
+      strokeWidth: activeShapeWidth,
       draggable: true,
       hitStrokeWidth: 2,
     })
@@ -322,7 +412,7 @@ const createShape = (type: ShapeTypes) => {
       x: startPos.x,
       y: startPos.y,
       stroke: activeColor,
-      strokeWidth: 4,
+      strokeWidth: activeShapeWidth,
       draggable: true,
       hitStrokeWidth: 2,
       strokeScaleEnabled: false,
@@ -345,7 +435,7 @@ const createShape = (type: ShapeTypes) => {
       scaleX: 1,
       scaleY: 1,
       stroke: activeColor,
-      strokeWidth: 4,
+      strokeWidth: activeShapeWidth,
       strokeScaleEnabled: false,
     })
 
@@ -359,7 +449,7 @@ const createShape = (type: ShapeTypes) => {
       x: startPos.x,
       y: startPos.y,
       text: "",
-      fontSize: 30,
+      fontSize: getFontSize(activeShapeWidth),
       fontFamily: "Arial",
       fontStyle: "600",
       lineHeight: 1.2,
@@ -398,6 +488,26 @@ stage.on("mousedown", (event) => {
     return
   }
 
+  // Update Active Color and Stroke Width
+  if (clickedShape) {
+    if (clickedShape instanceof Text) {
+      const color = getActiveColorNameByHex(clickedShape.fill() as string)
+      const width = getShapeWidthByFontSize(clickedShape.fontSize())
+      setActiveShapeWidth(width)
+      setActiveColor(color)
+    } else {
+      console.log(
+        "(clickedShape as Arrow).stroke()",
+        (clickedShape as Arrow).stroke()
+      )
+      setActiveShapeWidth((clickedShape as Arrow).strokeWidth())
+      setActiveColor(
+        getActiveColorNameByHex((clickedShape as Arrow).stroke() as string)
+      )
+    }
+  }
+
+  // Add Transform Rectangle
   if (clickedShape instanceof Text || clickedShape instanceof CurvedLine) {
     tr.nodes([clickedShape])
     tr.setAttrs(trDefaultConfig)
@@ -538,7 +648,7 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
     if (shapes.includes(clickedShapeId)) {
       const shape = stage.findOne(`#${clickedShapeId}`)
 
-      if (shape) {
+      if (shape && !isTextareaFocused) {
         shape.destroy()
         shapes = shapes.filter((s) => s != clickedShapeId)
         stage.container().style.cursor = "default"
@@ -578,6 +688,30 @@ textarea.addEventListener(
   },
   false
 )
+activeWidthSlider.addEventListener(
+  "input",
+  (event) => {
+    const width = Number(activeWidthSlider.value)
+
+    if (!width) {
+      return
+    }
+
+    setActiveShapeWidth(width)
+
+    if (clickedShapeId) {
+      const activeShape = stage.findOne(`#${clickedShapeId}`)
+      if (activeShape) {
+        if (activeShape instanceof Text) {
+          activeShape.fontSize(getFontSize(activeShapeWidth))
+        } else {
+          ;(activeShape as Arrow).strokeWidth(activeShapeWidth)
+        }
+      }
+    }
+  },
+  false
+)
 
 copyBtn.addEventListener(
   "click",
@@ -589,6 +723,38 @@ copyBtn.addEventListener(
         // {pixelRatio: lastData ? lastData.scale : window.devicePixelRatio}
         ()
     )
+  },
+  false
+)
+
+activeColorBtns.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    (event) => {
+      const activeBtn = event.target as HTMLButtonElement
+      const colorName = activeBtn.dataset.color
+      setActiveColor(colorName!)
+      colorPopover.toggleAttribute("hidden")
+
+      if (clickedShapeId) {
+        const activeShape = stage.findOne(`#${clickedShapeId}`)
+        if (activeShape) {
+          if (activeShape instanceof Text) {
+            activeShape.fill(activeColor)
+          } else {
+            ;(activeShape as Arrow).stroke(activeColor)
+          }
+        }
+      }
+    },
+    false
+  )
+})
+
+activeColorBtn.addEventListener(
+  "click",
+  (event) => {
+    colorPopover.toggleAttribute("hidden")
   },
   false
 )

@@ -26,6 +26,18 @@
     <div class="page-footer" id="page_footer">
       <div class="flex justify-between">
         <div class="flex items-center">
+          <button class="btn btn--sm js-toggle-color">
+            <span class="active-color pointer-events-none"></span>
+          </button>
+          <button class="btn btn--sm">
+            <input
+              class="panel-slider js-slider-width"
+              type="range"
+              orient="vertical"
+              min="1"
+              max="10"
+            />
+          </button>
           <button class="btn btn--sm hover" data-shape-type="arrow">
             Стрелка
           </button>
@@ -43,6 +55,99 @@
           <button class="btn invisible btn--sm btn--primary">
             Скопировать
           </button>
+        </div>
+      </div>
+
+      <div class="active-color-popover js-active-color-popover" hidden>
+        <div class="flex flex-wrap gap-2">
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-0"
+            data-color="accent-0"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-1"
+            data-color="accent-1"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-2"
+            data-color="accent-2"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-3"
+            data-color="accent-3"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-4"
+            data-color="accent-4"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-5"
+            data-color="accent-5"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-6"
+            data-color="accent-6"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-7"
+            data-color="accent-7"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-8"
+            data-color="accent-8"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-9"
+            data-color="accent-9"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-10"
+            data-color="accent-10"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-11"
+            data-color="accent-11"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-12"
+            data-color="accent-12"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-13"
+            data-color="accent-13"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-14"
+            data-color="accent-14"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-15"
+            data-color="accent-15"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-16"
+            data-color="accent-16"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-17"
+            data-color="accent-17"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-18"
+            data-color="accent-18"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-19"
+            data-color="accent-19"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform text-light border border-gray-300"
+            data-color="light"
+          ></button>
+          <!-- <button
+            class="bullet-xl hover:scale-140 transition-transform text-dark"
+            data-color="dark"
+          ></button> -->
         </div>
       </div>
     </div>
