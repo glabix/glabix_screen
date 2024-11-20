@@ -57,6 +57,9 @@ import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
+import { RecordEvents } from "../shared/events/record.events"
+import { getOsLog } from "./helpers/get-os-log"
+import { showRecordErrorBox } from "./helpers/show-record-error-box"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -78,6 +81,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 
 const tokenStorage = new TokenStorage()
 const logSender = new LogSender(tokenStorage)
+const chunkSize = 10 * 1024 * 1024
 
 const appState = new AppState()
 const store = new SimpleStore()
@@ -137,12 +141,13 @@ function clearAllIntervals() {
 }
 
 function init(url: string) {
-  // Someone tried to run a second instance, we should focus our window.
-  if (mainWindow) {
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
-  }
+  if (url)
+    if (mainWindow) {
+      // Someone tried to run a second instance, we should focus our window.
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
+    }
   // const url = commandLine.pop()
   try {
     const u = new URL(url)
@@ -240,6 +245,7 @@ if (!gotTheLock) {
     })
 
     setLog(LogLevel.INFO, "ENVS", JSON.stringify(import.meta.env))
+    setLog(LogLevel.INFO, "OS", JSON.stringify(getOsLog()))
     // ipcMain.handle(
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
@@ -454,6 +460,10 @@ if (process.defaultApp) {
 
 function checkUnprocessedFiles(byTimer = false) {
   //todo
+  if (lastCreatedFileName) {
+    setLog(LogLevel.SILLY, `File is recorded now!`)
+    return
+  }
   if (unprocessedFilesService.isProcessedNowFileName) {
     setLog(LogLevel.SILLY, `File is processed now!`)
     return
@@ -1008,12 +1018,32 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 })
 
-ipcMain.on("start-recording", (event, data) => {
+ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
-    mainWindow.webContents.send("start-recording", data)
+    lastCreatedFileName = Date.now() + ""
+    mainWindow.webContents.send(RecordEvents.START, data)
   }
   modalWindow.hide()
 })
+
+ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
+  const { data, isLast } = res
+  const blob = new Blob([data], { type: "video/webm;codecs=h264" })
+  unprocessedFilesService
+    .saveFileWithStreams(blob, lastCreatedFileName, isLast)
+    .then((rawFileName) => {
+      logSender.sendLog("record.raw_file_chunk.save.success")
+    })
+    .catch((e) => {
+      logSender.sendLog(
+        "record.raw_file.save.error",
+        stringify({ err: e }),
+        true
+      )
+      showRecordErrorBox("Ошибка записи")
+    })
+})
+
 ipcMain.on("stop-recording", (event, data) => {
   if (mainWindow) {
     mainWindow.webContents.send("stop-recording")
@@ -1086,13 +1116,15 @@ ipcMain.on(LoginEvents.USER_VERIFIED, (event: unknown) => {
   ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
 })
 
+ipcMain.on(RecordEvents.ERROR, (event, file) => {
+  showRecordErrorBox()
+})
+
 ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
-  const blob = new Blob([file], { type: "video/webm;codecs=h264" })
   unprocessedFilesService
-    .saveFileWithStreams(blob, Date.now() + "")
+    .awaitWriteFile(lastCreatedFileName)
     .then((rawFileName) => {
-      logSender.sendLog("record.raw_file.save.success")
-      lastCreatedFileName = rawFileName
+      logSender.sendLog("record.raw_file.full.save.success")
       ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
     })
     .catch((e) => {
@@ -1112,54 +1144,51 @@ ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
   )
 
   unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
-  unprocessedFilesService.getFile(timestampRawFileName).then((file) => {
-    if (file) {
-      const appVersion = getVersion()
-      const fileSize = file.length
-      const size = 10 * 1024 * 1024
-      const chunksSlicer = new ChunkSlicer(file, size)
-      logSender.sendLog("recording.uploads.chunks.stored.prepared")
-      const chunks = [...chunksSlicer.allChunks]
-      const title = getTitle(timestampRawFileName)
-      const fileName = title + ".mp4"
-      const callback = (err: null | Error, uuid: string | null) => {
-        if (!err) {
-          const params = { uuid, chunks, rawFileName: timestampRawFileName }
-          ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
-        } else {
-          console.log(err)
-          logSender.sendLog(
-            "api.uploads.multipart_upload.create.error",
-            stringify({ err }),
-            true
-          )
-          const params = {
-            filename: timestampRawFileName,
-            fileChunks: [...chunks],
+  unprocessedFilesService
+    .getTotalChunks(timestampRawFileName, chunkSize)
+    .then((data) => {
+      if (data) {
+        const { totalSize, totalChunks } = data
+        const appVersion = getVersion()
+        logSender.sendLog("recording.uploads.chunks.stored.prepared")
+        const title = getTitle(timestampRawFileName)
+        const fileName = title + ".mp4"
+        const callback = (err: null | Error, uuid: string | null) => {
+          if (!err) {
+            const params = { uuid, rawFileName: timestampRawFileName }
+            ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
+          } else {
+            logSender.sendLog(
+              "api.uploads.multipart_upload.create.error",
+              stringify({ err }),
+              true
+            )
+            const params = {
+              filename: timestampRawFileName,
+            }
+            ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
           }
-          ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
         }
+        const lastVideoPreview = store.get()["lastVideoPreview"]
+        const preview = lastVideoPreview
+          ? dataURLToFile(lastVideoPreview, fileName)
+          : undefined
+        createFileUploadCommand(
+          tokenStorage.token!.access_token,
+          tokenStorage.organizationId!,
+          fileName,
+          totalChunks,
+          title,
+          totalSize,
+          appVersion,
+          preview,
+          callback
+        )
       }
-      const lastVideoPreview = store.get()["lastVideoPreview"]
-      const preview = lastVideoPreview
-        ? dataURLToFile(lastVideoPreview, fileName)
-        : undefined
-      createFileUploadCommand(
-        tokenStorage.token!.access_token,
-        tokenStorage.organizationId!,
-        fileName,
-        chunks.length,
-        title,
-        fileSize,
-        appVersion,
-        preview,
-        callback
-      )
-    }
-  })
+    })
 })
 
-ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event: unknown) => {
+ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
   const { uuid, chunks, rawFileName } = event as {
     uuid: string
     chunks: any[]
@@ -1169,42 +1198,6 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event: unknown) => {
     "api.uploads.multipart_upload.create.success",
     JSON.stringify({ uuid })
   )
-  chunkStorage
-    .addStorage(chunks, uuid)
-    .then(() => {
-      logSender.sendLog(
-        "recording.uploads.chunks.stored.success",
-        JSON.stringify({ uuid })
-      )
-      unprocessedFilesService
-        .deleteFile(rawFileName)
-        .then(() => {
-          logSender.sendLog(
-            "record.raw_file.delete.success",
-            JSON.stringify({
-              fileName: unprocessedFilesService.isProcessedNowFileName,
-            })
-          )
-          unprocessedFilesService.isProcessedNowFileName = null
-          checkUnprocessedFiles()
-          checkUnprocessedChunks()
-          checkOrganizationLimits()
-        })
-        .catch((e) => {
-          logSender.sendLog(
-            "record.raw_file.delete.error",
-            stringify({ e }),
-            true
-          )
-        })
-    })
-    .catch((e) => {
-      logSender.sendLog(
-        "recording.uploads.chunks.stored.error",
-        stringify({ e }),
-        true
-      )
-    })
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
     "recorder/org/" +
@@ -1230,6 +1223,40 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, (event: unknown) => {
       }, 5000) // 5000 миллисекунд = 5 секунд
     }
   }
+
+  const fileIterator =
+    unprocessedFilesService.restoreFileToBufferIterator(rawFileName)
+  try {
+    for await (const buffer of fileIterator) {
+      await chunkStorage.addStorage([buffer], uuid)
+      // chunkStorage.addStorage([buffer], uuid).then()
+    }
+  } catch (e) {
+    logSender.sendLog(
+      "recording.uploads.chunks.stored.error",
+      stringify({ e }),
+      true
+    )
+  }
+
+  unprocessedFilesService
+    .deleteFile(rawFileName)
+    .then(() => {
+      logSender.sendLog(
+        "record.raw_file.delete.success",
+        JSON.stringify({
+          fileName: unprocessedFilesService.isProcessedNowFileName,
+        })
+      )
+      unprocessedFilesService.isProcessedNowFileName = null
+      checkUnprocessedFiles()
+      checkUnprocessedChunks()
+      checkOrganizationLimits()
+    })
+    .catch((e) => {
+      logSender.sendLog("record.raw_file.delete.error", stringify({ e }), true)
+    })
+
   lastCreatedFileName = null
 })
 
@@ -1337,7 +1364,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
-  const { filename, fileChunks } = event as { filename: any; fileChunks: any }
+  const { filename } = event as { filename: any }
   if (lastCreatedFileName === filename) {
     lastCreatedFileName = null
     dialog.showMessageBox(mainWindow, {
@@ -1384,4 +1411,10 @@ ipcMain.on(LoggerEvents.SEND_LOG, (evt, data) => {
   const { title, body, error } = data
   const isError = !!error
   logSender.sendLog(title, stringify(body), isError)
+})
+
+ipcMain.on(RecordEvents.ERROR, (evt, data) => {
+  const { title, body } = data
+  logSender.sendLog(title, stringify(body))
+  showRecordErrorBox("Ошибка во время захвата экрана", "Обратитесь в поддержку")
 })

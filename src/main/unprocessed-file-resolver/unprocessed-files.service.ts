@@ -2,6 +2,8 @@ import os from "os"
 import path from "path"
 import { app } from "electron"
 import fs from "fs"
+import { s } from "vite/dist/node/types.d-aGj9QkWt"
+import { fsErrorParser } from "../helpers/fs-error-parser"
 
 const CHUNK_SIZE = 7 * 1024 * 1024 // Размер чанка 7 MB
 
@@ -23,8 +25,9 @@ export class UnprocessedFilesService {
           "unprocessed_files"
         )
 
-  private files: string[]
+  isAcceptedFileNames: string[] = []
   isProcessedNowFileName: null | string = null
+
   constructor() {
     const pathh = path.join(this.mainPath)
     if (!fs.existsSync(pathh)) {
@@ -32,52 +35,94 @@ export class UnprocessedFilesService {
     }
   }
 
-  // Функция для сохранения Blob файла с использованием потоков
-  async saveFileWithStreams(blob, fileName): Promise<string> {
-    const buffer = Buffer.from(await blob.arrayBuffer())
+  async awaitWriteFile(filename: string) {
+    const check = () => {
+      return this.isAcceptedFileNames.find((a) => a === filename)
+    }
+    return new Promise((resolve) => {
+      const timer = setInterval(() => {
+        const res = check()
+        if (res) {
+          clearInterval(timer)
+          return resolve(res)
+        }
+      }, 1000)
+    })
+  }
 
-    let chunkIndex = 0
-    const writePromises = [] // Массив промисов для отслеживания завершения записи каждого чанка
+  async findMaxChunkIndex(fileName: string): Promise<number | null> {
+    try {
+      const pathh = path.join(this.mainPath)
+      const files = await fs.promises.readdir(pathh) // Асинхронно читаем список файлов в директории
+      const regex = new RegExp(`^${fileName}\\.part(\\d+)$`) // Регулярное выражение для проверки шаблона
 
-    for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
-      const chunk = buffer.slice(i, i + CHUNK_SIZE) // Создаем чанк
-      const chunkFileName = `${fileName}.part${chunkIndex}`
-      const chunkPath = path.join(this.mainPath, chunkFileName)
+      let maxChunkIndex: number | null = null
 
-      // Создаем промис, который завершится, когда запись чанка будет завершена
-      const writePromise = new Promise((resolve, reject) => {
-        const writeStream = fs.createWriteStream(chunkPath)
-
-        writeStream.write(chunk, (err) => {
-          if (err) {
-            console.error("Ошибка при записи чанка:", err)
-            return reject(err)
+      for (const file of files) {
+        const match = file.match(regex)
+        if (match) {
+          const chunkIndex = parseInt(match[1], 10)
+          if (!isNaN(chunkIndex)) {
+            maxChunkIndex =
+              maxChunkIndex === null
+                ? chunkIndex
+                : Math.max(maxChunkIndex, chunkIndex)
           }
-        })
+        }
+      }
 
-        writeStream.end() // Закрываем поток после записи
+      return maxChunkIndex
+    } catch (error) {
+      return null
+    }
+  }
 
-        // Дожидаемся события 'finish', чтобы убедиться, что запись завершена
-        writeStream.on("finish", () => {
-          resolve()
-        })
+  async saveFileWithStreams(
+    blob: Blob,
+    fileName: string,
+    last: boolean
+  ): Promise<string> {
+    const buffer = Buffer.from(await blob.arrayBuffer())
+    const lastIndex = await this.findMaxChunkIndex(fileName)
+    let chunkIndex = lastIndex === null ? 0 : lastIndex + 1
 
-        writeStream.on("error", (err) => {
-          console.error(
-            `Ошибка записи в поток для файла: ${chunkFileName}`,
-            err
-          )
-          reject(err)
-        })
+    const chunkFileName = `${fileName}.part${chunkIndex}`
+    const chunkPath = path.join(this.mainPath, chunkFileName)
+
+    const writePromise = new Promise((resolve, reject) => {
+      const writeStream = fs.createWriteStream(chunkPath)
+
+      writeStream.write(buffer, (err) => {
+        if (err) {
+          console.error("Ошибка при записи чанка:", err)
+          fsErrorParser(err, chunkPath)
+          return reject(err)
+        }
       })
 
-      writePromises.push(writePromise) // Добавляем промис в массив
-      chunkIndex++
-    }
+      writeStream.end() // Закрываем поток после записи
+
+      // Дожидаемся события 'finish', чтобы убедиться, что запись завершена
+      writeStream.on("finish", () => {
+        resolve()
+      })
+
+      writeStream.on("error", (err) => {
+        fsErrorParser(err, chunkPath)
+        reject(err)
+      })
+    })
 
     // Дожидаемся завершения записи всех чанков
-    await Promise.all(writePromises)
+    await writePromise
+    if (last) {
+      this.endWriteFile(fileName)
+    }
     return fileName
+  }
+
+  endWriteFile(filename: string) {
+    this.isAcceptedFileNames.push(filename)
   }
 
   async restoreFileToBuffer(fileName): Promise<Buffer> {
@@ -141,5 +186,67 @@ export class UnprocessedFilesService {
         await fs.promises.unlink(chunkPath)
       })
     )
+  }
+
+  async getTotalChunks(
+    fileName: string,
+    maxChunkSize: number = 10 * 1024 * 1024
+  ): Promise<{ totalChunks: number; totalSize: number }> {
+    const directoryPath = path.join(this.mainPath) // Путь к директории с чанками
+    const files = await fs.promises.readdir(directoryPath) // Читаем список файлов в директории
+
+    // Фильтруем файлы, которые соответствуют нужному файлу
+    const chunkFiles = files.filter((file) => file.startsWith(fileName))
+
+    // Суммируем размеры всех файлов
+    let totalSize = 0
+    for (const chunkFile of chunkFiles) {
+      const chunkPath = path.join(directoryPath, chunkFile)
+      const stats = await fs.promises.stat(chunkPath)
+      totalSize += stats.size // Добавляем размер текущего файла
+    }
+
+    // Вычисляем количество чанков
+    const totalChunks = Math.ceil(totalSize / maxChunkSize)
+
+    return { totalChunks, totalSize }
+  }
+
+  async *restoreFileToBufferIterator(
+    fileName: string,
+    maxChunkSize: number = 10 * 1024 * 1024
+  ) {
+    const directoryPath = path.join(this.mainPath) // Путь к директории с чанками
+    const files = await fs.promises.readdir(directoryPath) // Читаем список файлов в директории
+
+    // Фильтруем файлы, которые соответствуют нужному файлу
+    const chunkFiles = files
+      .filter((file) => file.startsWith(fileName))
+      .sort((a, b) => {
+        // Сортируем файлы по номеру чанка
+        const aIndex = parseInt(a.split(".part")[1], 10)
+        const bIndex = parseInt(b.split(".part")[1], 10)
+        return aIndex - bIndex
+      })
+
+    let currentBuffer = Buffer.alloc(0) // Буфер для накопления данных
+
+    for (const chunkFile of chunkFiles) {
+      const chunkPath = path.join(directoryPath, chunkFile)
+      const chunkBuffer = await fs.promises.readFile(chunkPath) // Читаем текущий чанк
+
+      currentBuffer = Buffer.concat([currentBuffer, chunkBuffer]) // Добавляем данные к текущему буферу
+
+      // Пока текущий буфер превышает размер порции, выдаем порции
+      while (currentBuffer.length >= maxChunkSize) {
+        yield currentBuffer.slice(0, maxChunkSize) // Отдаем порцию
+        currentBuffer = currentBuffer.slice(maxChunkSize) // Оставляем остаток
+      }
+    }
+
+    // Если остались данные, которые меньше максимального размера, отдаем их
+    if (currentBuffer.length > 0) {
+      yield currentBuffer
+    }
   }
 }

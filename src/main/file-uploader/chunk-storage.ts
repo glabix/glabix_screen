@@ -14,6 +14,10 @@ export class ChunksStorage {
     return this._chunks.sort((a, b) => a.index - b.index)
   }
 
+  addChunks(chunks: Chunk[]) {
+    this._chunks = [...this._chunks, ...chunks]
+  }
+
   getNextChunk(): Chunk | null {
     if (!this.chunks.length) {
       return null

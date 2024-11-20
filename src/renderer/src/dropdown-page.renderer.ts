@@ -101,3 +101,25 @@ document.addEventListener("click", (event) => {
     }
   }
 })
+
+window.addEventListener("error", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `dropdown-page.renderer Error`,
+    body: JSON.stringify({
+      message: event.message,
+      stack: event.error?.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})
+
+window.addEventListener("unhandledrejection", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `dropdown-page.renderer Unhandled Rejection`,
+    body: JSON.stringify({
+      message: event.reason.message || "Unknown rejection",
+      stack: event.reason.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})
