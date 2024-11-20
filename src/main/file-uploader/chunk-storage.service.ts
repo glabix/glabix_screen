@@ -5,6 +5,11 @@ import { Chunk } from "./chunk"
 import os from "os"
 import { app } from "electron"
 import { LogLevel, setLog } from "@main/helpers/set-log"
+import { fsErrorParser } from "../helpers/fs-error-parser"
+import { LogSender } from "../helpers/log-sender"
+import { stringify } from "../helpers/stringify"
+
+const logSender = new LogSender()
 
 export class ChunkStorageService {
   _storages: ChunksStorage[] = []
@@ -60,13 +65,23 @@ export class ChunkStorageService {
     }
 
     return new Promise<void>((resolve, reject) => {
-      const chunksPromises = chunks.map((c, i) => processChunk(c, i))
+      const lastChunkIndex = this.getLastChunkIndex(dirPath)
+      const delta = lastChunkIndex !== -1 ? lastChunkIndex + 1 : 0
+      const chunksPromises = chunks.map((c, i) => processChunk(c, i + delta))
       Promise.all(chunksPromises)
         .then((chunks) => {
-          this._storages.push(new ChunksStorage(fileUuid, chunks))
+          const stor = this._storages.find((s) => s.fileUuid === fileUuid)
+          if (stor) {
+            stor.addChunks(chunks)
+          } else {
+            this._storages.push(new ChunksStorage(fileUuid, chunks))
+          }
           resolve()
         })
-        .catch((e) => reject(e))
+        .catch((e) => {
+          logSender.sendLog("processChunk.error", stringify({ err }), true)
+          return reject(e)
+        })
     })
   }
 
@@ -74,7 +89,10 @@ export class ChunkStorageService {
     return new Promise((resolve, reject) => {
       const chunkPath = path.join(this.mainPath, fileUuid, `chunk-${index}`)
       fs.writeFile(chunkPath, buffer, (err) => {
-        if (err) return reject(err)
+        if (err) {
+          fsErrorParser(err, chunkPath)
+          return reject(err)
+        }
         resolve(chunkPath)
       })
     })
@@ -90,7 +108,11 @@ export class ChunkStorageService {
         this.readChunksFromDirectorySync(dirPath)
       }
     } catch (err) {
-      setLog(LogLevel.ERROR, err)
+      try {
+        fsErrorParser(err, this.mainPath)
+      } catch (e) {
+        logSender.sendLog("initStorages.error", stringify(err), true)
+      }
     }
   }
 
@@ -214,5 +236,26 @@ export class ChunkStorageService {
         }
       })
     })
+  }
+
+  getLastChunkIndex(directoryPath) {
+    try {
+      const files = fs.readdirSync(directoryPath)
+      const chunkFiles = files.filter((file) => file.startsWith("chunk-"))
+
+      const indices = chunkFiles.map((file) => {
+        const match = file.match(/chunk-(\d+)/)
+        return match ? parseInt(match[1], 10) : -1
+      })
+
+      return Math.max(...indices, -1)
+    } catch (err) {
+      logSender.sendLog(
+        "getLastChunkIndex.error",
+        stringify({ directoryPath, err }),
+        true
+      )
+      return -1
+    }
   }
 }
