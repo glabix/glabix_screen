@@ -141,13 +141,22 @@ function clearAllIntervals() {
 }
 
 function init(url: string) {
-  if (url)
-    if (mainWindow) {
-      // Someone tried to run a second instance, we should focus our window.
-      checkOrganizationLimits().then(() => {
-        showWindows()
-      })
-    }
+  if (!(url instanceof String)) {
+    return
+  }
+
+  const isValidAppUrlPattern = /^myapp:\/\/([\w.-]+)(\/[\w.-]*)*\/?$/
+  const isValid = isValidAppUrlPattern.test(url)
+  if (!isValid) {
+    return
+  }
+
+  if (mainWindow) {
+    // Someone tried to run a second instance, we should focus our window.
+    checkOrganizationLimits().then(() => {
+      showWindows()
+    })
+  }
   // const url = commandLine.pop()
   try {
     const u = new URL(url)
@@ -487,6 +496,10 @@ function checkUnprocessedFiles(byTimer = false) {
 
 function checkUnprocessedChunks(timer = false) {
   const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
+  if (!chunkStorage._storagesInit) {
+    setLog(LogLevel.SILLY, `Chunk Storage not ready now!`)
+    return
+  }
   if (chunkCurrentlyLoading) {
     setLog(
       LogLevel.SILLY,
@@ -1286,6 +1299,34 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
         }),
         false
       )
+      chunkStorage
+        .removeChunk(typedChunk)
+        .then(() => {
+          logSender.sendLog(
+            "chunks.storage.delete.success",
+            JSON.stringify({
+              chunk_number: chunkNumber,
+              chunk_size: typedChunk.size,
+              file_uuid: typedChunk.fileUuid,
+            })
+          )
+          ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
+            uuid,
+            chunkNumber,
+          })
+        })
+        .catch((e) => {
+          logSender.sendLog(
+            "chunks.storage.delete.error",
+            stringify({
+              chunk_number: chunkNumber,
+              chunk_size: typedChunk.size,
+              file_uuid: typedChunk.fileUuid,
+              e,
+            }),
+            true
+          )
+        })
     } else if (!err) {
       logSender.sendLog(
         "api.uploads.chunks.upload_completed",
@@ -1350,6 +1391,7 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
       )
     })
     .catch((e) => {
+      typedChunk.cancelProcess()
       logSender.sendLog(
         "chunks.storage.getData.error",
         stringify({

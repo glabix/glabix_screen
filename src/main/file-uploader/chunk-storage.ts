@@ -4,10 +4,12 @@ import fs from "fs"
 export class ChunksStorage {
   readonly fileUuid: string
   private _chunks: Chunk[] = []
+  readonly birthTime: number
 
-  constructor(fileUuid: string, chunks: Chunk[]) {
+  constructor(fileUuid: string, chunks: Chunk[], birthTime: number) {
     this.fileUuid = fileUuid
     this._chunks = chunks
+    this.birthTime = birthTime
   }
 
   get chunks() {
@@ -36,6 +38,9 @@ export class ChunksStorage {
 
   removeChunk(chunk: Chunk): Promise<void> {
     return new Promise((resolve, reject) => {
+      if (this.chunks.indexOf(chunk) === -1) {
+        return resolve()
+      }
       fs.unlink(chunk.chunkPath, (err) => {
         if (err) {
           reject(err)
