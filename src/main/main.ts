@@ -141,13 +141,7 @@ function clearAllIntervals() {
 }
 
 function init(url: string) {
-  if (!(url instanceof String)) {
-    return
-  }
-
-  const isValidAppUrlPattern = /^myapp:\/\/([\w.-]+)(\/[\w.-]*)*\/?$/
-  const isValid = isValidAppUrlPattern.test(url)
-  if (!isValid) {
+  if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
     return
   }
 
