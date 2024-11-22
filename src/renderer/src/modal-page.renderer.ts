@@ -13,6 +13,7 @@ import {
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
+import { RecordEvents } from "../../shared/events/record.events"
 type PageViewType = "modal" | "permissions" | "limits"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
@@ -652,7 +653,29 @@ startBtn.addEventListener(
         mode: streamSettings.action,
       }),
     })
-    window.electronAPI.ipcRenderer.send("start-recording", streamSettings)
+    window.electronAPI.ipcRenderer.send(RecordEvents.START, streamSettings)
   },
   false
 )
+
+window.addEventListener("error", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `modal-page.renderer Error`,
+    body: JSON.stringify({
+      message: event.message,
+      stack: event.error?.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})
+
+window.addEventListener("unhandledrejection", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `modal-page.renderer Unhandled Rejection`,
+    body: JSON.stringify({
+      message: event.reason.message || "Unknown rejection",
+      stack: event.reason.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})

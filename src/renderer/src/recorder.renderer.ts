@@ -13,6 +13,7 @@ import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { captureVideoFrame } from "./helpers/capture-video-frame"
+import { RecordEvents } from "../../shared/events/record.events"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const countdownContainer = document.querySelector(
@@ -244,6 +245,16 @@ const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
   return combinedStream
 }
 
+const getSupportedMimeType = () => {
+  const defaultMimeType = "video/mp4"
+  const h264MimeType = "video/webm;codecs=h264"
+  if (MediaRecorder.isTypeSupported(h264MimeType)) {
+    return h264MimeType
+  } else {
+    return defaultMimeType
+  }
+}
+
 const createVideo = (_stream, _canvas, _video) => {
   stream = _canvas
     ? new MediaStream([
@@ -256,18 +267,18 @@ const createVideo = (_stream, _canvas, _video) => {
       ])
 
   videoRecorder = new MediaRecorder(stream!, {
-    mimeType: "video/mp4",
+    mimeType: getSupportedMimeType(),
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
   videoRecorder.onerror = (event) => {
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.onerror",
       body: JSON.stringify(event),
     })
   }
 
-  let chunks: any[] = []
+  let lastChunk: ArrayBuffer | string | null = null
 
   if (_video) {
     _video.srcObject = new MediaStream([..._stream.getVideoTracks()])
@@ -306,7 +317,17 @@ const createVideo = (_stream, _canvas, _video) => {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "videoRecorder.ondataavailable",
     })
-    chunks.push(e.data)
+    const blob = new Blob([e.data], { type: getSupportedMimeType() })
+    const reader = new FileReader()
+    reader.onload = function () {
+      const arrayBuffer = reader.result
+      window.electronAPI.ipcRenderer.send(RecordEvents.SEND_DATA, {
+        data: arrayBuffer,
+        isLast: !videoRecorder?.stream?.active,
+      })
+      lastChunk = arrayBuffer
+    }
+    reader.readAsArrayBuffer(blob)
   }
 
   videoRecorder.onstop = function (e) {
@@ -314,19 +335,10 @@ const createVideo = (_stream, _canvas, _video) => {
       title: "videoRecorder.onstop",
     })
     timer.stop()
-    const blob = new Blob(chunks, { type: "video/webm" })
-    chunks = [] // Reset the chunks for the next recording
 
-    const reader = new FileReader()
-    reader.onload = function () {
-      const arrayBuffer = reader.result
+    window.electronAPI.ipcRenderer.send(FileUploadEvents.RECORD_CREATED)
 
-      window.electronAPI.ipcRenderer.send(
-        FileUploadEvents.RECORD_CREATED,
-        arrayBuffer
-      )
-    }
-    reader.readAsArrayBuffer(blob)
+    lastChunk = null // Reset the lastChunk for the next recording
 
     // Create a link to download the recorded video
     // const url = URL.createObjectURL(blob)
@@ -425,7 +437,7 @@ const createPreview = () => {
 }
 const startRecording = () => {
   if (videoRecorder) {
-    videoRecorder.start()
+    videoRecorder.start(5000)
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "videoRecorder.start()",
     })
@@ -434,6 +446,10 @@ const startRecording = () => {
     updateRecorderState("recording")
 
     createPreview()
+  } else {
+    window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
+      title: "videoRecorder.start().missing_videoRecorder",
+    })
   }
 }
 
@@ -623,6 +639,7 @@ function initRecord(data: StreamSettings) {
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: `${data.action}.combineStream.error`,
           body: `${e}`,
+          error: true,
         })
       })
   }
@@ -648,6 +665,7 @@ function initRecord(data: StreamSettings) {
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: `${data.action}.combineStream.error`,
           body: `${e}`,
+          error: true,
         })
 
         if (e.toString().toLowerCase().includes("permission denied")) {
@@ -671,6 +689,7 @@ function initRecord(data: StreamSettings) {
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: `${data.action}.combineStream.error`,
           body: `${e}`,
+          error: true,
         })
       })
   }
@@ -690,15 +709,8 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
-  "start-recording",
-  (event, settings: StreamSettings) => {
-    const action = ["fullScreenshot", "cropScreenshot"].includes(
-      settings.action
-    )
-      ? lastStreamSettings?.action
-      : settings.action
-    const data = { ...settings, action: action || "fullScreenVideo" }
-
+  RecordEvents.START,
+  (event, data: StreamSettings) => {
     if (data.action == "fullScreenVideo") {
       countdownContainer.removeAttribute("hidden")
       let timeleft = 2
@@ -820,4 +832,30 @@ window.electronAPI.ipcRenderer.on("screen:change", (event) => {
     initView(lastStreamSettings, true)
     initRecord(lastStreamSettings)
   }
+})
+
+window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
+  videoRecorder?.requestData()
+})
+
+window.addEventListener("error", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `recorder.renderer Error`,
+    body: JSON.stringify({
+      message: event.message,
+      stack: event.error?.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})
+
+window.addEventListener("unhandledrejection", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `recorder.renderer Unhandled Rejection`,
+    body: JSON.stringify({
+      message: event.reason.message || "Unknown rejection",
+      stack: event.reason.stack || "No stack trace",
+    }),
+    error: true,
+  })
 })

@@ -312,3 +312,25 @@ function setPanelDraggable() {
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     })
 }
+
+window.addEventListener("error", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `draw.renderer Error`,
+    body: JSON.stringify({
+      message: event.message,
+      stack: event.error?.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})
+
+window.addEventListener("unhandledrejection", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `draw.renderer Unhandled Rejection`,
+    body: JSON.stringify({
+      message: event.reason.message || "Unknown rejection",
+      stack: event.reason.stack || "No stack trace",
+    }),
+    error: true,
+  })
+})
