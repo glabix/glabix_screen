@@ -44,7 +44,7 @@ import { SimpleStore } from "./storages/simple-store"
 import { ChunkStorageService } from "./file-uploader/chunk-storage.service"
 import { Chunk } from "./file-uploader/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
-import { getTitle } from "./helpers/get-title"
+import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
 import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "@shared/events/api.events"
@@ -398,7 +398,7 @@ function registerShortCuts() {
     createScreenshot()
   })
 
-  globalShortcut.register("CommandOrControl+Shift+5", () => {
+  globalShortcut.register("CommandOrControl+Shift+7", () => {
     if (tokenStorage && tokenStorage.dataIsActual()) {
       modalWindow.webContents.send("dropdown:select", {
         action: "cropScreenshot",
@@ -773,6 +773,8 @@ function createScreenshotWindow(dataURL: string) {
   const maxHeight = 0.8 * activeDisplay.bounds.height
   const imageWidth = imageSize.width
   const imageHeight = imageSize.height
+  const imageScaleWidth = Math.ceil(imageWidth / activeDisplay.scaleFactor)
+  const imageScaleHeight = Math.ceil(imageHeight / activeDisplay.scaleFactor)
   const imageData: IScreenshotImageData = {
     scale: activeDisplay.scaleFactor,
     width: imageWidth,
@@ -780,11 +782,27 @@ function createScreenshotWindow(dataURL: string) {
     url: dataURL,
   }
 
-  const width = [imageWidth, maxWidth, minWidth].sort((a, b) => a - b)[1]
-  const height = [imageHeight, maxHeight, minHeight].sort((a, b) => a - b)[1]
+  let width = minWidth
+  let height = minHeight
 
-  console.log("-------imageWidth", imageWidth, width)
-  console.log("-------imageHeight", imageHeight, height)
+  if (imageScaleWidth > maxWidth) {
+    width = maxWidth
+  }
+
+  if (imageScaleWidth < maxWidth && imageScaleWidth > minWidth) {
+    width = imageScaleWidth
+  }
+
+  if (imageScaleHeight > maxHeight) {
+    height = maxHeight
+  }
+
+  if (imageScaleHeight < maxHeight && imageScaleHeight > minHeight) {
+    height = imageScaleHeight
+  }
+
+  const x = activeDisplay.bounds.x + (activeDisplay.bounds.width - width) / 2
+  const y = activeDisplay.bounds.y + (activeDisplay.bounds.height - height) / 2
 
   hideWindows()
 
@@ -796,6 +814,8 @@ function createScreenshotWindow(dataURL: string) {
     minimizable: false,
     width: width,
     height: height! + 64,
+    x: x,
+    y: y,
     show: false,
     // frame: false,
     roundedCorners: true,

@@ -1,5 +1,6 @@
 import "@renderer/styles/screenshot-page.scss"
 import { LoggerEvents } from "@shared/events/logger.events"
+import { getTitle } from "@shared/helpers/get-title"
 import { IScreenshotImageData } from "@shared/types/types"
 import Konva from "konva"
 import { Arrow } from "konva/lib/shapes/Arrow"
@@ -81,6 +82,7 @@ const pageContainer = document.querySelector(
   "#page_container"
 )! as HTMLDivElement
 const copyBtn = document.querySelector(".js-copy-image")! as HTMLButtonElement
+const saveBtn = document.querySelector(".js-save-image")! as HTMLButtonElement
 const textarea = document.querySelector(
   "#textarea_ghost"
 )! as HTMLTextAreaElement
@@ -131,6 +133,7 @@ const transformCircleConfig: CircleConfig = {
   x: 0,
   y: 0,
   radius: 5,
+  name: "_anchor",
   fill: "#f0f0f0",
   shadowColor: "black",
   shadowBlur: 5,
@@ -234,28 +237,41 @@ init()
 window.electronAPI?.ipcRenderer?.on(
   "screenshot:getImage",
   (event, data: IScreenshotImageData) => {
-    // img.src = data.url
-    // img.width = Math.ceil(data.width / data.scale)
+    window.electronAPI?.ipcRenderer?.send(LoggerEvents.SEND_LOG, {
+      title: "screenshot:getImage",
+      body: JSON.stringify(data),
+    })
+
     layer.destroyChildren()
     init()
     lastData = data
 
-    const imageRation = data.height / data.width
+    let imageWidth = Math.ceil(data.width / data.scale)
+    let imageHeight = Math.ceil(data.height / data.scale)
 
-    window.electronAPI?.ipcRenderer?.send(LoggerEvents.SEND_LOG, {
-      title: `======pageContainer===== data.height: ${data.height} data.width: ${data.width}`,
-      body: JSON.stringify({ imageRation }),
-    })
+    if (imageHeight > stage.height()) {
+      const scaleH = stage.height() / imageHeight
+      imageHeight = stage.height()
+      imageWidth = Math.ceil(imageWidth * scaleH)
+    }
+
+    if (imageWidth > stage.width()) {
+      const scaleW = stage.width() / imageWidth
+      imageWidth = stage.width()
+      imageHeight = Math.ceil(imageHeight * scaleW)
+    }
 
     const imageObj = new Image()
     imageObj.onload = function () {
       const screenshot = new Konva.Image({
         image: imageObj,
-        width: pageContainer.clientWidth,
-        height: pageContainer.clientWidth * imageRation,
+        width: imageWidth,
+        height: imageHeight,
       })
-      layer.add(screenshot)
       screenshot.moveToBottom()
+      screenshot.x((stage.width() - imageWidth) / 2)
+      screenshot.y((stage.height() - imageHeight) / 2)
+      layer.add(screenshot)
     }
 
     imageObj.src = data.url
@@ -369,6 +385,7 @@ const createShape = (type: ShapeTypes) => {
       name: type,
       points: [startPos.x, startPos.y],
       stroke: activeColor,
+      fill: activeColor,
       strokeWidth: activeShapeWidth,
       draggable: true,
       hitStrokeWidth: 2,
@@ -464,7 +481,6 @@ const createShape = (type: ShapeTypes) => {
     })
 
     layer.add(activeShape)
-
     focusTextarea(activeShape as Text)
   }
 
@@ -666,6 +682,10 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
       }
     }
   }
+
+  if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
+    window.electronAPI.ipcRenderer.send("screenshot:copy", copyTrimStage())
+  }
 })
 
 textarea.addEventListener(
@@ -713,16 +733,89 @@ activeWidthSlider.addEventListener(
   false
 )
 
+const copyTrimStage = (): string => {
+  // Определите начальные границы
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity
+
+  // Обход всех слоев и их детей
+  stage.children.forEach((layer) => {
+    layer.children.forEach((node) => {
+      if (node.isVisible()) {
+        const rect = node.getClientRect()
+        if (rect.height && rect.width) {
+          console.log("rect", rect)
+          minX = Math.min(minX, rect.x)
+          minY = Math.min(minY, rect.y)
+          maxX = Math.max(maxX, rect.x + rect.width)
+          maxY = Math.max(maxY, rect.y + rect.height)
+        }
+      }
+    })
+  })
+
+  // Вычисляем ширину и высоту для временного холста
+  const width = maxX - minX
+  const height = maxY - minY
+
+  // Создаем новый временный холст
+  const tempStage = new Konva.Stage({
+    container: document.createElement("div"),
+    width: width,
+    height: height,
+  })
+
+  // Создаем слой для временного холста
+  const tempLayer = new Konva.Layer()
+  tempStage.add(tempLayer)
+
+  // Копируем объекты на временный холст
+  stage.children.forEach((layer) => {
+    layer.children.forEach((node) => {
+      if (node.isVisible()) {
+        const clone = node.clone()
+        clone.x(clone.x() - minX)
+        clone.y(clone.y() - minY)
+        tempLayer.add(clone)
+      }
+    })
+  })
+
+  // Перерисовываем временный слой
+  tempLayer.batchDraw()
+
+  // Экспорт изображения
+  const dataURL = tempStage.toDataURL({
+    pixelRatio: lastData ? lastData.scale : window.devicePixelRatio,
+  })
+
+  // Удаляем временные элементы
+  tempStage.destroy()
+
+  return dataURL
+}
+
 copyBtn.addEventListener(
   "click",
   () => {
-    window.electronAPI.ipcRenderer.send(
-      "screenshot:copy",
-      stage
-        .toDataURL
-        // {pixelRatio: lastData ? lastData.scale : window.devicePixelRatio}
-        ()
-    )
+    window.electronAPI.ipcRenderer.send("screenshot:copy", copyTrimStage())
+  },
+  false
+)
+saveBtn.addEventListener(
+  "click",
+  () => {
+    const dataURL = copyTrimStage()
+    const a = document.createElement("a")
+    a.style.display = "none"
+    a.href = dataURL
+    a.download = `${getTitle()}.png`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(dataURL)
+    a.remove()
   },
   false
 )
@@ -766,9 +859,6 @@ shapeBtns.forEach((btn) => {
       const target = event.target as HTMLButtonElement
       const type = target.dataset.shapeType as ShapeTypes
       setActiveShapeBtn(type)
-      // window.electronAPI.ipcRenderer.send('screenshot:copy', stage.toDataURL(
-      // {pixelRatio: lastData ? lastData.scale : window.devicePixelRatio}
-      // ))
     },
     false
   )

@@ -14,10 +14,18 @@
     <div class="page-header" id="page_header">
       <div class="flex justify-between">
         <div></div>
-        <div>
-          <button class="btn btn--sm btn--primary js-copy-image">
-            Скопировать
-          </button>
+        <div class="flex">
+          <div>
+            <button class="btn btn--sm js-copy-image">Скопировать</button>
+          </div>
+          <div>
+            <button class="btn btn--sm js-save-image">Сохранить</button>
+          </div>
+          <div>
+            <button class="btn btn--sm btn--primary js-upload-image">
+              Загрузить
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -39,16 +47,22 @@
             />
           </button>
           <button class="btn btn--sm hover" data-shape-type="arrow">
-            Стрелка
+            <i class="i i--lg i-arrow-right-top"></i>
           </button>
-          <button class="btn btn--sm" data-shape-type="text">Текст</button>
-          <button class="btn btn--sm" data-shape-type="line">Линия</button>
-          <button class="btn btn--sm" data-shape-type="ellipse">Овал</button>
+          <button class="btn btn--sm" data-shape-type="text">
+            <i class="i i--lg i-t"></i>
+          </button>
+          <button class="btn btn--sm" data-shape-type="line">
+            <i class="i i--lg i-slash-forward"></i>
+          </button>
+          <button class="btn btn--sm" data-shape-type="ellipse">
+            <i class="i i--lg i-ellipse"></i>
+          </button>
           <button class="btn btn--sm" data-shape-type="rect">
-            Прямоугольник
+            <i class="i i--lg i-rectangle-wide"></i>
           </button>
           <button class="btn btn--sm" data-shape-type="curved_line">
-            Карандаш
+            <i class="i i--lg i-pencil-mechanical"></i>
           </button>
         </div>
         <div>
