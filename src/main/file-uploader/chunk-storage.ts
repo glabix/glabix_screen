@@ -52,6 +52,8 @@ export class ChunksStorage {
     })
   }
 
+  rmdir() {}
+
   hasUnloadChunks() {
     return this.chunks.find((c) => c.processed)
   }

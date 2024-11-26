@@ -45,6 +45,7 @@ export function fsErrorParser(err, chunkPath) {
       "Перезапустите приложение"
     )
   } else {
+    console.log(err)
     // Для других ошибок просто передаем их
     logSender.sendLog(`Неизвестная ошибка`, stringify(err), true)
     showRecordErrorBox(
