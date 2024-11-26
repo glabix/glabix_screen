@@ -1243,7 +1243,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
     }
     chunkStorage.markChunkAsTransferEnd(uuid)
   } catch (e) {
-    isSaveEroror = true
+    isSaveError = true
     showRecordErrorBox(
       `Нет места на диске для записи файла`,
       "Освободите место и перезапустите приложение"
