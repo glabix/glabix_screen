@@ -263,9 +263,11 @@ if (!gotTheLock) {
     }
     createWindow()
 
-    chunkStorage.initStorages()
-    checkUnprocessedChunks(true)
+    chunkStorage.initStorages().then(() => {
+      checkUnprocessedChunks(true)
+    })
     checkUnprocessedFiles(true)
+
     checkUnloadedChunksInterval = setInterval(() => {
       checkUnprocessedChunks(true)
     }, 1000 * 30)
@@ -1233,12 +1235,19 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
 
   const fileIterator =
     unprocessedFilesService.restoreFileToBufferIterator(rawFileName)
+  let isSaveError = false
   try {
     for await (const buffer of fileIterator) {
       await chunkStorage.addStorage([buffer], uuid)
       // chunkStorage.addStorage([buffer], uuid).then()
     }
+    chunkStorage.markChunkAsTransferEnd(uuid)
   } catch (e) {
+    isSaveEroror = true
+    showRecordErrorBox(
+      `Нет места на диске для записи файла`,
+      "Освободите место и перезапустите приложение"
+    )
     logSender.sendLog(
       "recording.uploads.chunks.stored.error",
       stringify({ e }),
@@ -1246,23 +1255,29 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
     )
   }
 
-  unprocessedFilesService
-    .deleteFile(rawFileName)
-    .then(() => {
-      logSender.sendLog(
-        "record.raw_file.delete.success",
-        JSON.stringify({
-          fileName: unprocessedFilesService.isProcessedNowFileName,
-        })
-      )
-      unprocessedFilesService.isProcessedNowFileName = null
-      checkUnprocessedFiles()
-      checkUnprocessedChunks()
-      checkOrganizationLimits()
-    })
-    .catch((e) => {
-      logSender.sendLog("record.raw_file.delete.error", stringify({ e }), true)
-    })
+  if (!isSaveError) {
+    unprocessedFilesService
+      .deleteFile(rawFileName)
+      .then(() => {
+        logSender.sendLog(
+          "record.raw_file.delete.success",
+          JSON.stringify({
+            fileName: unprocessedFilesService.isProcessedNowFileName,
+          })
+        )
+        unprocessedFilesService.isProcessedNowFileName = null
+        checkUnprocessedFiles()
+        checkUnprocessedChunks()
+        checkOrganizationLimits()
+      })
+      .catch((e) => {
+        logSender.sendLog(
+          "record.raw_file.delete.error",
+          stringify({ e }),
+          true
+        )
+      })
+  }
 
   lastCreatedFileName = null
 })
