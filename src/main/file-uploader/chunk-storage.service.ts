@@ -132,7 +132,8 @@ export class ChunkStorageService {
       for (const dirPath of dirs) {
         if (this.getState(dirPath) === "transfer") {
           this.removeStorage(dirPath)
-          setLog(LogLevel.DEBUG, `Delete failed directory ${dirPath}`)
+          setLog(LogLevel.DEBUG, `Delete transfer directory ${dirPath}`)
+          continue
         }
         await this.readChunksFromDirectory(dirPath) // Асинхронный метод чтения чанков
       }
@@ -237,7 +238,6 @@ export class ChunkStorageService {
     }
     const dirPath = path.join(this.mainPath, uuid)
     fs.rm(dirPath, { recursive: true, force: true }, (err) => {
-      console.log(err)
       if (err) throw err
     })
     this._storages = this._storages.filter((s) => s.fileUuid !== uuid)

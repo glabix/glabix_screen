@@ -1216,12 +1216,14 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
     uuid
   if (lastCreatedFileName === rawFileName) {
     openExternalLink(shared)
+    logSender.sendLog("utils.open_library_page", JSON.stringify({ uuid }))
   } else {
     const t = getTitle(rawFileName)
     if (Notification.isSupported()) {
       const notification = new Notification({
-        body: `Запись экрана ${t} загружается на на сервер, и будет доступна для просмотра после обработки. Нажмите на уведомление, чтобы открыть в браузере`,
+        body: `Запись экрана ${t} загружается на сервер, и будет доступна для просмотра после обработки. Нажмите на уведомление, чтобы открыть в браузере`,
       })
+      logSender.sendLog("utils.notification.upload", JSON.stringify({ uuid }))
       notification.show()
       notification.on("click", () => {
         // Открываем ссылку в браузере
@@ -1237,21 +1239,31 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
     unprocessedFilesService.restoreFileToBufferIterator(rawFileName)
   let isSaveError = false
   try {
+    logSender.sendLog(
+      "recording.uploads.chunks.stored.start",
+      stringify({ uuid })
+    )
+    let i = 0
     for await (const buffer of fileIterator) {
       await chunkStorage.addStorage([buffer], uuid)
+      i++
       // chunkStorage.addStorage([buffer], uuid).then()
     }
     chunkStorage.markChunkAsTransferEnd(uuid)
+    logSender.sendLog(
+      "recording.uploads.chunks.stored.end",
+      stringify({ uuid: uuid, buffer_count: i })
+    )
   } catch (e) {
     isSaveError = true
+    logSender.sendLog(
+      "recording.uploads.chunks.stored.error",
+      stringify({ uuid, e }),
+      true
+    )
     showRecordErrorBox(
       `Нет места на диске для записи файла`,
       "Освободите место и перезапустите приложение"
-    )
-    logSender.sendLog(
-      "recording.uploads.chunks.stored.error",
-      stringify({ e }),
-      true
     )
   }
 
