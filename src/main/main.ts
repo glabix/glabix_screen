@@ -830,6 +830,9 @@ function createScreenshotWindow(dataURL: string) {
     },
   })
 
+  screenshotWindow.setAlwaysOnTop(true, "normal")
+  screenshotWindow.moveTop()
+
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     screenshotWindow
       .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
