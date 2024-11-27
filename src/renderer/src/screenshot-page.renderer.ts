@@ -876,8 +876,8 @@ if (isWindows) {
 windowsMinimizeBtn.addEventListener(
   "click",
   () => {
-    window.electronAPI.ipcRenderer.send("windows:minimize", {})
     if (isWindows) {
+      window.electronAPI.ipcRenderer.send("windows:minimize", {})
     }
   },
   false
