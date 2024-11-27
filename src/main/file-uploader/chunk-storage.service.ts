@@ -57,6 +57,11 @@ export class ChunkStorageService {
     const dirPath = path.join(this.mainPath, fileUuid)
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath)
+      try {
+        this.markChunkAsTransferStart(fileUuid)
+      } catch (err) {
+        fsErrorParser(err, dirPath)
+      }
     }
     let birthTime = new Date().getTime()
     try {
@@ -74,7 +79,10 @@ export class ChunkStorageService {
             const chunk = new Chunk(data.byteLength, fileUuid, i, path)
             resolve(chunk)
           })
-          .catch((e) => reject(e))
+          .catch((e) => {
+            fsErrorParser(e, this.mainPath)
+            reject(e)
+          })
       })
     }
 
@@ -93,8 +101,12 @@ export class ChunkStorageService {
           resolve()
         })
         .catch((e) => {
-          logSender.sendLog("processChunk.error", stringify({ err }), true)
-          return reject(e)
+          try {
+            fsErrorParser(err, this.mainPath)
+          } catch (e) {
+            logSender.sendLog("processChunk.error", stringify({ err }), true)
+            return reject(e)
+          }
         })
     })
   }
@@ -118,6 +130,11 @@ export class ChunkStorageService {
     try {
       const dirs = await this.getDirectories(this.mainPath) // Асинхронная версия получения директорий
       for (const dirPath of dirs) {
+        if (this.getState(dirPath) === "transfer") {
+          this.removeStorage(dirPath)
+          setLog(LogLevel.DEBUG, `Delete transfer directory ${dirPath}`)
+          continue
+        }
         await this.readChunksFromDirectory(dirPath) // Асинхронный метод чтения чанков
       }
     } catch (err) {
@@ -219,6 +236,10 @@ export class ChunkStorageService {
     if (this.currentProcessedStorage?.fileUuid === uuid) {
       this.currentProcessedStorage = null
     }
+    const dirPath = path.join(this.mainPath, uuid)
+    fs.rm(dirPath, { recursive: true, force: true }, (err) => {
+      if (err) throw err
+    })
     this._storages = this._storages.filter((s) => s.fileUuid !== uuid)
   }
 
@@ -233,8 +254,10 @@ export class ChunkStorageService {
       if (!this._storages.length) {
         return null
       }
-      const foundStorage = sortedStorages.find((s) =>
-        s.chunks.find((c) => !c.processed)
+      const foundStorage = sortedStorages.find(
+        (s) =>
+          this.getState(s.fileUuid) === "done" &&
+          s.chunks.find((c) => !c.processed)
       )
       if (foundStorage) {
         this.currentProcessedStorage = foundStorage
@@ -305,5 +328,24 @@ export class ChunkStorageService {
       )
       return -1
     }
+  }
+  markChunkAsTransferDone(uuid: string) {
+    const chunkPath = path.join(this.mainPath, uuid, `.done`)
+    fs.writeFileSync(chunkPath, "") // Пустой файл как метка
+  }
+  markChunkAsTransferStart(uuid: string) {
+    const chunkPath = path.join(this.mainPath, uuid, `.transfer`)
+    fs.writeFileSync(chunkPath, "") // Пустой файл как метка
+  }
+  markChunkAsTransferEnd(uuid: string) {
+    const chunkPath = path.join(this.mainPath, uuid, `.transfer`)
+    fs.unlinkSync(chunkPath) // Пустой файл как метка
+  }
+  getState(uuid: string): "transfer" | "done" {
+    // const doneFlagChunkPath = path.join(this.mainPath, fileUuid, `${chunkPath}.done`)
+    // const done = fs.existsSync(doneFlagChunkPath);
+    const transferFlagChunkPath = path.join(this.mainPath, uuid, `.transfer`)
+    const transfer = fs.existsSync(transferFlagChunkPath)
+    return transfer ? "transfer" : "done"
   }
 }
