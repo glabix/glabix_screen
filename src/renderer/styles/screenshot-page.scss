@@ -104,3 +104,24 @@ img {
   padding: 0.75rem;
   border: solid 1px var(--gray-300);
 }
+
+.windows-toolbar {
+  padding-left: 40px;
+}
+.windows-toolbar-btn {
+  width: 33px;
+  height: 32px;
+  line-height: 34px;
+  overflow: hidden;
+  color: var(--gray-600);
+}
+.windows-toolbar-btn.minimize {
+  line-height: 35px;
+}
+.windows-toolbar-btn.minimize:hover {
+  background-color: var(--gray-200);
+}
+.windows-toolbar-btn.close:hover {
+  background-color: #d5322f;
+  color: var(--light);
+}

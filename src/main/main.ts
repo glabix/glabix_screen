@@ -1192,9 +1192,15 @@ ipcMain.on("stop-recording", (event, data) => {
 })
 ipcMain.on("windows:minimize", (event, data) => {
   modalWindow.close()
+  if (screenshotWindow) {
+    screenshotWindow.hide()
+  }
 })
 ipcMain.on("windows:close", (event, data) => {
   modalWindow.close()
+  if (screenshotWindow) {
+    screenshotWindow.hide()
+  }
 })
 
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
