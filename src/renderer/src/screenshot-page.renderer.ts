@@ -238,8 +238,7 @@ window.electronAPI?.ipcRenderer?.on(
   "screenshot:getImage",
   (event, data: IScreenshotImageData) => {
     window.electronAPI?.ipcRenderer?.send(LoggerEvents.SEND_LOG, {
-      title: "screenshot:getImage",
-      body: JSON.stringify(data),
+      title: "screenshot.getImage",
     })
 
     layer.destroyChildren()

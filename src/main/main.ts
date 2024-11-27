@@ -398,7 +398,7 @@ function registerShortCuts() {
     createScreenshot()
   })
 
-  globalShortcut.register("CommandOrControl+Shift+7", () => {
+  globalShortcut.register("CommandOrControl+Shift+5", () => {
     if (tokenStorage && tokenStorage.dataIsActual()) {
       modalWindow.webContents.send("dropdown:select", {
         action: "cropScreenshot",
@@ -599,7 +599,7 @@ function createWindow() {
   createLoginWindow()
 
   // SCREENSHOT
-  createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
+  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
