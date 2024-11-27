@@ -16,6 +16,7 @@ import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
 type PageViewType = "modal" | "permissions" | "limits"
 
+const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
 let activePageView: PageViewType
 let openedDropdownType: DropdownListType | undefined = undefined
@@ -48,6 +49,32 @@ const screenActionsList: IDropdownItem[] = [
     isSelected: false,
     extraData: {
       icon: "i-video",
+    },
+  },
+  {
+    id: "mode",
+    label: "Ещё",
+    isSelected: false,
+    extraData: {
+      btnClass: "dropdown-item-title",
+    },
+  },
+  {
+    id: "fullScreenshot",
+    label: "Снимок всего экрана",
+    isSelected: false,
+    extraData: {
+      icon: "i-display",
+      smallText: isWindows ? "ctrl+shift+6" : "cmd+shift+6",
+    },
+  },
+  {
+    id: "cropScreenshot",
+    label: "Снимок области",
+    isSelected: false,
+    extraData: {
+      icon: "i-expand-wide",
+      smallText: isWindows ? "ctrl+shift+5" : "cmd+shift+5",
     },
   },
 ]
@@ -131,7 +158,7 @@ function renderScreenSettings(item: IDropdownItem) {
   text.textContent = item.label
 
   if (item.extraData && item.extraData.icon) {
-    if (["i-display", "i-expand-wide"].includes(item.extraData.icon)) {
+    if (["fullScreenVideo", "cropVideo"].includes(item.id)) {
       const i = document.createElement("div")
       i.classList.add("icon-dot", "i-br")
       icon.appendChild(i)
@@ -323,15 +350,21 @@ window.electronAPI.ipcRenderer.on(
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
 
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "dropdown:select",
+    })
+
     if (data.action && data.action != activeScreenAction) {
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "mode.video.selected",
         body: data.action,
       })
 
-      activeScreenAction = data.action
-      activeScreenActionItem = data.item
-      renderScreenSettings(data.item)
+      if (!["fullScreenshot", "cropScreenshot"].includes(data.action)) {
+        activeScreenAction = data.action
+        activeScreenActionItem = data.item
+        renderScreenSettings(data.item)
+      }
     }
 
     if (data.audioDeviceId) {
@@ -406,7 +439,6 @@ const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
 const windowsCloseBtn = document.querySelector("#windows_close")!
-const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const systemAudioEl = document.querySelector(".system-audio-container")!
 
 if (isWindows) {

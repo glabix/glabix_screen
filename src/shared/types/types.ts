@@ -1,4 +1,9 @@
-export type ScreenAction = "fullScreenVideo" | "cropVideo" | "cameraOnly"
+export type ScreenAction =
+  | "fullScreenVideo"
+  | "cropVideo"
+  | "cameraOnly"
+  | "fullScreenshot"
+  | "cropScreenshot"
 export type RecorderState = "recording" | "paused" | "stopped"
 export type MediaDeviceType = "camera" | "microphone" | "screen"
 export interface StreamSettings {
@@ -7,6 +12,12 @@ export interface StreamSettings {
   cameraDeviceId?: string
   video?: boolean
   audio?: boolean
+  screenshot?: {
+    x: null | number
+    y: null | number
+    width: null | number
+    height: null | number
+  }
 }
 
 export enum ModalWindowHeight {
@@ -87,4 +98,11 @@ export interface IOrganizationLimits {
   mac_version: string
   upload_allowed: boolean
   max_upload_duration: number
+}
+
+export interface IScreenshotImageData {
+  scale: number
+  width: number
+  height: number
+  url: string
 }

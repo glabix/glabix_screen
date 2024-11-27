@@ -14,6 +14,8 @@ import {
   Tray,
   dialog,
   Notification,
+  Rectangle,
+  clipboard,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -35,13 +37,14 @@ import {
   MediaDeviceType,
   SimpleStoreEvents,
   ModalWindowHeight,
+  IScreenshotImageData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
 import { ChunkStorageService } from "./file-uploader/chunk-storage.service"
 import { Chunk } from "./file-uploader/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
-import { getTitle } from "./helpers/get-title"
+import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
 import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "@shared/events/api.events"
@@ -56,13 +59,16 @@ import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
+import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
+import { FULL_SCREENSHOT_DATA } from "@shared/helpers/mock"
 import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
+let screenshotWindow: BrowserWindow
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -384,17 +390,36 @@ if (!gotTheLock) {
 
     //   return true
     // })
+
+    registerShortCuts()
   })
 }
 
 function registerShortCuts() {
+  globalShortcut.register("CommandOrControl+Shift+6", () => {
+    createScreenshot()
+  })
+
+  globalShortcut.register("CommandOrControl+Shift+5", () => {
+    if (tokenStorage && tokenStorage.dataIsActual()) {
+      modalWindow.webContents.send("dropdown:select", {
+        action: "cropScreenshot",
+      })
+      dropdownWindow.hide()
+      modalWindow.hide()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+function registerShortCutsOnShow() {
   globalShortcut.register("Command+H", () => {
     hideWindows()
   })
 }
 
-function unregisterShortCuts() {
-  globalShortcut.unregisterAll()
+function unregisterShortCutsOnHide() {
+  globalShortcut.unregister("Command+H")
 }
 
 function watchMediaDevicesAccessChange() {
@@ -544,6 +569,7 @@ function createWindow() {
     },
   })
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
+  activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
 
   if (os.platform() == "darwin") {
     mainWindow.setWindowButtonVisibility(false)
@@ -569,9 +595,13 @@ function createWindow() {
   mainWindow.on("close", () => {
     app.quit()
   })
+
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
+
+  // SCREENSHOT
+  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -691,7 +721,7 @@ function createDropdownWindow(parentWindow) {
     const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
-      mainWindow.webContents.send("screen:change", {})
+      mainWindow.webContents.send("screen:change", currentScreen)
     }
 
     activeDisplay = currentScreen
@@ -728,21 +758,102 @@ function createLoginWindow() {
         loginWindow.webContents.send("app:version", app.getVersion())
       })
   }
+}
 
-  loginWindow.once("ready-to-show", () => {
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
+function createScreenshotWindow(dataURL: string) {
+  if (screenshotWindow) {
+    screenshotWindow.destroy()
+  }
+
+  // const imageRation = nativeImage.createFromDataURL(dataURL).getAspectRatio(activeDisplay.scaleFactor)
+  const imageSize = nativeImage
+    .createFromDataURL(dataURL)
+    .getSize(activeDisplay.scaleFactor)
+  const minWidth = 750
+  const minHeight = 400
+  const maxWidth = 0.8 * activeDisplay.bounds.width
+  const maxHeight = 0.8 * activeDisplay.bounds.height
+  const imageWidth = imageSize.width
+  const imageHeight = imageSize.height
+  const imageScaleWidth = Math.ceil(imageWidth / activeDisplay.scaleFactor)
+  const imageScaleHeight = Math.ceil(imageHeight / activeDisplay.scaleFactor)
+  const imageData: IScreenshotImageData = {
+    scale: activeDisplay.scaleFactor,
+    width: imageWidth,
+    height: imageHeight,
+    url: dataURL,
+  }
+
+  let width = minWidth
+  let height = minHeight
+
+  if (imageScaleWidth > maxWidth) {
+    width = maxWidth
+  }
+
+  if (imageScaleWidth < maxWidth && imageScaleWidth > minWidth) {
+    width = imageScaleWidth
+  }
+
+  if (imageScaleHeight > maxHeight) {
+    height = maxHeight
+  }
+
+  if (imageScaleHeight < maxHeight && imageScaleHeight > minHeight) {
+    height = imageScaleHeight
+  }
+
+  const x = activeDisplay.bounds.x + (activeDisplay.bounds.width - width) / 2
+  const y = activeDisplay.bounds.y + (activeDisplay.bounds.height - height) / 2
+
+  hideWindows()
+
+  screenshotWindow = new BrowserWindow({
+    titleBarStyle: "hidden",
+    fullscreenable: false,
+    maximizable: false,
+    // resizable: false,
+    minimizable: false,
+    width: width,
+    height: height! + 64,
+    x: x,
+    y: y,
+    show: false,
+    // frame: false,
+    roundedCorners: true,
+    webPreferences: {
+      preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
+      nodeIntegration: true, // повышаем безопасность
+      zoomFactor: 1.0,
+      devTools: !app.isPackaged,
+      // contextIsolation: true,  // повышаем безопасность
+    },
   })
 
-  loginWindow.on("close", (event) => {
-    app.quit()
-  })
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    screenshotWindow
+      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
+      .then(() => {
+        screenshotWindow.show()
+        setTimeout(() => {
+          screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        })
+      })
+  } else {
+    screenshotWindow
+      .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
+      .then(() => {
+        screenshotWindow.show()
+        setTimeout(() => {
+          screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        })
+      })
+  }
 }
 
 function showWindows() {
   logSender.sendLog("app.activated")
-  registerShortCuts()
+  registerShortCutsOnShow()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
@@ -757,7 +868,7 @@ function showWindows() {
 
 function hideWindows() {
   logSender.sendLog("app.disactivated")
-  unregisterShortCuts()
+  unregisterShortCutsOnHide()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
     if (modalWindow) modalWindow.hide()
@@ -886,6 +997,11 @@ function logOut() {
   modalWindow.hide()
   loginWindow.show()
 }
+function createScreenshot(crop?: Rectangle) {
+  getScreenshot(activeDisplay, crop).then((dataUrl) => {
+    createScreenshotWindow(dataUrl)
+  })
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -908,7 +1024,7 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   logSender.sendLog("app.exited")
   clearAllIntervals()
-  unregisterShortCuts()
+  globalShortcut.unregisterAll()
   isAppQuitting = true
 })
 
@@ -982,8 +1098,18 @@ ipcMain.on("dropdown:close", (event, data) => {
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   modalWindow.webContents.send("dropdown:select", data)
-
   dropdownWindow.hide()
+
+  // Screenshot actions
+  if (data.action == "cropScreenshot") {
+    modalWindow.hide()
+    mainWindow.focus()
+  }
+
+  if (data.action == "fullScreenshot") {
+    hideWindows()
+    createScreenshot()
+  }
 })
 
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
@@ -1027,6 +1153,13 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 })
 
+ipcMain.on("screenshot:copy", (event, imgDataUrl: string) => {
+  const image = nativeImage.createFromDataURL(imgDataUrl)
+  clipboard.writeImage(image)
+})
+ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
+  createScreenshot(crop)
+})
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     lastCreatedFileName = Date.now() + ""
@@ -1039,7 +1172,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, isLast } = res
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
   unprocessedFilesService
-    .saveFileWithStreams(blob, lastCreatedFileName, isLast)
+    .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
     .then((rawFileName) => {
       logSender.sendLog("record.raw_file_chunk.save.success")
     })
@@ -1061,9 +1194,15 @@ ipcMain.on("stop-recording", (event, data) => {
 })
 ipcMain.on("windows:minimize", (event, data) => {
   modalWindow.close()
+  if (screenshotWindow) {
+    screenshotWindow.hide()
+  }
 })
 ipcMain.on("windows:close", (event, data) => {
   modalWindow.close()
+  if (screenshotWindow) {
+    screenshotWindow.hide()
+  }
 })
 
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
@@ -1131,7 +1270,7 @@ ipcMain.on(RecordEvents.ERROR, (event, file) => {
 
 ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
   unprocessedFilesService
-    .awaitWriteFile(lastCreatedFileName)
+    .awaitWriteFile(lastCreatedFileName!)
     .then((rawFileName) => {
       logSender.sendLog("record.raw_file.full.save.success")
       ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
@@ -1454,6 +1593,7 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
   logSender.sendLog("sessions.deleted")
   contextMenu.getMenuItemById("menuLogOutItem")!.visible = false
 })
+
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
   logSender.sendLog("api.limits.get", stringify(data))

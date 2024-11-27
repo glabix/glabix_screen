@@ -9,9 +9,6 @@ export function captureVideoFrame(
     const scale = 1
     // const scale = window.devicePixelRatio || 1
 
-    console.log("video.videoWidth", video.videoWidth)
-    console.log("video.videoHeight", video.videoHeight)
-
     video.width = videoSize.width
     video.height = videoSize.height
     canvas.width = videoSize.width * scale

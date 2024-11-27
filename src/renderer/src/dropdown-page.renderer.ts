@@ -11,14 +11,14 @@ const template = document.querySelector(
   "#dropdown_item_tpl"
 ) as HTMLTemplateElement
 let currentData: IDropdownPageData
-const container = document.querySelector("#dropdown_list")
+const container = document.querySelector("#dropdown_list")!
 
 function renderItem(item: IDropdownItem): HTMLElement {
   const clone = template.content.cloneNode(true) as HTMLElement
-  const btn = clone.querySelector("button")
-  const text = clone.querySelector("span")
-  const icon = clone.querySelector("i")
-  const selectedIcon = clone.querySelector(".js-is-selected")
+  const btn = clone.querySelector("button")!
+  const text = clone.querySelector("span")!
+  const icon = clone.querySelector("i")!
+  const selectedIcon = clone.querySelector(".js-is-selected")!
 
   btn.setAttribute("data-id", item.id)
 
@@ -30,13 +30,23 @@ function renderItem(item: IDropdownItem): HTMLElement {
   }
 
   if (item.extraData && item.extraData.icon) {
-    if (["i-display", "i-expand-wide"].includes(item.extraData.icon)) {
+    if (["fullScreenVideo", "cropVideo"].includes(item.id)) {
       const i = document.createElement("div")
       i.classList.add("icon-dot", "i-br")
       icon.appendChild(i)
     }
 
     icon.classList.add(item.extraData.icon)
+  }
+
+  if (item.extraData.smallText) {
+    const smallText = clone.querySelector(".js-text-small")!
+    smallText.removeAttribute("hidden")
+    smallText.textContent = item.extraData.smallText
+  }
+
+  if (item.extraData.btnClass) {
+    btn.classList.add(item.extraData.btnClass)
   }
 
   return clone
@@ -66,7 +76,7 @@ window.electronAPI.ipcRenderer.on(
         break
     }
 
-    container.innerHTML = null
+    container.innerHTML = ""
     currentData = data
     data.list.items.forEach((item) => {
       container.appendChild(renderItem(item))
@@ -79,25 +89,25 @@ document.addEventListener("click", (event) => {
 
   if (btn.tagName.toLowerCase() == "button") {
     const id = btn.dataset.id as ScreenAction
-    const item = currentData.list.items.find((i) => i.id == id)
+    const item = currentData.list.items.find((i) => i.id == id)!
 
     if (currentData.list.type == "screenActions") {
       const action = id
       const data: IDropdownPageSelectData = { action, item }
       window.electronAPI.ipcRenderer.send("dropdown:select", data)
-      container.innerHTML = null
+      container.innerHTML = ""
     }
 
     if (currentData.list.type == "videoDevices") {
       const data: IDropdownPageSelectData = { item, cameraDeviceId: id }
       window.electronAPI.ipcRenderer.send("dropdown:select", data)
-      container.innerHTML = null
+      container.innerHTML = ""
     }
 
     if (currentData.list.type == "audioDevices") {
       const data: IDropdownPageSelectData = { item, audioDeviceId: id }
       window.electronAPI.ipcRenderer.send("dropdown:select", data)
-      container.innerHTML = null
+      container.innerHTML = ""
     }
   }
 })

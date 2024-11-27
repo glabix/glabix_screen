@@ -106,6 +106,10 @@
     </div>
 
     <canvas id="canvas" width="300" height="300"></canvas>
+    <div class="crop-screenshot-container" hidden>
+      <canvas id="crop_screenshot" class="crop-screenshot"></canvas>
+      <!-- <div class="crop-screenshot-rect"></div> -->
+    </div>
 
     <div class="crop-screen-container" hidden>
       <div id="crop_video_screen" class="screen-recorder-container">
@@ -242,5 +246,6 @@
     <script type="module" src="./src/recorder.renderer.ts"></script>
     <script type="module" src="./src/webcamera.renderer.ts"></script>
     <script type="module" src="./src/draw.renderer.ts"></script>
+    <script type="module" src="./src/crop-screenshot.renderer.ts"></script>
   </body>
 </html>
