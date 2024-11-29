@@ -1,5 +1,7 @@
 import "@renderer/styles/screenshot-page.scss"
+import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
+import { dataURLtoBlob } from "@shared/helpers/data-url-to-blob"
 import { getTitle } from "@shared/helpers/get-title"
 import { IScreenshotImageData } from "@shared/types/types"
 import Konva from "konva"
@@ -83,6 +85,9 @@ const pageContainer = document.querySelector(
 )! as HTMLDivElement
 const copyBtn = document.querySelector(".js-copy-image")! as HTMLButtonElement
 const saveBtn = document.querySelector(".js-save-image")! as HTMLButtonElement
+const uploadBtn = document.querySelector(
+  ".js-upload-image"
+)! as HTMLButtonElement
 const textarea = document.querySelector(
   "#textarea_ghost"
 )! as HTMLTextAreaElement
@@ -815,6 +820,23 @@ saveBtn.addEventListener(
     a.click()
     window.URL.revokeObjectURL(dataURL)
     a.remove()
+  },
+  false
+)
+uploadBtn.addEventListener(
+  "click",
+  () => {
+    const dataURL = copyTrimStage()
+    const fileSize = dataURLtoBlob(dataURL).size
+    const title = getTitle().replace("Экран", "Скриншот")
+    const fileName = `${title}.png`
+
+    window.electronAPI.ipcRenderer.send(APIEvents.UPLOAD_SCREENSHOT, {
+      fileSize,
+      dataURL,
+      title,
+      fileName,
+    })
   },
   false
 )
