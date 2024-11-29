@@ -65,6 +65,7 @@ import { FULL_SCREENSHOT_DATA } from "@shared/helpers/mock"
 import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
+import { createScreenshotCommand } from "./commands/create-screenshot.command"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -1163,6 +1164,29 @@ ipcMain.on("screenshot:copy", (event, imgDataUrl: string) => {
 ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
   createScreenshot(crop)
 })
+ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
+  const file = dataURLToFile(data.dataURL, data.fileName)
+  createScreenshotCommand(
+    tokenStorage.token!.access_token,
+    tokenStorage.organizationId!,
+    data.fileName,
+    data.fileSize,
+    getVersion(),
+    data.title,
+    file
+  ).then((uuid) => {
+    if (uuid) {
+      const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/screenshot/${uuid}`
+      logSender.sendLog("openExternalLink", publicPage)
+      openExternalLink(publicPage)
+
+      if (screenshotWindow) {
+        screenshotWindow.destroy()
+      }
+    }
+  })
+})
+
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     lastCreatedFileName = Date.now() + ""
