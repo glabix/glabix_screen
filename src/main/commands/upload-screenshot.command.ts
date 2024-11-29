@@ -6,7 +6,7 @@ import { LogSender } from "@main/helpers/log-sender"
 
 const logSender = new LogSender()
 
-export function createScreenshotCommand(
+export function uploadScreenshotCommand(
   token: string,
   orgId: number,
   file_name: string,
