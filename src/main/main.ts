@@ -65,7 +65,7 @@ import { FULL_SCREENSHOT_DATA } from "@shared/helpers/mock"
 import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
-import { createScreenshotCommand } from "./commands/create-screenshot.command"
+import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -804,8 +804,19 @@ function createScreenshotWindow(dataURL: string) {
     height = imageScaleHeight
   }
 
-  const x = activeDisplay.bounds.x + (activeDisplay.bounds.width - width) / 2
-  const y = activeDisplay.bounds.y + (activeDisplay.bounds.height - height) / 2
+  const mainWindowBounds = activeDisplay.bounds
+  const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
+  const y = mainWindowBounds.y + (mainWindowBounds.height - height) / 2
+
+  logSender.sendLog(
+    "activeDisplay.bounds",
+    JSON.stringify(activeDisplay.bounds)
+  )
+  logSender.sendLog(
+    "mainWindow.getBounds()",
+    JSON.stringify(mainWindow.getBounds())
+  )
+  logSender.sendLog(`window.position {x: ${x}, y: ${y}}`)
 
   hideWindows()
 
@@ -813,7 +824,7 @@ function createScreenshotWindow(dataURL: string) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    // resizable: false,
+    resizable: false,
     minimizable: false,
     width: width,
     height: height! + 64,
@@ -1166,7 +1177,7 @@ ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
 })
 ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
   const file = dataURLToFile(data.dataURL, data.fileName)
-  createScreenshotCommand(
+  uploadScreenshotCommand(
     tokenStorage.token!.access_token,
     tokenStorage.organizationId!,
     data.fileName,
