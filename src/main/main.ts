@@ -807,6 +807,7 @@ function createScreenshotWindow(dataURL: string) {
   const mainWindowBounds = activeDisplay.bounds
   const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
   const y = mainWindowBounds.y + (mainWindowBounds.height - height) / 2
+  const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
 
   logSender.sendLog(
     "activeDisplay.bounds",
@@ -824,12 +825,14 @@ function createScreenshotWindow(dataURL: string) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    resizable: false,
+    // resizable: false,
     minimizable: false,
-    width: width,
-    height: height! + 64,
-    x: x,
-    y: y,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: minWidth,
+    minHeight: minHeight,
+    x: bounds.x,
+    y: bounds.y,
     show: false,
     // frame: false,
     roundedCorners: true,
@@ -842,7 +845,7 @@ function createScreenshotWindow(dataURL: string) {
     },
   })
 
-  screenshotWindow.setAlwaysOnTop(true, "normal")
+  screenshotWindow.setBounds(bounds)
   screenshotWindow.moveTop()
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
