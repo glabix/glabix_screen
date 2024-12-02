@@ -40,6 +40,7 @@ const COLORS_MAP = [
   { name: "light", hex: "#ffffff" },
 ]
 
+const screenshotImageId = "screenshot_image"
 const arrowIdSeparator = ":"
 const arrowCircleStartId = "arrow_start_id"
 const arrowCircleEndId = "arrow_end_id"
@@ -250,8 +251,8 @@ window.electronAPI?.ipcRenderer?.on(
     init()
     lastData = data
 
-    let imageWidth = Math.ceil(data.width / data.scale)
-    let imageHeight = Math.ceil(data.height / data.scale)
+    let imageWidth = Math.ceil(lastData.width / lastData.scale)
+    let imageHeight = Math.ceil(lastData.height / lastData.scale)
 
     if (imageHeight > stage.height()) {
       const scaleH = stage.height() / imageHeight
@@ -268,6 +269,7 @@ window.electronAPI?.ipcRenderer?.on(
     const imageObj = new Image()
     imageObj.onload = function () {
       const screenshot = new Konva.Image({
+        id: screenshotImageId,
         image: imageObj,
         width: imageWidth,
         height: imageHeight,
@@ -501,7 +503,8 @@ stage.on("mouseover", (event) => {
 })
 
 stage.on("mousedown", (event) => {
-  clickedShapeId = event.target.attrs.id
+  const id = event.target.attrs.id
+  clickedShapeId = [screenshotImageId].includes(id) ? undefined : id
   const clickedShape = stage.findOne(`#${clickedShapeId}`)
 
   if (event.target.attrs.name?.indexOf("_anchor") >= 0) {
@@ -516,10 +519,6 @@ stage.on("mousedown", (event) => {
       setActiveShapeWidth(width)
       setActiveColor(color)
     } else {
-      console.log(
-        "(clickedShape as Arrow).stroke()",
-        (clickedShape as Arrow).stroke()
-      )
       setActiveShapeWidth((clickedShape as Arrow).strokeWidth())
       setActiveColor(
         getActiveColorNameByHex((clickedShape as Arrow).stroke() as string)
@@ -586,7 +585,6 @@ stage.on("mousemove", (event) => {
     }
 
     if (activeShape instanceof CurvedLine) {
-      console.log("activeShape", activeShape)
       const pos = stage.getPointerPosition()!
       const newPoints = activeShape.points().concat([pos.x, pos.y])
       activeShape.points(newPoints)
@@ -815,7 +813,7 @@ saveBtn.addEventListener(
     const a = document.createElement("a")
     a.style.display = "none"
     a.href = dataURL
-    a.download = `${getTitle()}.png`
+    a.download = `${getTitle().replace("Экран", "Скриншот")}.png`
     document.body.appendChild(a)
     a.click()
     window.URL.revokeObjectURL(dataURL)
@@ -884,6 +882,51 @@ shapeBtns.forEach((btn) => {
     false
   )
 })
+
+window.addEventListener(
+  "resize",
+  () => {
+    stage.width(pageContainer.clientWidth)
+    stage.height(pageContainer.clientHeight)
+
+    const image = stage.findOne(`#${screenshotImageId}`) as Konva.Image
+    if (image) {
+      const originalWidth = Math.ceil(lastData!.width / lastData!.scale)
+      const originalHeight = Math.ceil(lastData!.height / lastData!.scale)
+      const imageRatio = originalWidth / originalHeight
+      const stageWidth = stage.width()
+      const stageHeight = stage.height()
+      const stageRatio = stageWidth / stageHeight
+
+      let imageWidth = image.width()
+      let imageHeight = image.height()
+
+      if (
+        imageHeight >= stageHeight ||
+        (originalHeight > stageHeight && imageHeight < stageHeight) ||
+        imageWidth >= stageWidth ||
+        (originalWidth > stageWidth && imageWidth < stageWidth)
+      ) {
+        if (imageRatio > stageRatio) {
+          // Image is wider
+          imageWidth = stageWidth
+          imageHeight = stageWidth / imageRatio
+        } else {
+          // Image is taller
+          imageWidth = stageHeight * imageRatio
+          imageHeight = stageHeight
+        }
+      }
+
+      image.width(imageWidth)
+      image.height(imageHeight)
+
+      image.x((stageWidth - imageWidth) / 2)
+      image.y((stageHeight - imageHeight) / 2)
+    }
+  },
+  false
+)
 
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
