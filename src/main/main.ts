@@ -714,6 +714,14 @@ function createDropdownWindow(parentWindow) {
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
       mainWindow.webContents.send("screen:change", currentScreen)
+
+      logSender.sendLog(
+        "[changeDisplay]: ",
+        `
+          prev screen bounds: ${JSON.stringify(activeDisplay.bounds)}
+          new screen bounds: ${JSON.stringify(currentScreen.bounds)}
+        `
+      )
     }
 
     activeDisplay = currentScreen
