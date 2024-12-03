@@ -753,28 +753,24 @@ function createLoginWindow() {
 }
 
 function createScreenshotWindow(dataURL: string) {
-  logSender.sendLog(
-    "createScreenshotWindow() dataURL:",
-    dataURL.length.toString()
-  )
   if (screenshotWindow) {
     screenshotWindow.destroy()
   }
 
-  // const imageRation = nativeImage.createFromDataURL(dataURL).getAspectRatio(activeDisplay.scaleFactor)
+  const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
   const imageSize = nativeImage
     .createFromDataURL(dataURL)
-    .getSize(activeDisplay.scaleFactor)
+    .getSize(currentScreen.scaleFactor)
   const minWidth = 750
   const minHeight = 400
-  const maxWidth = 0.8 * activeDisplay.bounds.width
-  const maxHeight = 0.8 * activeDisplay.bounds.height
+  const maxWidth = 0.8 * currentScreen.bounds.width
+  const maxHeight = 0.8 * currentScreen.bounds.height
   const imageWidth = imageSize.width
   const imageHeight = imageSize.height
-  const imageScaleWidth = Math.ceil(imageWidth / activeDisplay.scaleFactor)
-  const imageScaleHeight = Math.ceil(imageHeight / activeDisplay.scaleFactor)
+  const imageScaleWidth = Math.ceil(imageWidth / currentScreen.scaleFactor)
+  const imageScaleHeight = Math.ceil(imageHeight / currentScreen.scaleFactor)
   const imageData: IScreenshotImageData = {
-    scale: activeDisplay.scaleFactor,
+    scale: currentScreen.scaleFactor,
     width: imageWidth,
     height: imageHeight,
     url: dataURL,
@@ -799,22 +795,17 @@ function createScreenshotWindow(dataURL: string) {
     height = imageScaleHeight
   }
 
-  const mainWindowBounds = activeDisplay.bounds
-  const dirX = mainWindowBounds.x < 0 ? -1 : 1
-  const dirY = mainWindowBounds.y < 0 ? -1 : 1
-  const x = mainWindowBounds.x + dirX * ((mainWindowBounds.width - width) / 2)
-  const y = mainWindowBounds.y + dirY * ((mainWindowBounds.height - height) / 2)
+  const mainWindowBounds = currentScreen.bounds
+  const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
+  const y = mainWindowBounds.y + (mainWindowBounds.height - height) / 2
   const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
 
   logSender.sendLog(
-    "activeDisplay.bounds",
-    JSON.stringify(activeDisplay.bounds)
+    "currentScreen.bounds:",
+    JSON.stringify(currentScreen.bounds)
   )
-  logSender.sendLog(
-    "mainWindow.getBounds()",
-    JSON.stringify(mainWindow.getBounds())
-  )
-  logSender.sendLog(`window.position {x: ${x}, y: ${y}}`)
+
+  logSender.sendLog("screenshotWindow bounds:", JSON.stringify(bounds))
 
   hideWindows()
 
@@ -842,7 +833,6 @@ function createScreenshotWindow(dataURL: string) {
     },
   })
 
-  screenshotWindow.setBounds(bounds)
   screenshotWindow.moveTop()
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -861,10 +851,6 @@ function createScreenshotWindow(dataURL: string) {
         screenshotWindow.show()
         setTimeout(() => {
           screenshotWindow.webContents.send("screenshot:getImage", imageData)
-          logSender.sendLog(
-            "screenshotWindow.show()",
-            JSON.stringify(screenshotWindow)
-          )
         })
       })
   }
