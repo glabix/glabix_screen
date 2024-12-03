@@ -753,7 +753,10 @@ function createLoginWindow() {
 }
 
 function createScreenshotWindow(dataURL: string) {
-  logSender.sendLog("createScreenshotWindow() dataURL:", dataURL)
+  logSender.sendLog(
+    "createScreenshotWindow() dataURL:",
+    dataURL.length.toString()
+  )
   if (screenshotWindow) {
     screenshotWindow.destroy()
   }
