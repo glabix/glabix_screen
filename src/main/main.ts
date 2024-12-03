@@ -383,15 +383,6 @@ if (!gotTheLock) {
       }
     )
 
-    // session.defaultSession.setPermissionCheckHandler((webContents, permission, origin, details) => {
-    //   // console.log('setPermissionCheckHandler>>>>>>>>>>', 'permission', permission, 'details', details, 'origin', origin)
-    //   if (permission === 'media') {
-    //     return false
-    //   }
-
-    //   return true
-    // })
-
     registerShortCuts()
   })
 }
@@ -762,6 +753,7 @@ function createLoginWindow() {
 }
 
 function createScreenshotWindow(dataURL: string) {
+  logSender.sendLog("createScreenshotWindow() dataURL:", dataURL)
   if (screenshotWindow) {
     screenshotWindow.destroy()
   }
@@ -864,6 +856,10 @@ function createScreenshotWindow(dataURL: string) {
         screenshotWindow.show()
         setTimeout(() => {
           screenshotWindow.webContents.send("screenshot:getImage", imageData)
+          logSender.sendLog(
+            "screenshotWindow.show()",
+            JSON.stringify(screenshotWindow)
+          )
         })
       })
   }
@@ -1016,6 +1012,7 @@ function logOut() {
   loginWindow.show()
 }
 function createScreenshot(crop?: Rectangle) {
+  logSender.sendLog("createScreenshot() crop:", JSON.stringify(crop))
   getScreenshot(activeDisplay, crop).then((dataUrl) => {
     createScreenshotWindow(dataUrl)
   })
