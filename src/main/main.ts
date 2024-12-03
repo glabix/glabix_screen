@@ -800,8 +800,10 @@ function createScreenshotWindow(dataURL: string) {
   }
 
   const mainWindowBounds = activeDisplay.bounds
-  const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
-  const y = mainWindowBounds.y + (mainWindowBounds.height - height) / 2
+  const dirX = mainWindowBounds.x < 0 ? -1 : 1
+  const dirY = mainWindowBounds.y < 0 ? -1 : 1
+  const x = mainWindowBounds.x + dirX * ((mainWindowBounds.width - width) / 2)
+  const y = mainWindowBounds.y + dirY * ((mainWindowBounds.height - height) / 2)
   const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
 
   logSender.sendLog(
