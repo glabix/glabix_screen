@@ -1,4 +1,6 @@
 import { desktopCapturer, Display, nativeImage, Rectangle } from "electron"
+import { LogSender } from "./log-sender"
+const logSender = new LogSender()
 
 export function getScreenshot(
   activeDisplay: Display,
@@ -6,6 +8,9 @@ export function getScreenshot(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const scale = activeDisplay.scaleFactor
+    logSender.sendLog(
+      `getScreenshot thumbnailSize: { width: ${activeDisplay.bounds.width * scale}, height: ${activeDisplay.bounds.height * scale}`
+    )
     desktopCapturer
       .getSources({
         types: ["screen"],

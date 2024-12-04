@@ -1023,6 +1023,10 @@ function createScreenshot(crop?: Rectangle) {
     ? `createScreenshot() crop:, ${JSON.stringify(crop)}`
     : "createScreenshot() fullScreen"
   logSender.sendLog(log)
+
+  logSender.sendLog(
+    `getScreenshot params: {activeDisplay.bounds: - ${activeDisplay.bounds}, crop: ${crop}`
+  )
   getScreenshot(activeDisplay, crop)
     .then((dataUrl) => {
       createScreenshotWindow(
@@ -1032,7 +1036,7 @@ function createScreenshot(crop?: Rectangle) {
       )
     })
     .catch((e) => {
-      logSender.sendLog("getScreenshot.catch(error): ", stringify(e))
+      logSender.sendLog("getScreenshot.catch(error):", e.toString())
     })
 }
 
