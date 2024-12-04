@@ -1023,13 +1023,17 @@ function createScreenshot(crop?: Rectangle) {
     ? `createScreenshot() crop:, ${JSON.stringify(crop)}`
     : "createScreenshot() fullScreen"
   logSender.sendLog(log)
-  getScreenshot(activeDisplay, crop).then((dataUrl) => {
-    createScreenshotWindow(
-      dataUrl,
-      activeDisplay.bounds,
-      activeDisplay.scaleFactor
-    )
-  })
+  getScreenshot(activeDisplay, crop)
+    .then((dataUrl) => {
+      createScreenshotWindow(
+        dataUrl,
+        activeDisplay.bounds,
+        activeDisplay.scaleFactor
+      )
+    })
+    .catch((e) => {
+      logSender.sendLog("getScreenshot.catch(error): ", stringify(e))
+    })
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common
