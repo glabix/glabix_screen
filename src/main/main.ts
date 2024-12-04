@@ -805,7 +805,7 @@ function createScreenshotWindow(dataURL: string) {
 
   const mainWindowBounds = currentScreen.bounds
   const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
-  const y = mainWindowBounds.y + (mainWindowBounds.height - height) / 2
+  const y = mainWindowBounds.y + (mainWindowBounds.height - height - 64) / 2
   const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
 
   logSender.sendLog(
@@ -813,7 +813,7 @@ function createScreenshotWindow(dataURL: string) {
     JSON.stringify(currentScreen.bounds)
   )
 
-  logSender.sendLog("screenshotWindow bounds:", JSON.stringify(bounds))
+  logSender.sendLog("calculate bounds:", JSON.stringify(bounds))
 
   hideWindows()
 
@@ -841,25 +841,32 @@ function createScreenshotWindow(dataURL: string) {
     },
   })
 
+  screenshotWindow.show()
   screenshotWindow.moveTop()
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     screenshotWindow
       .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
       .then(() => {
-        screenshotWindow.show()
-        setTimeout(() => {
-          screenshotWindow.webContents.send("screenshot:getImage", imageData)
-        })
+        screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        logSender.sendLog(
+          "screenshotWindow.getBounds():",
+          JSON.stringify(screenshotWindow.getBounds())
+        )
+        screenshotWindow.setBounds(bounds)
+        screenshotWindow.setAlwaysOnTop(true, "modal-panel")
       })
   } else {
     screenshotWindow
       .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
       .then(() => {
-        screenshotWindow.show()
-        setTimeout(() => {
-          screenshotWindow.webContents.send("screenshot:getImage", imageData)
-        })
+        screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        logSender.sendLog(
+          "screenshotWindow.getBounds():",
+          JSON.stringify(screenshotWindow.getBounds())
+        )
+        screenshotWindow.setBounds(bounds)
+        screenshotWindow.setAlwaysOnTop(true, "modal-panel")
       })
   }
 }
