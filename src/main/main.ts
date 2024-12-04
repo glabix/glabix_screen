@@ -760,7 +760,11 @@ function createLoginWindow() {
   }
 }
 
-function createScreenshotWindow(dataURL: string) {
+function createScreenshotWindow(
+  dataURL: string,
+  screenBounds: Rectangle,
+  screenScaleFactor: number
+) {
   if (screenshotWindow) {
     screenshotWindow.destroy()
   }
@@ -768,17 +772,17 @@ function createScreenshotWindow(dataURL: string) {
   const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
   const imageSize = nativeImage
     .createFromDataURL(dataURL)
-    .getSize(currentScreen.scaleFactor)
+    .getSize(screenScaleFactor)
   const minWidth = 750
   const minHeight = 400
-  const maxWidth = 0.8 * currentScreen.bounds.width
-  const maxHeight = 0.8 * currentScreen.bounds.height
+  const maxWidth = 0.8 * screenBounds.width
+  const maxHeight = 0.8 * screenBounds.height
   const imageWidth = imageSize.width
   const imageHeight = imageSize.height
-  const imageScaleWidth = Math.ceil(imageWidth / currentScreen.scaleFactor)
-  const imageScaleHeight = Math.ceil(imageHeight / currentScreen.scaleFactor)
+  const imageScaleWidth = Math.ceil(imageWidth / screenScaleFactor)
+  const imageScaleHeight = Math.ceil(imageHeight / screenScaleFactor)
   const imageData: IScreenshotImageData = {
-    scale: currentScreen.scaleFactor,
+    scale: screenScaleFactor,
     width: imageWidth,
     height: imageHeight,
     url: dataURL,
@@ -803,17 +807,17 @@ function createScreenshotWindow(dataURL: string) {
     height = imageScaleHeight
   }
 
-  const mainWindowBounds = currentScreen.bounds
+  const mainWindowBounds = screenBounds
   const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
   const y = mainWindowBounds.y + (mainWindowBounds.height - height - 64) / 2
   const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
 
+  logSender.sendLog("screenBounds: ", JSON.stringify(screenBounds))
+  logSender.sendLog("calculate bounds:", JSON.stringify(bounds))
   logSender.sendLog(
-    "currentScreen.bounds:",
+    "currentScreen.bounds: ",
     JSON.stringify(currentScreen.bounds)
   )
-
-  logSender.sendLog("calculate bounds:", JSON.stringify(bounds))
 
   hideWindows()
 
@@ -841,32 +845,29 @@ function createScreenshotWindow(dataURL: string) {
     },
   })
 
-  screenshotWindow.show()
-  screenshotWindow.moveTop()
-
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     screenshotWindow
       .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
       .then(() => {
         screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        screenshotWindow.show()
+        screenshotWindow.moveTop()
         logSender.sendLog(
           "screenshotWindow.getBounds():",
           JSON.stringify(screenshotWindow.getBounds())
         )
-        screenshotWindow.setBounds(bounds)
-        screenshotWindow.setAlwaysOnTop(true, "modal-panel")
       })
   } else {
     screenshotWindow
       .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
       .then(() => {
         screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        screenshotWindow.show()
+        screenshotWindow.moveTop()
         logSender.sendLog(
           "screenshotWindow.getBounds():",
           JSON.stringify(screenshotWindow.getBounds())
         )
-        screenshotWindow.setBounds(bounds)
-        screenshotWindow.setAlwaysOnTop(true, "modal-panel")
       })
   }
 }
@@ -1018,9 +1019,16 @@ function logOut() {
   loginWindow.show()
 }
 function createScreenshot(crop?: Rectangle) {
-  logSender.sendLog("createScreenshot() crop:", JSON.stringify(crop))
+  const log = crop
+    ? `createScreenshot() crop:, ${JSON.stringify(crop)}`
+    : "createScreenshot() fullScreen"
+  logSender.sendLog(log)
   getScreenshot(activeDisplay, crop).then((dataUrl) => {
-    createScreenshotWindow(dataUrl)
+    createScreenshotWindow(
+      dataUrl,
+      activeDisplay.bounds,
+      activeDisplay.scaleFactor
+    )
   })
 }
 
