@@ -8,15 +8,19 @@ export function getScreenshot(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const scale = activeDisplay.scaleFactor
+    const width = Math.round(activeDisplay.bounds.width * scale)
+    const height = Math.round(activeDisplay.bounds.height * scale)
+
     logSender.sendLog(
-      `getScreenshot thumbnailSize: { width: ${activeDisplay.bounds.width * scale}, height: ${activeDisplay.bounds.height * scale}`
+      `desktopCapturer.thumbnailSize: { width: ${width}, height: ${height}}, scaleFactor: ${scale}`
     )
+
     desktopCapturer
       .getSources({
         types: ["screen"],
         thumbnailSize: {
-          width: activeDisplay.bounds.width * scale,
-          height: activeDisplay.bounds.height * scale,
+          width: width,
+          height: height,
         },
       })
       .then((sources) => {

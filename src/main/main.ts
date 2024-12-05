@@ -714,14 +714,6 @@ function createDropdownWindow(parentWindow) {
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
       mainWindow.webContents.send("screen:change", currentScreen)
-
-      logSender.sendLog(
-        "[changeDisplay]: ",
-        `
-          prev screen bounds: ${JSON.stringify(activeDisplay.bounds)}
-          new screen bounds: ${JSON.stringify(currentScreen.bounds)}
-        `
-      )
     }
 
     activeDisplay = currentScreen
@@ -769,7 +761,6 @@ function createScreenshotWindow(
     screenshotWindow.destroy()
   }
 
-  const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
   const imageSize = nativeImage
     .createFromDataURL(dataURL)
     .getSize(screenScaleFactor)
@@ -812,13 +803,6 @@ function createScreenshotWindow(
   const y = mainWindowBounds.y + (mainWindowBounds.height - height - 64) / 2
   const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
 
-  logSender.sendLog("screenBounds: ", JSON.stringify(screenBounds))
-  logSender.sendLog("calculate bounds:", JSON.stringify(bounds))
-  logSender.sendLog(
-    "currentScreen.bounds: ",
-    JSON.stringify(currentScreen.bounds)
-  )
-
   hideWindows()
 
   screenshotWindow = new BrowserWindow({
@@ -853,7 +837,7 @@ function createScreenshotWindow(
         screenshotWindow.show()
         screenshotWindow.moveTop()
         logSender.sendLog(
-          "screenshotWindow.getBounds():",
+          "screenshotWindow.show - getBounds():",
           JSON.stringify(screenshotWindow.getBounds())
         )
       })
@@ -865,7 +849,7 @@ function createScreenshotWindow(
         screenshotWindow.show()
         screenshotWindow.moveTop()
         logSender.sendLog(
-          "screenshotWindow.getBounds():",
+          "screenshotWindow.show - getBounds():",
           JSON.stringify(screenshotWindow.getBounds())
         )
       })
@@ -1019,14 +1003,6 @@ function logOut() {
   loginWindow.show()
 }
 function createScreenshot(crop?: Rectangle) {
-  const log = crop
-    ? `createScreenshot() crop:, ${JSON.stringify(crop)}`
-    : "createScreenshot() fullScreen"
-  logSender.sendLog(log)
-
-  logSender.sendLog(
-    `getScreenshot params: {activeDisplay.bounds: - ${activeDisplay.bounds}, crop: ${crop}`
-  )
   getScreenshot(activeDisplay, crop)
     .then((dataUrl) => {
       createScreenshotWindow(
@@ -1035,9 +1011,7 @@ function createScreenshot(crop?: Rectangle) {
         activeDisplay.scaleFactor
       )
     })
-    .catch((e) => {
-      logSender.sendLog("getScreenshot.catch(error):", e.toString())
-    })
+    .catch((e) => {})
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common
