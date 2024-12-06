@@ -752,14 +752,14 @@ function createLoginWindow() {
   }
 }
 
-function createScreenshotWindow(
-  dataURL: string,
-  screenBounds: Rectangle,
-  screenScaleFactor: number
-) {
+function createScreenshotWindow(dataURL: string) {
   if (screenshotWindow) {
     screenshotWindow.destroy()
   }
+
+  const currentScreen = screen.getDisplayNearestPoint(mainWindow.getBounds())
+  const screenBounds = currentScreen.bounds
+  const screenScaleFactor = currentScreen.scaleFactor
 
   const imageSize = nativeImage
     .createFromDataURL(dataURL)
@@ -1005,11 +1005,7 @@ function logOut() {
 function createScreenshot(crop?: Rectangle) {
   getScreenshot(activeDisplay, crop)
     .then((dataUrl) => {
-      createScreenshotWindow(
-        dataUrl,
-        activeDisplay.bounds,
-        activeDisplay.scaleFactor
-      )
+      createScreenshotWindow(dataUrl)
     })
     .catch((e) => {})
 }
