@@ -179,7 +179,7 @@ function init(url: string) {
         },
         organization_id: +organization_id,
       }
-      loginWindow.show()
+      showWindows()
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
@@ -265,9 +265,14 @@ if (!gotTheLock) {
       tokenStorage.readAuthData()
       logSender.sendLog("app.started")
       createMenu()
+
+      setTimeout(() => {
+        showWindows()
+      })
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
+
     createWindow()
 
     chunkStorage.initStorages().then(() => {

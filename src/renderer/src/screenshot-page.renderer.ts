@@ -59,6 +59,7 @@ const fontSizeFactor = 6
 
 let isMouseDown = false
 let isShapeCreated = false
+
 let activeShapeType: ShapeTypes = "arrow"
 let startPos: Vector2d = { x: 0, y: 0 }
 const mouseMoveTypes: ShapeTypes[] = [
@@ -736,19 +737,19 @@ activeWidthSlider.addEventListener(
 )
 
 const copyTrimStage = (): string => {
-  // Определите начальные границы
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity
 
-  // Обход всех слоев и их детей
+  const imageWidth = Math.ceil(lastData!.width / lastData!.scale)
+  const scale = imageWidth / stage.width() < 1 ? 1 : imageWidth / stage.width()
+
   stage.children.forEach((layer) => {
     layer.children.forEach((node) => {
       if (node.isVisible()) {
         const rect = node.getClientRect()
         if (rect.height && rect.width) {
-          console.log("rect", rect)
           minX = Math.min(minX, rect.x)
           minY = Math.min(minY, rect.y)
           maxX = Math.max(maxX, rect.x + rect.width)
@@ -758,42 +759,36 @@ const copyTrimStage = (): string => {
     })
   })
 
-  // Вычисляем ширину и высоту для временного холста
   const width = maxX - minX
   const height = maxY - minY
 
-  // Создаем новый временный холст
   const tempStage = new Konva.Stage({
     container: document.createElement("div"),
-    width: width,
-    height: height,
+    width: scale * width,
+    height: scale * height,
   })
 
-  // Создаем слой для временного холста
   const tempLayer = new Konva.Layer()
   tempStage.add(tempLayer)
 
-  // Копируем объекты на временный холст
   stage.children.forEach((layer) => {
     layer.children.forEach((node) => {
       if (node.isVisible()) {
         const clone = node.clone()
-        clone.x(clone.x() - minX)
-        clone.y(clone.y() - minY)
+        clone.x(scale * (clone.x() - minX))
+        clone.y(scale * (clone.y() - minY))
+        clone.scale({ x: scale, y: scale })
         tempLayer.add(clone)
       }
     })
   })
 
-  // Перерисовываем временный слой
   tempLayer.batchDraw()
 
-  // Экспорт изображения
   const dataURL = tempStage.toDataURL({
     pixelRatio: lastData ? lastData.scale : window.devicePixelRatio,
   })
 
-  // Удаляем временные элементы
   tempStage.destroy()
 
   return dataURL
@@ -888,6 +883,9 @@ window.addEventListener(
   () => {
     stage.width(pageContainer.clientWidth)
     stage.height(pageContainer.clientHeight)
+    let diffX = 0
+    let diffY = 0
+    let scale = 1
 
     const image = stage.findOne(`#${screenshotImageId}`) as Konva.Image
     if (image) {
@@ -918,11 +916,33 @@ window.addEventListener(
         }
       }
 
+      scale = imageWidth / stage.width()
+
       image.width(imageWidth)
       image.height(imageHeight)
 
+      const prevX = image.x()
+      const prevY = image.y()
       image.x((stageWidth - imageWidth) / 2)
       image.y((stageHeight - imageHeight) / 2)
+
+      diffX = image.x() - prevX
+      diffY = image.y() - prevY
+
+      // stage.children.forEach((layer) => {
+      //   layer.children.forEach((node) => {
+      //     if (node.isVisible() && node.attrs.id != screenshotImageId) {
+      //       const rect = node.getClientRect()
+      //       if (rect.height && rect.width) {
+      //         node.x(scale * rect.x + diffX)
+      //         node.y(scale * rect.y + diffY)
+      //         // node.width( scaleX * node.width())
+      //         // node.height( scaleY * node.height())
+      //         node.scale({ x: scale, y: scale })
+      //       }
+      //     }
+      //   })
+      // })
     }
   },
   false
