@@ -1109,18 +1109,21 @@ ipcMain.on("dropdown:close", (event, data) => {
   dropdownWindow.hide()
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
-  modalWindow.webContents.send("dropdown:select", data)
   dropdownWindow.hide()
 
   // Screenshot actions
   if (data.action == "cropScreenshot") {
     modalWindow.hide()
     mainWindow.focus()
-  }
-
-  if (data.action == "fullScreenshot") {
+    mainWindow.webContents.send("dropdown:select.screenshot", data)
+    modalWindow.webContents.send("dropdown:select.screenshot", data)
+  } else if (data.action == "fullScreenshot") {
     hideWindows()
     createScreenshot()
+    mainWindow.webContents.send("dropdown:select.screenshot", data)
+    modalWindow.webContents.send("dropdown:select.screenshot", data)
+  } else {
+    modalWindow.webContents.send("dropdown:select.video", data)
   }
 })
 

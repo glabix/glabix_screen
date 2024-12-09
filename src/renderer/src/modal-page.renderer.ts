@@ -346,7 +346,7 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
-  "dropdown:select",
+  "dropdown:select.video",
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
 
@@ -404,6 +404,20 @@ window.electronAPI.ipcRenderer.on(
     }
 
     openedDropdownType = undefined
+    sendSettings()
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  "dropdown:select.screenshot",
+  (event, data: IDropdownPageSelectData) => {
+    activeScreenActionItem = screenActionsList[0]!
+    streamSettings = {
+      ...streamSettings,
+      action: "fullScreenVideo",
+      ...activeScreenActionItem,
+    }
+    renderScreenSettings(activeScreenActionItem)
     sendSettings()
   }
 )
