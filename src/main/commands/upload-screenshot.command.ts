@@ -45,8 +45,7 @@ export function uploadScreenshotCommand(
                 })
                 .catch((e) => {
                   logSender.sendLog(
-                    "api.screenshots.post.complete",
-                    stringify(e)
+                    "api.screenshots.post.complete.catch(error)"
                   )
                   resolve("")
                 })
@@ -61,7 +60,7 @@ export function uploadScreenshotCommand(
         if (e.response && e.response.status == 401) {
           ipcMain.emit("app:logout")
         }
-        logSender.sendLog("api.screenshots.post.create_url", stringify(e))
+        logSender.sendLog("api.screenshots.post.create_url.catch(error)")
         resolve("")
       })
   })
