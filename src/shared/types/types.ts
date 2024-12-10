@@ -98,6 +98,7 @@ export interface IOrganizationLimits {
   mac_version: string
   upload_allowed: boolean
   max_upload_duration: number
+  allow_screenshots: boolean
 }
 
 export interface IScreenshotImageData {

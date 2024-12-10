@@ -99,13 +99,19 @@ canvas.addEventListener("mouseup", handleMouseUp, false)
 // canvas.addEventListener('mouseout', handleMouseUp, false)
 
 window.electronAPI.ipcRenderer.on(
-  "record-settings-change",
+  "dropdown:select.screenshot",
   (event, data: StreamSettings) => {
     if (data.action == "cropScreenshot") {
       canvasContainer.removeAttribute("hidden")
     } else {
       canvasContainer.setAttribute("hidden", "")
     }
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  "dropdown:select.video",
+  (event, data: StreamSettings) => {
+    canvasContainer.setAttribute("hidden", "")
   }
 )
 

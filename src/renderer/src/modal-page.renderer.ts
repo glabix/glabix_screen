@@ -18,6 +18,7 @@ type PageViewType = "modal" | "permissions" | "limits"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
+let isAllowScreenshots: boolean | undefined = undefined
 let activePageView: PageViewType
 let openedDropdownType: DropdownListType | undefined = undefined
 const modalContent = document.querySelector(".modal-content")!
@@ -26,7 +27,7 @@ const limitsContent = document.querySelector(".limits-content")!
 
 const audioDeviceContainer = document.querySelector("#audio_device_container")!
 const videoDeviceContainer = document.querySelector("#video_device_container")!
-const screenActionsList: IDropdownItem[] = [
+let screenActionsList: IDropdownItem[] = [
   {
     id: "fullScreenVideo",
     label: "Запись всего экрана",
@@ -64,6 +65,7 @@ const screenActionsList: IDropdownItem[] = [
     label: "Снимок всего экрана",
     isSelected: false,
     extraData: {
+      isAllowed: true,
       icon: "i-display",
       smallText: isWindows ? "ctrl+shift+6" : "cmd+shift+6",
     },
@@ -73,6 +75,7 @@ const screenActionsList: IDropdownItem[] = [
     label: "Снимок области",
     isSelected: false,
     extraData: {
+      isAllowed: false,
       icon: "i-expand-wide",
       smallText: isWindows ? "ctrl+shift+5" : "cmd+shift+5",
     },
@@ -346,7 +349,7 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
-  "dropdown:select",
+  "dropdown:select.video",
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
 
@@ -408,6 +411,20 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
+window.electronAPI.ipcRenderer.on(
+  "dropdown:select.screenshot",
+  (event, data: IDropdownPageSelectData) => {
+    activeScreenActionItem = screenActionsList[0]!
+    streamSettings = {
+      ...streamSettings,
+      action: "fullScreenVideo",
+      ...activeScreenActionItem,
+    }
+    renderScreenSettings(activeScreenActionItem)
+    sendSettings()
+  }
+)
+
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
   openedDropdownType = undefined
   isAllowRecords = undefined
@@ -429,6 +446,26 @@ window.electronAPI.ipcRenderer.on(
   APIEvents.GET_ORGANIZATION_LIMITS,
   (event, limits: IOrganizationLimits) => {
     isAllowRecords = limits.upload_allowed
+    isAllowScreenshots = limits.allow_screenshots
+
+    screenActionsList = screenActionsList.map((item) => {
+      const notAllowed =
+        ["fullScreenshot", "cropScreenshot"].includes(item.id) &&
+        !isAllowScreenshots
+      return {
+        ...item,
+        extraData: {
+          ...item.extraData,
+          isAllowed: !notAllowed,
+        },
+      }
+    })
+
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "APIEvents.GET_ORGANIZATION_LIMITS",
+      body: JSON.stringify(screenActionsList),
+    })
+
     if (isAllowRecords === false && activePageView != "permissions") {
       setPageView("limits")
     }

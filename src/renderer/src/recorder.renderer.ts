@@ -19,6 +19,7 @@ const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
 )!
+// const canvasContainer = document.querySelector(".crop-screenshot-container")! as HTMLDivElement
 const countdown = document.querySelector("#fullscreen_countdown")!
 let startTimer: NodeJS.Timeout
 const timerDisplay = document.getElementById(
@@ -696,15 +697,21 @@ function initRecord(data: StreamSettings) {
 }
 
 window.electronAPI.ipcRenderer.on(
+  "dropdown:select.screenshot",
+  (event, data: StreamSettings) => {
+    const settings: StreamSettings = lastStreamSettings
+      ? { ...lastStreamSettings, action: "fullScreenVideo" }
+      : { action: "fullScreenVideo" }
+    initRecord(settings)
+    lastStreamSettings = settings
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
   "record-settings-change",
   (event, settings: StreamSettings) => {
-    const action = ["fullScreenshot", "cropScreenshot"].includes(
-      settings.action
-    )
-      ? lastStreamSettings?.action
-      : settings.action
-    lastStreamSettings = { ...settings, action: action || "fullScreenVideo" }
-    initRecord(settings)
+    lastStreamSettings = settings
+    initRecord(lastStreamSettings)
   }
 )
 

@@ -15,7 +15,10 @@
 
     <template id="dropdown_item_tpl">
       <div class="dropdown-item">
-        <button type="button" class="btn justify-start text-overflow">
+        <button
+          type="button"
+          class="btn hover-wrapper justify-start text-overflow"
+        >
           <div
             class="icon-wrapper flex-center-5 min-w-5 mr-3 pointer-events-none"
           >
@@ -34,6 +37,12 @@
             class="js-text-small fw-300 text-gray-600 text-xs text-overflow"
             hidden
           ></div>
+          <div
+            class="js-not-allowed hover-target fw-300 text-gray-600 text-xs text-overflow"
+            hidden
+          >
+            <span class="btn btn--sm btn--primary">Тарифы</span>
+          </div>
         </button>
       </div>
     </template>

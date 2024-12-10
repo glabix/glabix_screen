@@ -70,6 +70,7 @@ import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
+let isScreenshotAllowed = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -179,7 +180,7 @@ function init(url: string) {
         },
         organization_id: +organization_id,
       }
-      loginWindow.show()
+      showWindows()
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
@@ -265,9 +266,14 @@ if (!gotTheLock) {
       tokenStorage.readAuthData()
       logSender.sendLog("user.read_auth_data.success")
       createMenu()
+
+      setTimeout(() => {
+        showWindows()
+      })
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
+
     createWindow()
 
     chunkStorage.initStorages().then(() => {
@@ -389,11 +395,13 @@ if (!gotTheLock) {
 
 function registerShortCuts() {
   globalShortcut.register("CommandOrControl+Shift+6", () => {
-    createScreenshot()
+    if (isScreenshotAllowed) {
+      createScreenshot()
+    }
   })
 
   globalShortcut.register("CommandOrControl+Shift+5", () => {
-    if (tokenStorage && tokenStorage.dataIsActual()) {
+    if (isScreenshotAllowed) {
       modalWindow.webContents.send("dropdown:select", {
         action: "cropScreenshot",
       })
@@ -752,14 +760,14 @@ function createLoginWindow() {
   }
 }
 
-function createScreenshotWindow(
-  dataURL: string,
-  screenBounds: Rectangle,
-  screenScaleFactor: number
-) {
+function createScreenshotWindow(dataURL: string) {
   if (screenshotWindow) {
     screenshotWindow.destroy()
   }
+
+  const currentScreen = screen.getDisplayNearestPoint(mainWindow.getBounds())
+  const screenBounds = currentScreen.bounds
+  const screenScaleFactor = currentScreen.scaleFactor
 
   const imageSize = nativeImage
     .createFromDataURL(dataURL)
@@ -1005,11 +1013,7 @@ function logOut() {
 function createScreenshot(crop?: Rectangle) {
   getScreenshot(activeDisplay, crop)
     .then((dataUrl) => {
-      createScreenshotWindow(
-        dataUrl,
-        activeDisplay.bounds,
-        activeDisplay.scaleFactor
-      )
+      createScreenshotWindow(dataUrl)
     })
     .catch((e) => {})
 }
@@ -1108,18 +1112,21 @@ ipcMain.on("dropdown:close", (event, data) => {
   dropdownWindow.hide()
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
-  modalWindow.webContents.send("dropdown:select", data)
   dropdownWindow.hide()
 
   // Screenshot actions
   if (data.action == "cropScreenshot") {
     modalWindow.hide()
     mainWindow.focus()
-  }
-
-  if (data.action == "fullScreenshot") {
+    mainWindow.webContents.send("dropdown:select.screenshot", data)
+    modalWindow.webContents.send("dropdown:select.screenshot", data)
+  } else if (data.action == "fullScreenshot") {
     hideWindows()
     createScreenshot()
+    mainWindow.webContents.send("dropdown:select.screenshot", data)
+    modalWindow.webContents.send("dropdown:select.screenshot", data)
+  } else {
+    modalWindow.webContents.send("dropdown:select.video", data)
   }
 })
 
@@ -1630,7 +1637,9 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
+  isScreenshotAllowed = limits.allow_screenshots
   logSender.sendLog("api.limits.get", stringify(data))
+
   if (mainWindow) {
     mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   }

@@ -17,10 +17,11 @@ const changeCameraViewSizeBtn = document.querySelectorAll(
   ".js-camera-view-size"
 )
 
-let currentStream: MediaStream
-let moveable: Moveable
-let lastStreamSettings: StreamSettings
-let isRecording
+let currentStream: MediaStream | undefined = undefined
+let moveable: Moveable | undefined = undefined
+let lastStreamSettings: StreamSettings | undefined = undefined
+let isRecording = false
+let isScreenshotMode = false
 
 function initMovable() {
   moveable = new Moveable(document.body, {
@@ -48,7 +49,7 @@ function initMovable() {
 initMovable()
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
-  video.srcObject = currentStream
+  video.srcObject = currentStream!
   videoContainer.removeAttribute("hidden")
 
   if (hasError) {
@@ -106,7 +107,7 @@ function stopStream() {
     const tracks = currentStream.getTracks()
     tracks.forEach((track) => track.stop())
     video.srcObject = null
-    currentStream = null
+    currentStream = undefined
   }
 
   if (moveable) {
@@ -116,7 +117,9 @@ function stopStream() {
 }
 
 function checkStream(data: StreamSettings) {
-  if (data.action == "cameraOnly") {
+  if (
+    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
+  ) {
     stopStream()
     return
   }
@@ -131,9 +134,13 @@ function checkStream(data: StreamSettings) {
 window.electronAPI.ipcRenderer.on(
   "record-settings-change",
   (event, data: StreamSettings) => {
-    lastStreamSettings = data
-    if (!isRecording) {
-      checkStream(data)
+    if (!isScreenshotMode) {
+      lastStreamSettings = data
+      if (!isRecording) {
+        checkStream(data)
+      }
+    } else {
+      isScreenshotMode = false
     }
   }
 )
@@ -145,6 +152,10 @@ window.electronAPI.ipcRenderer.on("stop-recording", () => {
   isRecording = false
 })
 
+window.electronAPI.ipcRenderer.on("dropdown:select.screenshot", () => {
+  isScreenshotMode = true
+})
+
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   if (!isRecording) {
     stopStream()
@@ -153,7 +164,7 @@ window.electronAPI.ipcRenderer.on("app:hide", () => {
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
   if (!isRecording) {
-    checkStream(lastStreamSettings)
+    checkStream(lastStreamSettings!)
   }
 })
 
@@ -162,8 +173,8 @@ changeCameraViewSizeBtn.forEach((button) => {
     "click",
     (event) => {
       const target = event.target as HTMLElement
-      const size = target.dataset.size
-      const container = document.querySelector(".webcamera-view-container")
+      const size = target.dataset.size!
+      const container = document.querySelector(".webcamera-view-container")!
       container.classList.remove("sm", "lg", "xl")
       container.classList.add(size)
 
