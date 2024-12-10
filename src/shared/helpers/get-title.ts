@@ -1,6 +1,6 @@
-export function getTitle(ts = Date.now()) {
+export function getTitle(ts = Date.now(), isScreenshot = false) {
   const date = new Date(+ts)
-
+  const type = isScreenshot ? "Скриншот" : "Экран"
   // Массивы для месяцев и дней
   const months = [
     "января",
@@ -17,8 +17,10 @@ export function getTitle(ts = Date.now()) {
     "декабря",
   ]
 
-  const options = { hour: "2-digit", minute: "2-digit", hour12: false }
+  const options: Intl.DateTimeFormatOptions = isScreenshot
+    ? {}
+    : { hour: "2-digit", minute: "2-digit", hour12: false }
   const dateString = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
   const timeString = date.toLocaleTimeString("ru-RU", options)
-  return `Экран — ${dateString}, ${timeString}`
+  return `${type} — ${dateString}, ${timeString}`
 }

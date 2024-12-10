@@ -808,7 +808,7 @@ saveBtn.addEventListener(
     const a = document.createElement("a")
     a.style.display = "none"
     a.href = dataURL
-    a.download = `${getTitle().replace("Экран", "Скриншот")}.png`
+    a.download = `${getTitle(Date.now(), true)}.png`
     document.body.appendChild(a)
     a.click()
     window.URL.revokeObjectURL(dataURL)
@@ -821,7 +821,7 @@ uploadBtn.addEventListener(
   () => {
     const dataURL = copyTrimStage()
     const fileSize = dataURLtoBlob(dataURL).size
-    const title = getTitle().replace("Экран", "Скриншот")
+    const title = getTitle(Date.now(), true)
     const fileName = `${title}.png`
 
     window.electronAPI.ipcRenderer.send(APIEvents.UPLOAD_SCREENSHOT, {

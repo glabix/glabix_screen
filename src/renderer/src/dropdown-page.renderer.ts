@@ -19,6 +19,8 @@ function renderItem(item: IDropdownItem): HTMLElement {
   const text = clone.querySelector("span")!
   const icon = clone.querySelector("i")!
   const selectedIcon = clone.querySelector(".js-is-selected")!
+  const notAllowed = clone.querySelector(".js-not-allowed")!
+  const smallText = clone.querySelector(".js-text-small")!
 
   btn.setAttribute("data-id", item.id)
 
@@ -40,13 +42,18 @@ function renderItem(item: IDropdownItem): HTMLElement {
   }
 
   if (item.extraData.smallText) {
-    const smallText = clone.querySelector(".js-text-small")!
     smallText.removeAttribute("hidden")
     smallText.textContent = item.extraData.smallText
   }
 
   if (item.extraData.btnClass) {
     btn.classList.add(item.extraData.btnClass)
+  }
+
+  if (item.extraData.isAllowed === false) {
+    notAllowed.removeAttribute("hidden")
+    smallText.setAttribute("hidden", "")
+    btn.classList.add("text-gray-600")
   }
 
   return clone
@@ -86,10 +93,19 @@ window.electronAPI.ipcRenderer.on(
 
 document.addEventListener("click", (event) => {
   const btn = event.target as HTMLButtonElement
+  const item = currentData.list.items.find((i) => i.id == btn.dataset.id)!
+
+  if (item.extraData.isAllowed === false) {
+    window.electronAPI.ipcRenderer.send(
+      "redirect:app",
+      "org/%orgId%/settings/payments"
+    )
+
+    return
+  }
 
   if (btn.tagName.toLowerCase() == "button") {
     const id = btn.dataset.id as ScreenAction
-    const item = currentData.list.items.find((i) => i.id == id)!
 
     if (currentData.list.type == "screenActions") {
       const action = id

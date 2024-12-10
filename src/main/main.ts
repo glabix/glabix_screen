@@ -70,6 +70,7 @@ import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
+let isScreenshotAllowed = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -394,11 +395,13 @@ if (!gotTheLock) {
 
 function registerShortCuts() {
   globalShortcut.register("CommandOrControl+Shift+6", () => {
-    createScreenshot()
+    if (isScreenshotAllowed) {
+      createScreenshot()
+    }
   })
 
   globalShortcut.register("CommandOrControl+Shift+5", () => {
-    if (tokenStorage && tokenStorage.dataIsActual()) {
+    if (isScreenshotAllowed) {
       modalWindow.webContents.send("dropdown:select", {
         action: "cropScreenshot",
       })
@@ -1634,7 +1637,9 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
 
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
+  isScreenshotAllowed = limits.allow_screenshots
   logSender.sendLog("api.limits.get", stringify(data))
+
   if (mainWindow) {
     mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   }
