@@ -461,11 +461,6 @@ window.electronAPI.ipcRenderer.on(
       }
     })
 
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "APIEvents.GET_ORGANIZATION_LIMITS",
-      body: JSON.stringify(screenActionsList),
-    })
-
     if (isAllowRecords === false && activePageView != "permissions") {
       setPageView("limits")
     }
