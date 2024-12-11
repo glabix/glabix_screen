@@ -18,7 +18,6 @@ export function getOrganizationLimits(
       .then((res) => {
         const data = {
           ...res.data,
-          screenshot_allowed: true,
         } as IOrganizationLimits
         ipcMain.emit(APIEvents.GET_ORGANIZATION_LIMITS, data)
         resolve(true)

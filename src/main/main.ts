@@ -1239,6 +1239,13 @@ ipcMain.on("windows:minimize", (event, data) => {
     screenshotWindow.hide()
   }
 })
+
+ipcMain.on("windows:maximize", (event, data) => {
+  if (screenshotWindow) {
+    screenshotWindow.maximize()
+  }
+})
+
 ipcMain.on("windows:close", (event, data) => {
   modalWindow.close()
   if (screenshotWindow) {
