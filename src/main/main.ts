@@ -407,7 +407,7 @@ function registerShortCuts() {
       })
       dropdownWindow.hide()
       modalWindow.hide()
-      mainWindow.show()
+      mainWindow.moveTop()
       mainWindow.focus()
     }
   })
