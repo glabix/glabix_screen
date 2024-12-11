@@ -950,6 +950,7 @@ window.addEventListener(
 
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
+const windowsMaximizeBtn = document.querySelector("#windows_maximize")!
 const windowsCloseBtn = document.querySelector("#windows_close")!
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
@@ -962,6 +963,15 @@ windowsMinimizeBtn.addEventListener(
   () => {
     if (isWindows) {
       window.electronAPI.ipcRenderer.send("windows:minimize", {})
+    }
+  },
+  false
+)
+windowsMaximizeBtn.addEventListener(
+  "click",
+  () => {
+    if (isWindows) {
+      window.electronAPI.ipcRenderer.send("windows:maximize", {})
     }
   },
   false

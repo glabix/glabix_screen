@@ -122,6 +122,9 @@ img {
 .windows-toolbar-btn.minimize:hover {
   background-color: var(--gray-200);
 }
+.windows-toolbar-btn.maximize:hover {
+  background-color: var(--gray-200);
+}
 .windows-toolbar-btn.close:hover {
   background-color: #d5322f;
   color: var(--light);
