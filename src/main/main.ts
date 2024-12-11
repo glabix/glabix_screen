@@ -402,13 +402,15 @@ function registerShortCuts() {
 
   globalShortcut.register("CommandOrControl+Shift+5", () => {
     if (isScreenshotAllowed) {
-      modalWindow.webContents.send("dropdown:select", {
+      const data = {
         action: "cropScreenshot",
-      })
-      dropdownWindow.hide()
+      }
+
       modalWindow.hide()
       mainWindow.show()
       mainWindow.focus()
+      mainWindow.webContents.send("dropdown:select.screenshot", data)
+      modalWindow.webContents.send("dropdown:select.screenshot", data)
     }
   })
 }
