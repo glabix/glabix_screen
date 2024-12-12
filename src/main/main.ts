@@ -771,6 +771,7 @@ function createLoginWindow() {
 
 function createScreenshotWindow(dataURL: string) {
   if (screenshotWindow) {
+    screenshotWindowBounds = undefined
     screenshotWindow.destroy()
   }
 
@@ -1246,9 +1247,9 @@ ipcMain.on("windows:minimize", (event, data) => {
 
 ipcMain.on("windows:maximize", (event, data) => {
   if (screenshotWindow) {
-    if (!screenshotWindow.isMaximized()) {
+    if (!screenshotWindowBounds) {
       screenshotWindowBounds = screenshotWindow.getBounds()
-      screenshotWindow.maximize()
+      screenshotWindow.setBounds(activeDisplay.workArea)
     } else if (screenshotWindowBounds) {
       screenshotWindow.setBounds(screenshotWindowBounds)
       screenshotWindowBounds = undefined
