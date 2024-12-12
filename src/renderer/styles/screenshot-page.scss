@@ -60,6 +60,7 @@ img {
   width: 100%;
   z-index: 2;
   background-color: #fff;
+  border-bottom: solid 1px var(--gray-400);
 }
 
 .page-footer {
@@ -70,6 +71,7 @@ img {
   width: 100%;
   z-index: 2;
   background-color: #fff;
+  border-top: solid 1px var(--gray-400);
 }
 
 .textarea-ghost {
