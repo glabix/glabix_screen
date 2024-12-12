@@ -396,6 +396,8 @@ if (!gotTheLock) {
 function registerShortCuts() {
   globalShortcut.register("CommandOrControl+Shift+6", () => {
     if (isScreenshotAllowed) {
+      const cursorPosition = screen.getCursorScreenPoint()
+      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
       createScreenshot()
     }
   })
@@ -406,7 +408,12 @@ function registerShortCuts() {
         action: "cropScreenshot",
       }
 
+      const cursorPosition = screen.getCursorScreenPoint()
+      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+      mainWindow.webContents.send("screen:change", activeDisplay)
+
       modalWindow.hide()
+      mainWindow.setBounds(activeDisplay.bounds)
       mainWindow.show()
       mainWindow.focus()
       mainWindow.webContents.send("dropdown:select.screenshot", data)
@@ -767,7 +774,8 @@ function createScreenshotWindow(dataURL: string) {
     screenshotWindow.destroy()
   }
 
-  const currentScreen = screen.getDisplayNearestPoint(mainWindow.getBounds())
+  const cursor = screen.getCursorScreenPoint()
+  const currentScreen = activeDisplay || screen.getDisplayNearestPoint(cursor)
   const screenBounds = currentScreen.bounds
   const screenScaleFactor = currentScreen.scaleFactor
 
@@ -844,24 +852,18 @@ function createScreenshotWindow(dataURL: string) {
       .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
       .then(() => {
         screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        screenshotWindow.setBounds(bounds)
         screenshotWindow.show()
         screenshotWindow.moveTop()
-        logSender.sendLog(
-          "screenshotWindow.show - getBounds():",
-          JSON.stringify(screenshotWindow.getBounds())
-        )
       })
   } else {
     screenshotWindow
       .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
       .then(() => {
         screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        screenshotWindow.setBounds(bounds)
         screenshotWindow.show()
         screenshotWindow.moveTop()
-        logSender.sendLog(
-          "screenshotWindow.show - getBounds():",
-          JSON.stringify(screenshotWindow.getBounds())
-        )
       })
   }
 }

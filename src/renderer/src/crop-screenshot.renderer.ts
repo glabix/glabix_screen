@@ -20,6 +20,8 @@ let startX = 0
 let startY = 0
 
 function initView() {
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)" // Черный с 50% прозрачностью
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   cropRect = { x: 0, y: 0, width: 0, height: 0 }
@@ -102,6 +104,9 @@ window.electronAPI.ipcRenderer.on(
   "dropdown:select.screenshot",
   (event, data: StreamSettings) => {
     if (data.action == "cropScreenshot") {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+      initView()
       canvasContainer.removeAttribute("hidden")
     } else {
       canvasContainer.setAttribute("hidden", "")
