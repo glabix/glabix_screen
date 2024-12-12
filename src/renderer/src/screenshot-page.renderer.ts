@@ -992,24 +992,24 @@ if (isWindows) {
   windowsToolbar.removeAttribute("hidden")
 }
 
-windowsMinimizeBtn.addEventListener(
-  "click",
-  () => {
-    if (isWindows) {
-      window.electronAPI.ipcRenderer.send("windows:minimize", {})
-    }
-  },
-  false
-)
-// windowsMaximizeBtn.addEventListener(
+// windowsMinimizeBtn.addEventListener(
 //   "click",
 //   () => {
 //     if (isWindows) {
-//       window.electronAPI.ipcRenderer.send("windows:maximize", {})
+//       window.electronAPI.ipcRenderer.send("windows:minimize", {})
 //     }
 //   },
 //   false
 // )
+windowsMaximizeBtn.addEventListener(
+  "click",
+  () => {
+    if (isWindows) {
+      window.electronAPI.ipcRenderer.send("windows:maximize", {})
+    }
+  },
+  false
+)
 windowsCloseBtn.addEventListener(
   "click",
   () => {
