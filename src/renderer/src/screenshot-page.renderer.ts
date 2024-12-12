@@ -662,6 +662,19 @@ stage.on("dblclick", (event) => {
   }
 })
 
+const clickOnShapeBtn = (type: ShapeTypes) => {
+  if (isTextareaFocused) {
+    return
+  }
+
+  const textBtn = document.querySelector(
+    `[data-shape-type="${type}"]`
+  ) as HTMLButtonElement
+  if (textBtn) {
+    textBtn.click()
+  }
+}
+
 window.addEventListener("keydown", (e: KeyboardEvent) => {
   if (e.key == "Delete" || e.key == "Backspace") {
     if (shapes.includes(clickedShapeId)) {
@@ -688,6 +701,27 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
 
   if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
     window.electronAPI.ipcRenderer.send("screenshot:copy", copyTrimStage())
+  }
+
+  switch (e.keyCode) {
+    case 84:
+      clickOnShapeBtn("text")
+      break
+    case 65:
+      clickOnShapeBtn("arrow")
+      break
+    case 76:
+      clickOnShapeBtn("line")
+      break
+    case 79:
+      clickOnShapeBtn("ellipse")
+      break
+    case 82:
+      clickOnShapeBtn("rect")
+      break
+    case 80:
+      clickOnShapeBtn("curved_line")
+      break
   }
 })
 
@@ -967,15 +1001,15 @@ windowsMinimizeBtn.addEventListener(
   },
   false
 )
-windowsMaximizeBtn.addEventListener(
-  "click",
-  () => {
-    if (isWindows) {
-      window.electronAPI.ipcRenderer.send("windows:maximize", {})
-    }
-  },
-  false
-)
+// windowsMaximizeBtn.addEventListener(
+//   "click",
+//   () => {
+//     if (isWindows) {
+//       window.electronAPI.ipcRenderer.send("windows:maximize", {})
+//     }
+//   },
+//   false
+// )
 windowsCloseBtn.addEventListener(
   "click",
   () => {

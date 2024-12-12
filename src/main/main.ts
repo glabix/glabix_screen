@@ -61,7 +61,6 @@ import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
 import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
-import { FULL_SCREENSHOT_DATA } from "@shared/helpers/mock"
 import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
@@ -70,6 +69,7 @@ import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
+let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
@@ -1246,7 +1246,13 @@ ipcMain.on("windows:minimize", (event, data) => {
 
 ipcMain.on("windows:maximize", (event, data) => {
   if (screenshotWindow) {
-    screenshotWindow.maximize()
+    if (!screenshotWindow.isMaximized()) {
+      screenshotWindowBounds = screenshotWindow.getBounds()
+      screenshotWindow.maximize()
+    } else if (screenshotWindowBounds) {
+      screenshotWindow.setBounds(screenshotWindowBounds)
+      screenshotWindowBounds = undefined
+    }
   }
 })
 
