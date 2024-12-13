@@ -983,24 +983,17 @@ window.addEventListener(
 )
 
 const windowsToolbar = document.querySelector(".windows-toolbar")!
-const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
 const windowsMaximizeBtn = document.querySelector("#windows_maximize")!
 const windowsCloseBtn = document.querySelector("#windows_close")!
+const maximizeBtns = document.querySelectorAll(
+  ".maximize-dlbclick"
+)! as NodeListOf<HTMLDivElement>
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 if (isWindows) {
   windowsToolbar.removeAttribute("hidden")
 }
 
-// windowsMinimizeBtn.addEventListener(
-//   "click",
-//   () => {
-//     if (isWindows) {
-//       window.electronAPI.ipcRenderer.send("windows:minimize", {})
-//     }
-//   },
-//   false
-// )
 windowsMaximizeBtn.addEventListener(
   "click",
   () => {
@@ -1010,6 +1003,16 @@ windowsMaximizeBtn.addEventListener(
   },
   false
 )
+maximizeBtns.forEach((btn) => {
+  btn.addEventListener(
+    "dblclick",
+    () => {
+      window.electronAPI.ipcRenderer.send("windows:maximize", {})
+    },
+    false
+  )
+})
+
 windowsCloseBtn.addEventListener(
   "click",
   () => {

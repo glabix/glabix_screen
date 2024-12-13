@@ -12,48 +12,35 @@
 
   <body>
     <div class="page-header" id="page_header">
-      <div class="flex justify-between">
-        <div></div>
-        <div class="flex">
-          <div>
-            <button class="btn invisible btn--sm btn--primary">&nbsp;</button>
-          </div>
-          <div class="windows-toolbar" hidden>
-            <!-- <button
-              type="button"
-              id="windows_minimize"
-              class="windows-toolbar-btn minimize"
-            >
-              <i class="i i-minus"></i>
-            </button> -->
-            <button
-              type="button"
-              id="windows_maximize"
-              class="windows-toolbar-btn maximize"
-            >
-              <i class="i i-square"></i>
-            </button>
-            <button
-              type="button"
-              id="windows_close"
-              class="windows-toolbar-btn close"
-            >
-              <i class="i i-close"></i>
-            </button>
-          </div>
-        </div>
+      <div class="maximize-dlbclick"></div>
+      <div class="windows-toolbar" hidden>
+        <button
+          type="button"
+          id="windows_maximize"
+          class="windows-toolbar-btn maximize"
+        >
+          <i class="i i-square"></i>
+        </button>
+        <button
+          type="button"
+          id="windows_close"
+          class="windows-toolbar-btn close"
+        >
+          <i class="i i-close"></i>
+        </button>
       </div>
     </div>
 
     <div class="page-container" id="page_container"></div>
 
     <div class="page-footer" id="page_footer">
-      <div class="flex justify-between">
+      <div class="maximize-dlbclick"></div>
+      <div class="flex relative z-100 justify-between">
         <div class="flex items-center">
-          <button class="btn btn--sm js-toggle-color">
+          <button class="btn btn--control btn--sm js-toggle-color">
             <span class="active-color pointer-events-none"></span>
           </button>
-          <button class="btn btn--sm">
+          <div class="pl-2 pt-1 pr-2 mr-3">
             <input
               class="panel-slider js-slider-width"
               type="range"
@@ -61,44 +48,44 @@
               min="1"
               max="10"
             />
-          </button>
+          </div>
           <button
-            class="btn btn--sm hover"
+            class="btn btn--control btn--sm pl-2 pr-2 mr-2 hover"
             data-shape-type="arrow"
             data-tooltip="Стрелка"
           >
             <i class="i pointer-events-none i--lg i-arrow-right-top"></i>
           </button>
           <button
-            class="btn btn--sm"
+            class="btn btn--control btn--sm pl-2 pr-2 mr-2"
             data-shape-type="text"
             data-tooltip="Текст"
           >
             <i class="i pointer-events-none i--lg i-t"></i>
           </button>
           <button
-            class="btn btn--sm"
+            class="btn btn--control btn--sm pl-2 pr-2 mr-2"
             data-shape-type="line"
             data-tooltip="Линия"
           >
             <i class="i pointer-events-none i--lg i-slash-forward"></i>
           </button>
           <button
-            class="btn btn--sm"
+            class="btn btn--control btn--sm pl-2 pr-2 mr-2"
             data-shape-type="ellipse"
             data-tooltip="Овал"
           >
             <i class="i pointer-events-none i--lg i-ellipse"></i>
           </button>
           <button
-            class="btn btn--sm"
+            class="btn btn--control btn--sm pl-2 pr-2 mr-2"
             data-shape-type="rect"
             data-tooltip="Прямоугольник"
           >
             <i class="i pointer-events-none i--lg i-rectangle-wide"></i>
           </button>
           <button
-            class="btn btn--sm"
+            class="btn btn--control btn--sm pl-2 pr-2 mr-2"
             data-shape-type="curved_line"
             data-tooltip="Карандаш"
           >
@@ -106,16 +93,19 @@
           </button>
         </div>
         <div class="flex">
-          <div>
+          <div class="mr-2">
             <button
-              class="btn btn--sm js-copy-image"
+              class="btn btn--control btn--sm pl-2 pr-2 js-copy-image"
               data-tooltip="Скопировать в буфер"
             >
               <i class="i pointer-events-none i--lg i-clone"></i>
             </button>
           </div>
-          <div>
-            <button class="btn btn--sm js-save-image" data-tooltip="Сохранить">
+          <div class="mr-2">
+            <button
+              class="btn btn--control btn--sm pl-2 pr-2 js-save-image"
+              data-tooltip="Сохранить"
+            >
               <i class="i pointer-events-none i--lg i-download"></i>
             </button>
           </div>

@@ -37,7 +37,7 @@ img {
   left: 0;
   top: 32px;
   width: 100%;
-  bottom: 32px;
+  bottom: 57px;
   z-index: 1;
   overflow: hidden;
   background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
@@ -53,14 +53,23 @@ img {
 }
 
 .page-header {
-  -webkit-app-region: drag;
+  // -webkit-app-region: drag;
   position: absolute;
   left: 0;
   top: 0;
   width: 100%;
   z-index: 2;
   background-color: #fff;
-  border-bottom: solid 1px var(--gray-400);
+  border-bottom: solid 1px var(--gray-300);
+  min-height: 32px;
+}
+
+.maximize-dlbclick {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  top: 0;
 }
 
 .page-footer {
@@ -71,7 +80,20 @@ img {
   width: 100%;
   z-index: 2;
   background-color: #fff;
-  border-top: solid 1px var(--gray-400);
+  border-top: solid 1px var(--gray-300);
+  min-height: 32px;
+  padding: 12px;
+}
+
+.page-footer .btn--control {
+  background-color: transparent;
+  border-color: transparent;
+  outline: none;
+}
+
+.page-footer .btn--control.hover {
+  background-color: #4ea3f1;
+  color: #fff;
 }
 
 .textarea-ghost {
@@ -110,6 +132,9 @@ img {
 
 .windows-toolbar {
   padding-left: 40px;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 .windows-toolbar-btn {
   width: 33px;
