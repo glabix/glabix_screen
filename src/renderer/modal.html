@@ -50,6 +50,35 @@
       </button>
     </div>
 
+    <div class="no-microphone-content" hidden>
+      <div class="mb-6 pt-0 flex justify-center">
+        <img src="assets/no-microphone.svg" alt="no-microphone" />
+      </div>
+      <div class="text-center font-weight-600 mb-5 text-lg">
+        Ваш микрофон выключен
+      </div>
+      <div class="mb-6 text-center">
+        Чтобы в вашем видео был звук, вам нужно включить звук микрофона.
+      </div>
+      <div class="flex justify-between">
+        <div>
+          <button type="button" class="btn btn--sm btn--primary" id="unmuteBtn">
+            Включить звук
+          </button>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            class="btn btn--sm btn--default"
+            id="continueWithoutMicBtn"
+          >
+            Начать запись
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="permissions-content" hidden>
       <div class="mb-4 flex justify-center">
         <svg

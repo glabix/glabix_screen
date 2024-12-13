@@ -14,7 +14,7 @@ import {
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
-type PageViewType = "modal" | "permissions" | "limits"
+type PageViewType = "modal" | "permissions" | "limits" | "no-microphone"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
@@ -24,6 +24,7 @@ let openedDropdownType: DropdownListType | undefined = undefined
 const modalContent = document.querySelector(".modal-content")!
 const permissionsContent = document.querySelector(".permissions-content")!
 const limitsContent = document.querySelector(".limits-content")!
+const noMicrophoneContent = document.querySelector(".no-microphone-content")!
 
 const audioDeviceContainer = document.querySelector("#audio_device_container")!
 const videoDeviceContainer = document.querySelector("#video_device_container")!
@@ -271,7 +272,12 @@ function sendSettings() {
 }
 
 function setPageView(view: PageViewType) {
-  const sections = [modalContent, permissionsContent, limitsContent]
+  const sections = [
+    modalContent,
+    permissionsContent,
+    limitsContent,
+    noMicrophoneContent,
+  ]
   const footer = document.querySelector("#footer")!
   sections.forEach((s) => s.setAttribute("hidden", ""))
   footer.removeAttribute("hidden")
@@ -291,6 +297,9 @@ function setPageView(view: PageViewType) {
       break
     case "limits":
       limitsContent.removeAttribute("hidden")
+      break
+    case "no-microphone":
+      noMicrophoneContent.removeAttribute("hidden")
       break
   }
 }
@@ -342,7 +351,9 @@ window.electronAPI.ipcRenderer.on(
           width: 300,
           height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
         })
-        setPageView("modal")
+
+        // setPageView("modal")
+        setPageView("no-microphone")
       }
     })
   }
