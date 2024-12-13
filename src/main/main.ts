@@ -817,10 +817,12 @@ function createScreenshotWindow(dataURL: string) {
     height = imageScaleHeight
   }
 
+  const spacing = 32 + 57
   const mainWindowBounds = screenBounds
   const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
-  const y = mainWindowBounds.y + (mainWindowBounds.height - height - 64) / 2
-  const bounds: Electron.Rectangle = { x, y, width, height: height + 64 }
+  const y =
+    mainWindowBounds.y + (mainWindowBounds.height - height - spacing) / 2
+  const bounds: Electron.Rectangle = { x, y, width, height: height + spacing }
 
   hideWindows()
 
