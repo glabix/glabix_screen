@@ -128,3 +128,10 @@ window.electronAPI.ipcRenderer.on(
     initView()
   }
 )
+
+window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key == "Escape") {
+    canvasContainer.setAttribute("hidden", "")
+    initView()
+  }
+})
