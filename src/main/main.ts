@@ -618,7 +618,7 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    resizable: false,
+    // resizable: false,
     width: 300,
     height:
       os.platform() == "win32" ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
