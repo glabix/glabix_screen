@@ -180,7 +180,9 @@ function init(url: string) {
         },
         organization_id: +organization_id,
       }
-      showWindows()
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
@@ -261,20 +263,20 @@ if (!gotTheLock) {
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
     // )
+    createWindow()
+
     try {
       logSender.sendLog("user.read_auth_data")
       tokenStorage.readAuthData()
       logSender.sendLog("app.started")
       createMenu()
 
-      setTimeout(() => {
+      checkOrganizationLimits().then(() => {
         showWindows()
       })
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
-
-    createWindow()
 
     chunkStorage.initStorages().then(() => {
       checkUnprocessedChunks(true)
