@@ -24,7 +24,7 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
 import { createFileUploadCommand } from "./commands/create-file-upload.command"
-import { ChunkSlicer } from "./file-uploader/chunk-slicer"
+import { ChunkSlicer } from "./chunk/chunk-slicer"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -41,8 +41,8 @@ import {
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
-import { ChunkStorageService } from "./file-uploader/chunk-storage.service"
-import { Chunk } from "./file-uploader/chunk"
+import { ChunkStorageService } from "./chunk/chunk-storage.service"
+import { Chunk } from "./chunk/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
 import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
@@ -1340,7 +1340,7 @@ ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
     })
     .catch((e) => {
       logSender.sendLog(
-        "record.raw_file.save.error",
+        "record.raw_file.full.await.error",
         stringify({ err: e }),
         true
       )
@@ -1492,8 +1492,9 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
         )
       })
   }
-
-  lastCreatedFileName = null
+  if (lastCreatedFileName === rawFileName) {
+    lastCreatedFileName = null
+  }
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
