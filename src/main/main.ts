@@ -14,6 +14,8 @@ import {
   Tray,
   dialog,
   Notification,
+  Rectangle,
+  clipboard,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -22,7 +24,7 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
 import { createFileUploadCommand } from "./commands/create-file-upload.command"
-import { ChunkSlicer } from "./file-uploader/chunk-slicer"
+import { ChunkSlicer } from "./chunk/chunk-slicer"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -35,13 +37,14 @@ import {
   MediaDeviceType,
   SimpleStoreEvents,
   ModalWindowHeight,
+  IScreenshotImageData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
-import { ChunkStorageService } from "./file-uploader/chunk-storage.service"
-import { Chunk } from "./file-uploader/chunk"
+import { ChunkStorageService } from "./chunk/chunk-storage.service"
+import { Chunk } from "./chunk/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
-import { getTitle } from "./helpers/get-title"
+import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
 import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "@shared/events/api.events"
@@ -56,13 +59,18 @@ import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
+import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
 import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
+import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
+let screenshotWindow: BrowserWindow
+let screenshotWindowBounds: Rectangle | undefined = undefined
+let isScreenshotAllowed = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -172,7 +180,9 @@ function init(url: string) {
         },
         organization_id: +organization_id,
       }
-      loginWindow.show()
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
       ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, authData)
     }
   } catch (e) {
@@ -253,15 +263,20 @@ if (!gotTheLock) {
     //   "get-screen-resolution",
     //   () => screen.getPrimaryDisplay().workAreaSize
     // )
+    createWindow()
+
     try {
       logSender.sendLog("user.read_auth_data")
       tokenStorage.readAuthData()
       logSender.sendLog("user.read_auth_data.success")
       createMenu()
+
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
-    createWindow()
 
     chunkStorage.initStorages().then(() => {
       checkUnprocessedChunks(true)
@@ -376,25 +391,46 @@ if (!gotTheLock) {
       }
     )
 
-    // session.defaultSession.setPermissionCheckHandler((webContents, permission, origin, details) => {
-    //   // console.log('setPermissionCheckHandler>>>>>>>>>>', 'permission', permission, 'details', details, 'origin', origin)
-    //   if (permission === 'media') {
-    //     return false
-    //   }
-
-    //   return true
-    // })
+    registerShortCuts()
   })
 }
 
 function registerShortCuts() {
+  globalShortcut.register("CommandOrControl+Shift+6", () => {
+    if (isScreenshotAllowed) {
+      const cursorPosition = screen.getCursorScreenPoint()
+      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+      createScreenshot()
+    }
+  })
+
+  globalShortcut.register("CommandOrControl+Shift+5", () => {
+    if (isScreenshotAllowed) {
+      const data = {
+        action: "cropScreenshot",
+      }
+
+      const cursorPosition = screen.getCursorScreenPoint()
+      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+      mainWindow.webContents.send("screen:change", activeDisplay)
+
+      modalWindow.hide()
+      mainWindow.setBounds(activeDisplay.bounds)
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.webContents.send("dropdown:select.screenshot", data)
+      modalWindow.webContents.send("dropdown:select.screenshot", data)
+    }
+  })
+}
+function registerShortCutsOnShow() {
   globalShortcut.register("Command+H", () => {
     hideWindows()
   })
 }
 
-function unregisterShortCuts() {
-  globalShortcut.unregisterAll()
+function unregisterShortCutsOnHide() {
+  globalShortcut.unregister("Command+H")
 }
 
 function watchMediaDevicesAccessChange() {
@@ -544,6 +580,7 @@ function createWindow() {
     },
   })
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
+  activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
 
   if (os.platform() == "darwin") {
     mainWindow.setWindowButtonVisibility(false)
@@ -569,9 +606,13 @@ function createWindow() {
   mainWindow.on("close", () => {
     app.quit()
   })
+
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
+
+  // SCREENSHOT
+  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -579,7 +620,7 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    resizable: false,
+    // resizable: false,
     width: 300,
     height:
       os.platform() == "win32" ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
@@ -691,7 +732,7 @@ function createDropdownWindow(parentWindow) {
     const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
-      mainWindow.webContents.send("screen:change", {})
+      mainWindow.webContents.send("screen:change", currentScreen)
     }
 
     activeDisplay = currentScreen
@@ -728,21 +769,113 @@ function createLoginWindow() {
         loginWindow.webContents.send("app:version", app.getVersion())
       })
   }
+}
 
-  loginWindow.once("ready-to-show", () => {
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
+function createScreenshotWindow(dataURL: string) {
+  if (screenshotWindow) {
+    screenshotWindowBounds = undefined
+    screenshotWindow.destroy()
+  }
+
+  const cursor = screen.getCursorScreenPoint()
+  const currentScreen = activeDisplay || screen.getDisplayNearestPoint(cursor)
+  const screenBounds = currentScreen.bounds
+  const screenScaleFactor = currentScreen.scaleFactor
+
+  const imageSize = nativeImage
+    .createFromDataURL(dataURL)
+    .getSize(screenScaleFactor)
+  const minWidth = 750
+  const minHeight = 400
+  const maxWidth = 0.8 * screenBounds.width
+  const maxHeight = 0.8 * screenBounds.height
+  const imageWidth = imageSize.width
+  const imageHeight = imageSize.height
+  const imageScaleWidth = Math.ceil(imageWidth / screenScaleFactor)
+  const imageScaleHeight = Math.ceil(imageHeight / screenScaleFactor)
+  const imageData: IScreenshotImageData = {
+    scale: screenScaleFactor,
+    width: imageWidth,
+    height: imageHeight,
+    url: dataURL,
+  }
+
+  let width = minWidth
+  let height = minHeight
+
+  if (imageScaleWidth > maxWidth) {
+    width = maxWidth
+  }
+
+  if (imageScaleWidth < maxWidth && imageScaleWidth > minWidth) {
+    width = imageScaleWidth
+  }
+
+  if (imageScaleHeight > maxHeight) {
+    height = maxHeight
+  }
+
+  if (imageScaleHeight < maxHeight && imageScaleHeight > minHeight) {
+    height = imageScaleHeight
+  }
+
+  const spacing = 32 + 57
+  const mainWindowBounds = screenBounds
+  const x = mainWindowBounds.x + (mainWindowBounds.width - width) / 2
+  const y =
+    mainWindowBounds.y + (mainWindowBounds.height - height - spacing) / 2
+  const bounds: Electron.Rectangle = { x, y, width, height: height + spacing }
+
+  hideWindows()
+
+  screenshotWindow = new BrowserWindow({
+    titleBarStyle: "hidden",
+    fullscreenable: false,
+    maximizable: false,
+    // resizable: false,
+    minimizable: false,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: minWidth,
+    minHeight: minHeight,
+    x: bounds.x,
+    y: bounds.y,
+    show: false,
+    // frame: false,
+    roundedCorners: true,
+    webPreferences: {
+      preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
+      nodeIntegration: true, // повышаем безопасность
+      zoomFactor: 1.0,
+      devTools: !app.isPackaged,
+      // contextIsolation: true,  // повышаем безопасность
+    },
   })
 
-  loginWindow.on("close", (event) => {
-    app.quit()
-  })
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    screenshotWindow
+      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
+      .then(() => {
+        screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        screenshotWindow.setBounds(bounds)
+        screenshotWindow.show()
+        screenshotWindow.moveTop()
+      })
+  } else {
+    screenshotWindow
+      .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
+      .then(() => {
+        screenshotWindow.webContents.send("screenshot:getImage", imageData)
+        screenshotWindow.setBounds(bounds)
+        screenshotWindow.show()
+        screenshotWindow.moveTop()
+      })
+  }
 }
 
 function showWindows() {
   logSender.sendLog("app.activated")
-  registerShortCuts()
+  registerShortCutsOnShow()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
@@ -757,7 +890,7 @@ function showWindows() {
 
 function hideWindows() {
   logSender.sendLog("app.disactivated")
-  unregisterShortCuts()
+  unregisterShortCutsOnHide()
   if (tokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
     if (modalWindow) modalWindow.hide()
@@ -886,6 +1019,13 @@ function logOut() {
   modalWindow.hide()
   loginWindow.show()
 }
+function createScreenshot(crop?: Rectangle) {
+  getScreenshot(activeDisplay, crop)
+    .then((dataUrl) => {
+      createScreenshotWindow(dataUrl)
+    })
+    .catch((e) => {})
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -908,7 +1048,7 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   logSender.sendLog("app.exited")
   clearAllIntervals()
-  unregisterShortCuts()
+  globalShortcut.unregisterAll()
   isAppQuitting = true
 })
 
@@ -981,9 +1121,22 @@ ipcMain.on("dropdown:close", (event, data) => {
   dropdownWindow.hide()
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
-  modalWindow.webContents.send("dropdown:select", data)
-
   dropdownWindow.hide()
+
+  // Screenshot actions
+  if (data.action == "cropScreenshot") {
+    modalWindow.hide()
+    mainWindow.focus()
+    mainWindow.webContents.send("dropdown:select.screenshot", data)
+    modalWindow.webContents.send("dropdown:select.screenshot", data)
+  } else if (data.action == "fullScreenshot") {
+    hideWindows()
+    createScreenshot()
+    mainWindow.webContents.send("dropdown:select.screenshot", data)
+    modalWindow.webContents.send("dropdown:select.screenshot", data)
+  } else {
+    modalWindow.webContents.send("dropdown:select.video", data)
+  }
 })
 
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
@@ -1027,6 +1180,36 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 })
 
+ipcMain.on("screenshot:copy", (event, imgDataUrl: string) => {
+  const image = nativeImage.createFromDataURL(imgDataUrl)
+  clipboard.writeImage(image)
+})
+ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
+  createScreenshot(crop)
+})
+ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
+  const file = dataURLToFile(data.dataURL, data.fileName)
+  uploadScreenshotCommand(
+    tokenStorage.token!.access_token,
+    tokenStorage.organizationId!,
+    data.fileName,
+    data.fileSize,
+    getVersion(),
+    data.title,
+    file
+  ).then((uuid) => {
+    if (uuid) {
+      const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/screenshot/${uuid}`
+      logSender.sendLog("openExternalLink", publicPage)
+      openExternalLink(publicPage)
+
+      if (screenshotWindow) {
+        screenshotWindow.destroy()
+      }
+    }
+  })
+})
+
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     lastCreatedFileName = Date.now() + ""
@@ -1039,7 +1222,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, isLast } = res
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
   unprocessedFilesService
-    .saveFileWithStreams(blob, lastCreatedFileName, isLast)
+    .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
     .then((rawFileName) => {
       logSender.sendLog("record.raw_file_chunk.save.success")
     })
@@ -1061,9 +1244,28 @@ ipcMain.on("stop-recording", (event, data) => {
 })
 ipcMain.on("windows:minimize", (event, data) => {
   modalWindow.close()
+  if (screenshotWindow) {
+    screenshotWindow.hide()
+  }
 })
+
+ipcMain.on("windows:maximize", (event, data) => {
+  if (screenshotWindow) {
+    if (!screenshotWindowBounds) {
+      screenshotWindowBounds = screenshotWindow.getBounds()
+      screenshotWindow.setBounds(activeDisplay.workArea)
+    } else if (screenshotWindowBounds) {
+      screenshotWindow.setBounds(screenshotWindowBounds)
+      screenshotWindowBounds = undefined
+    }
+  }
+})
+
 ipcMain.on("windows:close", (event, data) => {
   modalWindow.close()
+  if (screenshotWindow) {
+    screenshotWindow.hide()
+  }
 })
 
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
@@ -1131,14 +1333,14 @@ ipcMain.on(RecordEvents.ERROR, (event, file) => {
 
 ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
   unprocessedFilesService
-    .awaitWriteFile(lastCreatedFileName)
+    .awaitWriteFile(lastCreatedFileName!)
     .then((rawFileName) => {
       logSender.sendLog("record.raw_file.full.save.success")
       ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
     })
     .catch((e) => {
       logSender.sendLog(
-        "record.raw_file.save.error",
+        "record.raw_file.full.await.error",
         stringify({ err: e }),
         true
       )
@@ -1290,8 +1492,9 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
         )
       })
   }
-
-  lastCreatedFileName = null
+  if (lastCreatedFileName === rawFileName) {
+    lastCreatedFileName = null
+  }
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
@@ -1454,9 +1657,12 @@ ipcMain.on(LoginEvents.LOGOUT, (event) => {
   logSender.sendLog("sessions.deleted")
   contextMenu.getMenuItemById("menuLogOutItem")!.visible = false
 })
+
 ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   const limits = data as IOrganizationLimits
+  isScreenshotAllowed = limits.allow_screenshots
   logSender.sendLog("api.limits.get", stringify(data))
+
   if (mainWindow) {
     mainWindow.webContents.send(APIEvents.GET_ORGANIZATION_LIMITS, limits)
   }

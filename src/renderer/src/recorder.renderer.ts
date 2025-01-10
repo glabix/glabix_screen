@@ -19,6 +19,7 @@ const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
 )!
+// const canvasContainer = document.querySelector(".crop-screenshot-container")! as HTMLDivElement
 const countdown = document.querySelector("#fullscreen_countdown")!
 let startTimer: NodeJS.Timeout
 const timerDisplay = document.getElementById(
@@ -282,10 +283,6 @@ const createVideo = (_stream, _canvas, _video) => {
 
   if (_video) {
     _video.srcObject = new MediaStream([..._stream.getVideoTracks()])
-
-    if (_stream.getVideoTracks()[0]) {
-      const stream_settings = _stream.getVideoTracks()[0].getSettings()
-    }
   }
 
   if (_canvas) {
@@ -700,10 +697,21 @@ function initRecord(data: StreamSettings) {
 }
 
 window.electronAPI.ipcRenderer.on(
-  "record-settings-change",
+  "dropdown:select.screenshot",
   (event, data: StreamSettings) => {
-    lastStreamSettings = data
-    initRecord(data)
+    const settings: StreamSettings = lastStreamSettings
+      ? { ...lastStreamSettings, action: "fullScreenVideo" }
+      : { action: "fullScreenVideo" }
+    initRecord(settings)
+    lastStreamSettings = settings
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  "record-settings-change",
+  (event, settings: StreamSettings) => {
+    lastStreamSettings = settings
+    initRecord(lastStreamSettings)
   }
 )
 
@@ -834,7 +842,7 @@ window.electronAPI.ipcRenderer.on("screen:change", (event) => {
 })
 
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
-  videoRecorder.requestData()
+  videoRecorder?.requestData()
 })
 
 window.addEventListener("error", (event) => {

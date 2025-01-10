@@ -3,6 +3,7 @@ import { ipcMain } from "electron"
 import { APIEvents } from "@shared/events/api.events"
 import { stringify } from "@main/helpers/stringify"
 import { LogSender } from "@main/helpers/log-sender"
+import { IOrganizationLimits } from "@shared/types/types"
 
 const logSender = new LogSender()
 
@@ -15,7 +16,10 @@ export function getOrganizationLimits(
     axios
       .get(url, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => {
-        ipcMain.emit(APIEvents.GET_ORGANIZATION_LIMITS, res.data)
+        const data = {
+          ...res.data,
+        } as IOrganizationLimits
+        ipcMain.emit(APIEvents.GET_ORGANIZATION_LIMITS, data)
         resolve(true)
       })
       .catch((e) => {

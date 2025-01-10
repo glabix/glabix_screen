@@ -104,8 +104,29 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-.i-grip-horizontal:before {
+.i-droplet:before {
+  content: "\ea4e";
+}
+.i-rectangle-wide:before {
+  content: "\ea4f";
+}
+.i-ellipse:before {
+  content: "\ea50";
+}
+.i-arrow-right-top:before {
+  content: "\ea51";
+}
+.i-slash-forward:before {
+  content: "\ea52";
+}
+.i-windows:before {
+  content: "\ea4d";
+}
+.i-expand-dot:before {
   content: "\ea4b";
+}
+.i-appstore:before {
+  content: "\ea4c";
 }
 .i-expand:before {
   content: "\ea4a";

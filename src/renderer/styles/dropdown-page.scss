@@ -1,6 +1,7 @@
 @import "styles.scss";
 @import "_forms.scss";
 @import "_buttons.scss";
+@import "_components.scss";
 
 *,
 *::after,
@@ -19,4 +20,11 @@ body {
   font-size: 14px;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+.hover-wrapper .hover-target {
+  opacity: 0;
+}
+.hover-wrapper:hover .hover-target {
+  opacity: 1;
 }

@@ -14,18 +14,21 @@ import {
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
-type PageViewType = "modal" | "permissions" | "limits"
+type PageViewType = "modal" | "permissions" | "limits" | "no-microphone"
 
+const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
+let isAllowScreenshots: boolean | undefined = undefined
 let activePageView: PageViewType
 let openedDropdownType: DropdownListType | undefined = undefined
 const modalContent = document.querySelector(".modal-content")!
 const permissionsContent = document.querySelector(".permissions-content")!
 const limitsContent = document.querySelector(".limits-content")!
+const noMicrophoneContent = document.querySelector(".no-microphone-content")!
 
 const audioDeviceContainer = document.querySelector("#audio_device_container")!
 const videoDeviceContainer = document.querySelector("#video_device_container")!
-const screenActionsList: IDropdownItem[] = [
+let screenActionsList: IDropdownItem[] = [
   {
     id: "fullScreenVideo",
     label: "Запись всего экрана",
@@ -48,6 +51,34 @@ const screenActionsList: IDropdownItem[] = [
     isSelected: false,
     extraData: {
       icon: "i-video",
+    },
+  },
+  {
+    id: "mode",
+    label: "Ещё",
+    isSelected: false,
+    extraData: {
+      btnClass: "dropdown-item-title",
+    },
+  },
+  {
+    id: "fullScreenshot",
+    label: "Снимок всего экрана",
+    isSelected: false,
+    extraData: {
+      isAllowed: true,
+      icon: "i-display",
+      smallText: isWindows ? "ctrl+shift+6" : "cmd+shift+6",
+    },
+  },
+  {
+    id: "cropScreenshot",
+    label: "Снимок области",
+    isSelected: false,
+    extraData: {
+      isAllowed: false,
+      icon: "i-expand-wide",
+      smallText: isWindows ? "ctrl+shift+5" : "cmd+shift+5",
     },
   },
 ]
@@ -131,7 +162,7 @@ function renderScreenSettings(item: IDropdownItem) {
   text.textContent = item.label
 
   if (item.extraData && item.extraData.icon) {
-    if (["i-display", "i-expand-wide"].includes(item.extraData.icon)) {
+    if (["fullScreenVideo", "cropVideo"].includes(item.id)) {
       const i = document.createElement("div")
       i.classList.add("icon-dot", "i-br")
       icon.appendChild(i)
@@ -166,18 +197,20 @@ function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
   const iconClass =
     device.kind == "videoinput"
       ? device.deviceId == "no-camera"
-        ? "i-video-slash"
-        : "i-video"
+        ? ["i-video-slash", "text-error"]
+        : ["i-video"]
       : device.deviceId == "no-microphone"
-        ? "i-microphone-slash"
-        : "i-microphone"
+        ? ["i-microphone-slash", "text-error"]
+        : ["i-microphone"]
 
   btn.classList.add(btnClass)
   text.textContent = device.label
   checkbox.name =
     device.kind == "videoinput" ? "isVideoEnabled" : "isAudioEnabled"
   checkbox.checked = !["no-camera", "no-microphone"].includes(device.deviceId)
-  icon.classList.add(iconClass)
+  iconClass.forEach((iClass) => {
+    icon.classList.add(iClass)
+  })
 
   return clone
 }
@@ -241,7 +274,12 @@ function sendSettings() {
 }
 
 function setPageView(view: PageViewType) {
-  const sections = [modalContent, permissionsContent, limitsContent]
+  const sections = [
+    modalContent,
+    permissionsContent,
+    limitsContent,
+    noMicrophoneContent,
+  ]
   const footer = document.querySelector("#footer")!
   sections.forEach((s) => s.setAttribute("hidden", ""))
   footer.removeAttribute("hidden")
@@ -261,6 +299,9 @@ function setPageView(view: PageViewType) {
       break
     case "limits":
       limitsContent.removeAttribute("hidden")
+      break
+    case "no-microphone":
+      noMicrophoneContent.removeAttribute("hidden")
       break
   }
 }
@@ -312,16 +353,22 @@ window.electronAPI.ipcRenderer.on(
           width: 300,
           height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
         })
+
         setPageView("modal")
+        // setPageView("no-microphone")
       }
     })
   }
 )
 
 window.electronAPI.ipcRenderer.on(
-  "dropdown:select",
+  "dropdown:select.video",
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
+
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "dropdown:select",
+    })
 
     if (data.action && data.action != activeScreenAction) {
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -329,9 +376,11 @@ window.electronAPI.ipcRenderer.on(
         body: data.action,
       })
 
-      activeScreenAction = data.action
-      activeScreenActionItem = data.item
-      renderScreenSettings(data.item)
+      if (!["fullScreenshot", "cropScreenshot"].includes(data.action)) {
+        activeScreenAction = data.action
+        activeScreenActionItem = data.item
+        renderScreenSettings(data.item)
+      }
     }
 
     if (data.audioDeviceId) {
@@ -375,6 +424,20 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
+window.electronAPI.ipcRenderer.on(
+  "dropdown:select.screenshot",
+  (event, data: IDropdownPageSelectData) => {
+    activeScreenActionItem = screenActionsList[0]!
+    streamSettings = {
+      ...streamSettings,
+      action: "fullScreenVideo",
+      ...activeScreenActionItem,
+    }
+    renderScreenSettings(activeScreenActionItem)
+    sendSettings()
+  }
+)
+
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
   openedDropdownType = undefined
   isAllowRecords = undefined
@@ -396,6 +459,21 @@ window.electronAPI.ipcRenderer.on(
   APIEvents.GET_ORGANIZATION_LIMITS,
   (event, limits: IOrganizationLimits) => {
     isAllowRecords = limits.upload_allowed
+    isAllowScreenshots = limits.allow_screenshots
+
+    screenActionsList = screenActionsList.map((item) => {
+      const notAllowed =
+        ["fullScreenshot", "cropScreenshot"].includes(item.id) &&
+        !isAllowScreenshots
+      return {
+        ...item,
+        extraData: {
+          ...item.extraData,
+          isAllowed: !notAllowed,
+        },
+      }
+    })
+
     if (isAllowRecords === false && activePageView != "permissions") {
       setPageView("limits")
     }
@@ -406,7 +484,6 @@ const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
 const windowsCloseBtn = document.querySelector("#windows_close")!
-const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const systemAudioEl = document.querySelector(".system-audio-container")!
 
 if (isWindows) {
@@ -598,30 +675,72 @@ systemAudioCheckbox.addEventListener(
   },
   false
 )
+
+function start() {
+  if (streamSettings.action == "fullScreenVideo") {
+    sendSettings()
+  }
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "recording.started",
+    body: JSON.stringify({
+      microphoneId: streamSettings.audioDeviceId,
+      webcamId: streamSettings.cameraDeviceId,
+      webcam:
+        videoDevicesList.find(
+          (a) => a.deviceId === streamSettings.cameraDeviceId
+        )?.label || "",
+      microphone:
+        audioDevicesList.find(
+          (a) => a.deviceId === streamSettings.audioDeviceId
+        )?.label || "",
+      mode: streamSettings.action,
+    }),
+  })
+  window.electronAPI.ipcRenderer.send(RecordEvents.START, streamSettings)
+}
+
+const continueWithoutMicBtn = document.querySelector("#continueWithoutMicBtn")!
+continueWithoutMicBtn.addEventListener(
+  "click",
+  () => {
+    start()
+  },
+  false
+)
+
+const unmuteBtn = document.querySelector("#unmuteBtn")!
+unmuteBtn.addEventListener(
+  "click",
+  () => {
+    const items = getDropdownItems("audioDevices")
+    const item = items.find((i) => i.label.includes("Default"))
+
+    if (item) {
+      const data: IDropdownPageSelectData = { item, audioDeviceId: item.id }
+      window.electronAPI.ipcRenderer.send("dropdown:select", data)
+      setPageView("modal")
+    } else {
+      setPageView("modal")
+    }
+  },
+  false
+)
+
 const startBtn = document.querySelector("#startBtn")!
 startBtn.addEventListener(
   "click",
   () => {
-    if (streamSettings.action == "fullScreenVideo") {
-      sendSettings()
+    if (
+      hasMicrophone &&
+      (streamSettings.audioDeviceId == noAudioDevice.deviceId ||
+        !streamSettings.audioDeviceId)
+    ) {
+      setPageView("no-microphone")
+      return
     }
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "recording.started",
-      body: JSON.stringify({
-        microphoneId: streamSettings.audioDeviceId,
-        webcamId: streamSettings.cameraDeviceId,
-        webcam:
-          videoDevicesList.find(
-            (a) => a.deviceId === streamSettings.cameraDeviceId
-          )?.label || "",
-        microphone:
-          audioDevicesList.find(
-            (a) => a.deviceId === streamSettings.audioDeviceId
-          )?.label || "",
-        mode: streamSettings.action,
-      }),
-    })
-    window.electronAPI.ipcRenderer.send(RecordEvents.START, streamSettings)
+
+    start()
   },
   false
 )
