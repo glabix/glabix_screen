@@ -15,7 +15,12 @@ import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
 type PageViewType = "modal" | "permissions" | "limits" | "no-microphone"
+interface IDeviceIds {
+  videoId?: string
+  audioId?: string
+}
 
+const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
 let isAllowScreenshots: boolean | undefined = undefined
@@ -87,6 +92,7 @@ let audioDevicesList: MediaDeviceInfo[] = []
 let activeAudioDevice: MediaDeviceInfo
 let hasCamera = false
 let hasMicrophone = false
+let lastDeviceIds: IDeviceIds = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
   label: "Без камеры",
@@ -120,16 +126,80 @@ recorderLogos.forEach((logo) => {
   }
 })
 
+function getLastMediaDevices(): IDeviceIds {
+  const lastDeviceIdsStr = localStorage.getItem(LAST_DEVICE_IDS)
+  const lastDeviceIds: IDeviceIds = lastDeviceIdsStr
+    ? JSON.parse(lastDeviceIdsStr)
+    : {}
+  return lastDeviceIds
+}
+
+function setLastMediaDevices(
+  lastAudioDeviceId?: string,
+  lastVideoDeviceId?: string
+) {
+  if (lastAudioDeviceId) {
+    lastDeviceIds = { ...lastDeviceIds, audioId: lastAudioDeviceId }
+  }
+
+  if (lastVideoDeviceId) {
+    lastDeviceIds = { ...lastDeviceIds, videoId: lastVideoDeviceId }
+  }
+
+  localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
+}
+
 async function setupMediaDevices() {
+  lastDeviceIds = getLastMediaDevices()
   const devices = await navigator.mediaDevices.enumerateDevices()
   hasMicrophone = devices.some((d) => d.kind == "audioinput")
   hasCamera = devices.some((d) => d.kind == "videoinput")
   audioDevicesList = devices.filter((d) => d.kind == "audioinput")
   audioDevicesList = [noAudioDevice, ...audioDevicesList]
-  activeAudioDevice = audioDevicesList[0]!
+
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
-  activeVideoDevice = videoDevicesList[0]!
+
+  if (hasMicrophone) {
+    const lastAudioDevice = audioDevicesList.find(
+      (d) => d.deviceId == lastDeviceIds.audioId
+    )
+    if (lastAudioDevice) {
+      activeAudioDevice = lastAudioDevice
+    } else {
+      const defaultAudioDevice = audioDevicesList.find((d) =>
+        d.label.includes("Default")
+      )
+      activeAudioDevice = defaultAudioDevice || audioDevicesList[1]!
+    }
+    streamSettings = {
+      ...streamSettings,
+      audioDeviceId: activeAudioDevice.deviceId,
+    }
+  } else {
+    activeAudioDevice = audioDevicesList[0]!
+  }
+
+  if (hasCamera) {
+    const lastVideoDevice = videoDevicesList.find(
+      (d) => d.deviceId == lastDeviceIds.videoId
+    )
+    if (lastVideoDevice) {
+      activeVideoDevice = lastVideoDevice
+    } else {
+      const defaultVideoDevice = videoDevicesList.find((d) =>
+        d.label.includes("Default")
+      )
+      activeVideoDevice = defaultVideoDevice || videoDevicesList[1]!
+    }
+    streamSettings = {
+      ...streamSettings,
+      cameraDeviceId: activeVideoDevice.deviceId,
+    }
+    sendSettings()
+  } else {
+    activeVideoDevice = videoDevicesList[0]!
+  }
 }
 
 setupMediaDevices()
@@ -365,6 +435,11 @@ window.electronAPI.ipcRenderer.on(
   "dropdown:select.video",
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
+
+    setLastMediaDevices(
+      streamSettings.audioDeviceId,
+      streamSettings.cameraDeviceId
+    )
 
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "dropdown:select",
