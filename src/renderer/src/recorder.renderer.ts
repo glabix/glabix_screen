@@ -43,6 +43,7 @@ let lastStreamSettings: StreamSettings | undefined
 let desktopStream: MediaStream = new MediaStream()
 let voiceStream: MediaStream = new MediaStream()
 let requestId = 0
+let isRecording = false
 
 function debounce(func, wait) {
   let timeoutId
@@ -699,6 +700,10 @@ function initRecord(data: StreamSettings) {
 window.electronAPI.ipcRenderer.on(
   "dropdown:select.screenshot",
   (event, data: StreamSettings) => {
+    if (isRecording) {
+      return
+    }
+
     const settings: StreamSettings = lastStreamSettings
       ? { ...lastStreamSettings, action: "fullScreenVideo" }
       : { action: "fullScreenVideo" }
@@ -790,10 +795,12 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  isRecording = state["recordingState"] == "recording"
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "simpleStore.recordingState",
     body: JSON.stringify({ state: state["recordingState"] }),
   })
+
   if (["recording", "paused"].includes(state["recordingState"])) {
     document.body.classList.add("body--is-recording")
     stopBtn.classList.add("panel-btn--stop")

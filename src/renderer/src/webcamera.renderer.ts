@@ -153,6 +153,10 @@ window.electronAPI.ipcRenderer.on("stop-recording", () => {
 })
 
 window.electronAPI.ipcRenderer.on("dropdown:select.screenshot", () => {
+  if (isRecording) {
+    return
+  }
+
   isScreenshotMode = true
 })
 

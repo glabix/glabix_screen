@@ -11,6 +11,7 @@ import {
   StreamSettings,
   ModalWindowHeight,
   IAvatarData,
+  SimpleStoreEvents,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -45,6 +46,8 @@ const videoDeviceContainer = document.querySelector("#video_device_container")!
 const organizationContainer = document.querySelector(
   "#organizations_container"
 )!
+
+let isRecording = false
 
 let screenActionsList: IDropdownItem[] = [
   {
@@ -567,6 +570,10 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on(
   "dropdown:select.screenshot",
   (event, data: IDropdownPageSelectData) => {
+    if (isRecording) {
+      return
+    }
+
     activeScreenActionItem = screenActionsList[0]!
     streamSettings = {
       ...streamSettings,
@@ -637,6 +644,12 @@ window.electronAPI.ipcRenderer.on(
     }
   }
 )
+
+window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  isRecording = state["recordingState"] == "recording"
+})
+
+// DOM
 
 const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
