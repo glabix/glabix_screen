@@ -67,6 +67,7 @@ import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
+import { fsErrorParser } from "./helpers/fs-error-parser"
 import { getAccountData } from "./commands/account-data.command"
 
 let activeDisplay: Electron.Display
@@ -1266,11 +1267,23 @@ ipcMain.on(RecordEvents.START, (event, data) => {
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, isLast } = res
+  if (!data.byteLength) {
+    logSender.sendLog(
+      "record.raw_file_chunk.save.error",
+      stringify({ byteLength: data.byteLength }),
+      true
+    )
+    showRecordErrorBox("Ошибка записи")
+    return
+  }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
   unprocessedFilesService
     .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
     .then((rawFileName) => {
-      logSender.sendLog("record.raw_file_chunk.save.success")
+      logSender.sendLog(
+        "record.raw_file_chunk.save.success",
+        stringify({ byteLength: data.byteLength })
+      )
     })
     .catch((e) => {
       logSender.sendLog(
@@ -1482,8 +1495,8 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
         openExternalLink(shared)
       })
       setTimeout(() => {
-        notification.close() // Закрытие уведомления через 5 секунд
-      }, 5000) // 5000 миллисекунд = 5 секунд
+        notification.close()
+      }, 5000)
     }
   }
 
@@ -1499,9 +1512,16 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
     for await (const buffer of fileIterator) {
       await chunkStorage.addStorage([buffer], uuid)
       i++
-      // chunkStorage.addStorage([buffer], uuid).then()
     }
-    chunkStorage.markChunkAsTransferEnd(uuid)
+    try {
+      chunkStorage.markChunkAsTransferEnd(uuid)
+    } catch (e) {
+      logSender.sendLog(
+        "recording.uploads.chunks.transfer_end.error",
+        stringify({ uuid, e }),
+        true
+      )
+    }
     logSender.sendLog(
       "recording.uploads.chunks.stored.end",
       stringify({ uuid: uuid, buffer_count: i })
@@ -1513,10 +1533,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
       stringify({ uuid, e }),
       true
     )
-    showRecordErrorBox(
-      `Нет места на диске для записи файла`,
-      "Освободите место и перезапустите приложение"
-    )
+    fsErrorParser(e, "")
   }
 
   if (!isSaveError) {
