@@ -834,7 +834,10 @@ function createScreenshotWindow(dataURL: string) {
     mainWindowBounds.y + (mainWindowBounds.height - height - spacing) / 2
   const bounds: Electron.Rectangle = { x, y, width, height: height + spacing }
 
-  hideWindows()
+  const isRecording = (store.get() as any).recordingState == "recording"
+  if (!isRecording) {
+    hideWindows()
+  }
 
   screenshotWindow = new BrowserWindow({
     titleBarStyle: "hidden",
@@ -851,6 +854,7 @@ function createScreenshotWindow(dataURL: string) {
     show: false,
     // frame: false,
     roundedCorners: true,
+    parent: isRecording ? mainWindow : undefined,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
