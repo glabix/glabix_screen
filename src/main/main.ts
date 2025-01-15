@@ -38,6 +38,8 @@ import {
   SimpleStoreEvents,
   ModalWindowHeight,
   IScreenshotImageData,
+  IAccountData,
+  IAvatarData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -65,6 +67,7 @@ import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
+import { getAccountData } from "./commands/account-data.command"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -270,6 +273,10 @@ if (!gotTheLock) {
       tokenStorage.readAuthData()
       logSender.sendLog("user.read_auth_data.success")
       createMenu()
+
+      if (tokenStorage.token && tokenStorage.entityId) {
+        getAccountData(tokenStorage.token!.access_token, tokenStorage.entityId!)
+      }
 
       checkOrganizationLimits().then(() => {
         showWindows()
@@ -620,7 +627,7 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    // resizable: false,
+    resizable: false,
     width: 300,
     height:
       os.platform() == "win32" ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
@@ -657,6 +664,7 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
+    getAccountData(tokenStorage.token!.access_token, tokenStorage.entityId!)
   })
 
   modalWindow.on("blur", () => {})
@@ -1064,6 +1072,17 @@ ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   win?.setIgnoreMouseEvents(ignore, options)
 })
 
+ipcMain.on("change-organization", (event, orgId: number) => {
+  const lastTokenStorageData: IAuthData = {
+    token: tokenStorage.token!,
+    organization_id: orgId,
+  }
+
+  hideWindows()
+  tokenStorage.reset()
+  ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
+})
+
 ipcMain.on("modal-window:render", (event, data) => {
   if (modalWindow) {
     modalWindow.webContents.send("modal-window:render", data)
@@ -1210,6 +1229,33 @@ ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
   })
 })
 
+ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
+  if (modalWindow && tokenStorage.organizationId) {
+    const currentOrgId = tokenStorage.organizationId
+    const currentOrg = data.organizations.find(
+      (o) => o.id == currentOrgId
+    )! as any
+    const avatarData: IAvatarData = {
+      id: data.id,
+      name: data.name,
+      initials: data.initials,
+      avatar_url: data.avatar_url,
+      bg_color_number:
+        currentOrg.organization_users.find(
+          (u) => u.user_id == tokenStorage.userId
+        ).color || 0,
+      currentOrganization: { id: currentOrg.id, name: currentOrg.name },
+      organizations: data.organizations.map((o) => ({
+        id: o.id,
+        name: o.name,
+      })),
+    }
+
+    logSender.sendLog("api.accountData.get", stringify(avatarData))
+    modalWindow.webContents.send("userAccountData:get", avatarData)
+  }
+})
+
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     lastCreatedFileName = Date.now() + ""
@@ -1316,15 +1362,19 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
   logSender.sendLog("sessions.created")
   const { token, organization_id } = event as IAuthData
-  tokenStorage.encryptAuthData({ token, organization_id })
-  getCurrentUser(tokenStorage.token!.access_token)
-})
 
-ipcMain.on(LoginEvents.USER_VERIFIED, (event: unknown) => {
-  logSender.sendLog("user.verified")
-  const user = event as IUser
-  appState.set({ ...appState.state, user })
-  ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
+  getCurrentUser(token!.access_token).then((res: IUser) => {
+    getAccountData(token!.access_token, res.id).then((accountData) => {
+      tokenStorage.encryptAuthData({
+        token,
+        organization_id,
+        user_id: accountData.id,
+        entity_id: res.id,
+      })
+      logSender.sendLog("user.verified")
+      ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
+    })
+  })
 })
 
 ipcMain.on(RecordEvents.ERROR, (event, file) => {

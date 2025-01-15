@@ -5,7 +5,7 @@
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' *;"
     />
     <title></title>
   </head>
@@ -29,16 +29,9 @@
     </div>
 
     <div class="limits-content" hidden>
-      <div class="mb-6 pt-6 flex justify-center">
-        <svg
-          class="recorder-logo"
-          width="136"
-          height="40"
-          style="color: var(--primary)"
-        >
-          <use xlink:href="assets/recorder-logo.svg#logo"></use>
-        </svg>
-      </div>
+      <div
+        class="mb-6 pl-2 pr-2 pt-6 profile-container js-profile-toggle-btn"
+      ></div>
       <div class="text-center font-weight-600 mb-6 text-lg">
         Вы израсходовали лимиты
       </div>
@@ -193,16 +186,8 @@
     </div>
 
     <div class="modal-content" hidden>
-      <div class="mb-6 flex justify-center">
-        <svg
-          class="recorder-logo"
-          width="136"
-          height="40"
-          style="color: var(--primary)"
-        >
-          <use xlink:href="assets/recorder-logo.svg#logo"></use>
-        </svg>
-      </div>
+      <div class="mb-6 profile-container js-profile-toggle-btn"></div>
+
       <div class="mb-5">
         <div id="screen_settings_container"></div>
       </div>
@@ -234,6 +219,26 @@
       </div>
     </div>
 
+    <div class="profile-content" hidden>
+      <div class="mb-4 profile-container js-profile-toggle-btn"></div>
+      <div class="overflow-hidden mb-4">
+        <div id="organizations_container" class="organizations-container"></div>
+      </div>
+      <div class="log-out">
+        <button
+          type="button"
+          class="btn js-logout-btn justify-start text-overflow bg-transparent border-transparent"
+        >
+          <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
+            <i class="i i i-arrow-right-from-bracket"></i>
+          </div>
+          <span class="text-overflow text-left pointer-events-none flex-grow-1"
+            >Выйти из аккаунта</span
+          >
+        </button>
+      </div>
+    </div>
+
     <div
       id="footer"
       class="text-center screen-footer mt-5 text-xs text-gray-600"
@@ -255,6 +260,36 @@
           class="text-overflow text-left pointer-events-none flex-grow-1"
         ></span>
       </button>
+    </template>
+
+    <template id="profile_tpl">
+      <div class="flex items-center">
+        <div class="mr-4 back">
+          <i class="i i-chevron-left text-align-middle"></i>
+        </div>
+        <div class="mr-3">
+          <div class="avatar">
+            <img src="" alt="" hidden />
+          </div>
+        </div>
+        <div class="flex-grow-1 text-overflow font-weight-500">
+          <div class="user-name text-overflow mb-1"></div>
+          <div class="org-name text-overflow text-xs text-gray-600"></div>
+        </div>
+        <div class="ml-auto pl-3 next">
+          <i class="i i-chevron-right text-align-middle"></i>
+        </div>
+      </div>
+    </template>
+
+    <template id="organization_tpl">
+      <div class="mb-3">
+        <button class="btn justify-start text-overflow items-center">
+          <span
+            class="text-overflow text-left flex-grow-1 pointer-events-none"
+          ></span>
+        </button>
+      </div>
     </template>
 
     <template id="media_device_tpl">
