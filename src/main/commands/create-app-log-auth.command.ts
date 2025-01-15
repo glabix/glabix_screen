@@ -1,4 +1,5 @@
 import axios from "axios"
+import { ipcMain } from "electron"
 
 export function createAppLogAuthCommand(
   token: string,
@@ -19,6 +20,10 @@ export function createAppLogAuthCommand(
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {})
-      .catch((e) => {})
+      .catch((e) => {
+        if (e.response && e.response.status == 401) {
+          ipcMain.emit("app:logout")
+        }
+      })
   } catch (e) {}
 }
