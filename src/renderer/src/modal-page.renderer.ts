@@ -10,29 +10,42 @@ import {
   ScreenAction,
   StreamSettings,
   ModalWindowHeight,
+  IAvatarData,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
-type PageViewType = "modal" | "permissions" | "limits" | "no-microphone"
+import { Palette } from "@shared/helpers/palette"
+type PageViewType =
+  | "modal"
+  | "permissions"
+  | "limits"
+  | "no-microphone"
+  | "profile"
 interface IDeviceIds {
   videoId?: string
   audioId?: string
 }
 
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
+const ACCOUNT_DATA = "ACCOUNT_DATA"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
 let isAllowScreenshots: boolean | undefined = undefined
 let activePageView: PageViewType
 let openedDropdownType: DropdownListType | undefined = undefined
 const modalContent = document.querySelector(".modal-content")!
+const profileContent = document.querySelector(".profile-content")!
 const permissionsContent = document.querySelector(".permissions-content")!
 const limitsContent = document.querySelector(".limits-content")!
 const noMicrophoneContent = document.querySelector(".no-microphone-content")!
 
 const audioDeviceContainer = document.querySelector("#audio_device_container")!
 const videoDeviceContainer = document.querySelector("#video_device_container")!
+const organizationContainer = document.querySelector(
+  "#organizations_container"
+)!
+
 let screenActionsList: IDropdownItem[] = [
   {
     id: "fullScreenVideo",
@@ -285,6 +298,53 @@ function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
   return clone
 }
 
+function renderProfile(data: IAvatarData) {
+  const containers = document.querySelectorAll(".profile-container")
+  const template = document.querySelector(
+    "#profile_tpl"
+  )! as HTMLTemplateElement
+
+  containers.forEach((container) => {
+    const clone = template.content.cloneNode(true) as HTMLElement
+    const userName = clone.querySelector(".user-name")!
+    const orgName = clone.querySelector(".org-name")!
+    const avatar = clone.querySelector(".avatar")! as HTMLElement
+    const img = avatar.querySelector("img")!
+
+    userName.innerHTML = data.name
+    orgName.innerHTML = data.currentOrganization.name
+
+    if (data.avatar_url) {
+      img.src = data.avatar_url
+      img.removeAttribute("hidden")
+    } else {
+      img.setAttribute("hidden", "")
+      avatar.innerHTML = data.initials
+      avatar.style.backgroundColor = Palette.common[data.bg_color_number]!
+    }
+    container.innerHTML = ""
+    container.appendChild(clone)
+  })
+}
+
+function renderOrganizations(data: IAvatarData) {
+  const template = document.querySelector(
+    "#organization_tpl"
+  )! as HTMLTemplateElement
+
+  organizationContainer.innerHTML = ""
+
+  data.organizations.forEach((o) => {
+    const clone = template.content.cloneNode(true) as HTMLElement
+    const btn = clone.querySelector("button")!
+    const span = clone.querySelector("span")!
+
+    span.innerHTML = o.name
+    btn.dataset.id = `${o.id}`
+    organizationContainer.appendChild(clone)
+  })
+}
+
 function getDropdownItems(type: DropdownListType): IDropdownItem[] {
   let items: IDropdownItem[] = []
 
@@ -346,6 +406,7 @@ function sendSettings() {
 function setPageView(view: PageViewType) {
   const sections = [
     modalContent,
+    profileContent,
     permissionsContent,
     limitsContent,
     noMicrophoneContent,
@@ -355,8 +416,9 @@ function setPageView(view: PageViewType) {
   footer.removeAttribute("hidden")
   activePageView = view
 
-  if (isAllowRecords === false && view != "permissions") {
+  if (isAllowRecords === false && !["permissions", "profile"].includes(view)) {
     limitsContent.removeAttribute("hidden")
+    activePageView = "limits"
     return
   }
 
@@ -372,6 +434,9 @@ function setPageView(view: PageViewType) {
       break
     case "no-microphone":
       noMicrophoneContent.removeAttribute("hidden")
+      break
+    case "profile":
+      profileContent.removeAttribute("hidden")
       break
   }
 }
@@ -551,6 +616,24 @@ window.electronAPI.ipcRenderer.on(
 
     if (isAllowRecords === false && activePageView != "permissions") {
       setPageView("limits")
+    }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  "userAccountData:get",
+  (event, data: IAvatarData) => {
+    const localDataStr = localStorage.getItem(ACCOUNT_DATA)
+    const newDataStr = JSON.stringify(data)
+    const localData = localDataStr ? JSON.parse(localDataStr) : null
+
+    if (newDataStr != localDataStr) {
+      renderProfile(data)
+      renderOrganizations(data)
+      localStorage.setItem(ACCOUNT_DATA, newDataStr)
+    } else if (localData) {
+      renderProfile(localData)
+      renderOrganizations(localData)
     }
   }
 )
@@ -816,6 +899,54 @@ startBtn.addEventListener(
     }
 
     start()
+  },
+  false
+)
+
+const logoutBtn = document.querySelector(".js-logout-btn")!
+logoutBtn.addEventListener(
+  "click",
+  () => {
+    window.electronAPI.ipcRenderer.send("app:logout")
+    setPageView("modal")
+  },
+  false
+)
+
+const profileToggleBtn = document.querySelectorAll(".js-profile-toggle-btn")
+profileToggleBtn.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    () => {
+      if (["modal", "limits"].includes(activePageView)) {
+        setPageView("profile")
+        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          alwaysOnTop: true,
+          width: 300,
+          height: ModalWindowHeight.PROFILE,
+        })
+      } else {
+        setPageView("modal")
+        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          alwaysOnTop: true,
+          width: 300,
+          height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
+        })
+      }
+    },
+    false
+  )
+})
+
+organizationContainer.addEventListener(
+  "click",
+  (event) => {
+    const target = event.target as HTMLButtonElement
+
+    if (target.nodeName.toLowerCase() == "button") {
+      const orgId = Number(target.dataset.id)
+      window.electronAPI.ipcRenderer.send("change-organization", orgId)
+    }
   },
   false
 )

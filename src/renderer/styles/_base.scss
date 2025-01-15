@@ -20,6 +20,18 @@
   --leading-3xs: 9px;
 }
 
+::-webkit-scrollbar {
+  width: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--gray-400);
+  border-radius: 4px;
+  border: transparent;
+}
+
 *,
 *::before,
 *::after {
