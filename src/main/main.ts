@@ -1297,10 +1297,21 @@ ipcMain.on("stop-recording", (event, data) => {
   }
   modalWindow.show()
 })
+
 ipcMain.on("windows:minimize", (event, data) => {
-  modalWindow.close()
-  if (screenshotWindow) {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win == screenshotWindow) {
     screenshotWindow.hide()
+  } else {
+    hideWindows()
+  }
+})
+ipcMain.on("windows:close", (event, data) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win == screenshotWindow) {
+    screenshotWindow.hide()
+  } else {
+    hideWindows()
   }
 })
 
@@ -1313,13 +1324,6 @@ ipcMain.on("windows:maximize", (event, data) => {
       screenshotWindow.setBounds(screenshotWindowBounds)
       screenshotWindowBounds = undefined
     }
-  }
-})
-
-ipcMain.on("windows:close", (event, data) => {
-  modalWindow.close()
-  if (screenshotWindow) {
-    screenshotWindow.hide()
   }
 })
 
