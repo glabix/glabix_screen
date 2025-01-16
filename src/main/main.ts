@@ -413,19 +413,24 @@ function registerShortCuts() {
   })
 
   globalShortcut.register("CommandOrControl+Shift+5", () => {
+    const isRecording = (store.get() as any).recordingState == "recording"
+
     if (isScreenshotAllowed) {
       const data = {
         action: "cropScreenshot",
       }
 
-      const cursorPosition = screen.getCursorScreenPoint()
-      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-      mainWindow.webContents.send("screen:change", activeDisplay)
+      if (!isRecording) {
+        const cursorPosition = screen.getCursorScreenPoint()
+        activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+        mainWindow.webContents.send("screen:change", activeDisplay)
 
-      modalWindow.hide()
-      mainWindow.setBounds(activeDisplay.bounds)
-      mainWindow.show()
-      mainWindow.focus()
+        modalWindow.hide()
+        mainWindow.setBounds(activeDisplay.bounds)
+        mainWindow.show()
+        mainWindow.focus()
+      }
+
       mainWindow.webContents.send("dropdown:select.screenshot", data)
       modalWindow.webContents.send("dropdown:select.screenshot", data)
     }
