@@ -1263,9 +1263,8 @@ ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
       initials: data.initials,
       avatar_url: data.avatar_url,
       bg_color_number:
-        currentOrg.organization_users.find(
-          (u) => u.user_id == tokenStorage.userId
-        ).color || 0,
+        currentOrg.organization_users.find((u) => u.user_id == data.id)
+          ?.color || 0,
       currentOrganization: { id: currentOrg.id, name: currentOrg.name },
       organizations: data.organizations.map((o) => ({
         id: o.id,
