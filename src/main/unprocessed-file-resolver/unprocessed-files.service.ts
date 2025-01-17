@@ -155,7 +155,7 @@ export class UnprocessedFilesService {
     return this.restoreFileToBuffer(fileName)
   }
 
-  async getFirstFileName(): Promise<string> {
+  async getFirstFileName(): Promise<string | null> {
     const files = await fs.promises.readdir(this.mainPath) // Читаем список файлов
     const filteredFiles = files
       .filter((file) => file.endsWith(".part0")) // Ищем файлы, которые являются началом файла (part0)

@@ -24,7 +24,7 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
 import { createFileUploadCommand } from "./commands/create-file-upload.command"
-import { ChunkSlicer } from "./file-uploader/chunk-slicer"
+import { ChunkSlicer } from "./chunk/chunk-slicer"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -43,8 +43,8 @@ import {
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
-import { ChunkStorageService } from "./file-uploader/chunk-storage.service"
-import { Chunk } from "./file-uploader/chunk"
+import { ChunkStorageService } from "./chunk/chunk-storage.service"
+import { Chunk } from "./chunk/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
 import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
@@ -68,6 +68,7 @@ import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { getAccountData } from "./commands/account-data.command"
+import { fsErrorParser } from "./helpers/fs-error-parser"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -1275,11 +1276,23 @@ ipcMain.on(RecordEvents.START, (event, data) => {
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, isLast } = res
+  if (!data.byteLength) {
+    logSender.sendLog(
+      "record.raw_file_chunk.save.error",
+      stringify({ byteLength: data.byteLength }),
+      true
+    )
+    showRecordErrorBox("Ошибка записи")
+    return
+  }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
   unprocessedFilesService
     .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
     .then((rawFileName) => {
-      logSender.sendLog("record.raw_file_chunk.save.success")
+      logSender.sendLog(
+        "record.raw_file_chunk.save.success",
+        stringify({ byteLength: data.byteLength })
+      )
     })
     .catch((e) => {
       logSender.sendLog(
@@ -1403,7 +1416,7 @@ ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
     })
     .catch((e) => {
       logSender.sendLog(
-        "record.raw_file.save.error",
+        "record.raw_file.full.await.error",
         stringify({ err: e }),
         true
       )
@@ -1495,8 +1508,8 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
         openExternalLink(shared)
       })
       setTimeout(() => {
-        notification.close() // Закрытие уведомления через 5 секунд
-      }, 5000) // 5000 миллисекунд = 5 секунд
+        notification.close()
+      }, 5000)
     }
   }
 
@@ -1512,9 +1525,16 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
     for await (const buffer of fileIterator) {
       await chunkStorage.addStorage([buffer], uuid)
       i++
-      // chunkStorage.addStorage([buffer], uuid).then()
     }
-    chunkStorage.markChunkAsTransferEnd(uuid)
+    try {
+      chunkStorage.markChunkAsTransferEnd(uuid)
+    } catch (e) {
+      logSender.sendLog(
+        "recording.uploads.chunks.transfer_end.error",
+        stringify({ uuid, e }),
+        true
+      )
+    }
     logSender.sendLog(
       "recording.uploads.chunks.stored.end",
       stringify({ uuid: uuid, buffer_count: i })
@@ -1526,10 +1546,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
       stringify({ uuid, e }),
       true
     )
-    showRecordErrorBox(
-      `Нет места на диске для записи файла`,
-      "Освободите место и перезапустите приложение"
-    )
+    fsErrorParser(e, "")
   }
 
   if (!isSaveError) {
@@ -1555,8 +1572,9 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
         )
       })
   }
-
-  lastCreatedFileName = null
+  if (lastCreatedFileName === rawFileName) {
+    lastCreatedFileName = null
+  }
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
