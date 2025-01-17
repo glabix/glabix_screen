@@ -17,6 +17,7 @@ import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
 import { Palette } from "@shared/helpers/palette"
+import { debounce } from "@shared/helpers/debounce"
 type PageViewType =
   | "modal"
   | "permissions"
@@ -200,6 +201,7 @@ async function setupMediaDevices() {
     const lastVideoDevice = videoDevicesList.find(
       (d) => d.deviceId == lastDeviceIds.videoId
     )
+
     if (lastVideoDevice) {
       activeVideoDevice = lastVideoDevice
     } else {
@@ -208,6 +210,7 @@ async function setupMediaDevices() {
       )
       activeVideoDevice = defaultVideoDevice || videoDevicesList[1]!
     }
+
     streamSettings = {
       ...streamSettings,
       cameraDeviceId: activeVideoDevice.deviceId,
@@ -217,18 +220,37 @@ async function setupMediaDevices() {
     activeVideoDevice = videoDevicesList[0]!
   }
 }
+function initMediaDevice() {
+  setupMediaDevices()
+    .then(() => {
+      if (activeVideoDevice) {
+        videoDeviceContainer.innerHTML = ""
+        videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
+      }
 
-setupMediaDevices()
-  .then(() => {
-    if (activeVideoDevice) {
-      videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
-    }
+      if (activeAudioDevice) {
+        audioDeviceContainer.innerHTML = ""
+        audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
+      }
+    })
+    .catch((e) => {})
+}
 
-    if (activeAudioDevice) {
-      audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
-    }
-  })
-  .catch((e) => {})
+initMediaDevice()
+
+const changeMediaDevices = debounce(() => {
+  initMediaDevice()
+  sendSettings()
+  window.electronAPI.ipcRenderer.send("dropdown:close", {})
+})
+navigator.mediaDevices.addEventListener(
+  "devicechange",
+  () => {
+    console.log("devicechange")
+    changeMediaDevices()
+  },
+  false
+)
 
 function renderScreenSettings(item: IDropdownItem) {
   const container = document.querySelector(
