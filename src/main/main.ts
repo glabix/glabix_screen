@@ -275,9 +275,7 @@ if (!gotTheLock) {
       logSender.sendLog("app.started")
       createMenu()
 
-      if (tokenStorage.token && tokenStorage.entityId) {
-        getAccountData(tokenStorage.token!.access_token, tokenStorage.entityId!)
-      }
+      loadAccountData(tokenStorage)
 
       checkOrganizationLimits().then(() => {
         showWindows()
@@ -444,6 +442,20 @@ function registerShortCutsOnShow() {
 
 function unregisterShortCutsOnHide() {
   globalShortcut.unregister("Command+H")
+}
+
+function loadAccountData(_tokenStorage: TokenStorage) {
+  if (!_tokenStorage.token || !_tokenStorage.organizationId) {
+    return
+  }
+
+  if (_tokenStorage.entityId) {
+    getAccountData(_tokenStorage.token!.access_token, _tokenStorage.entityId)
+  } else {
+    getCurrentUser(_tokenStorage.token!.access_token).then((res: IUser) => {
+      getAccountData(_tokenStorage.token!.access_token, res.id)
+    })
+  }
 }
 
 function watchMediaDevicesAccessChange() {
@@ -670,7 +682,7 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
-    getAccountData(tokenStorage.token!.access_token, tokenStorage.entityId!)
+    loadAccountData(tokenStorage)
   })
 
   modalWindow.on("blur", () => {})
