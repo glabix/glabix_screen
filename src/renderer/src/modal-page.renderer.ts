@@ -27,6 +27,7 @@ type PageViewType =
 interface IDeviceIds {
   videoId?: string
   audioId?: string
+  systemAudio?: boolean
 }
 
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
@@ -47,6 +48,9 @@ const videoDeviceContainer = document.querySelector("#video_device_container")!
 const organizationContainer = document.querySelector(
   "#organizations_container"
 )!
+const systemAudioCheckbox = document.querySelector(
+  ".system-audio-checkbox"
+) as HTMLInputElement
 
 let isRecording = false
 
@@ -153,7 +157,8 @@ function getLastMediaDevices(): IDeviceIds {
 
 function setLastMediaDevices(
   lastAudioDeviceId?: string,
-  lastVideoDeviceId?: string
+  lastVideoDeviceId?: string,
+  systemAudio?: boolean
 ) {
   if (lastAudioDeviceId) {
     lastDeviceIds = { ...lastDeviceIds, audioId: lastAudioDeviceId }
@@ -161,6 +166,10 @@ function setLastMediaDevices(
 
   if (lastVideoDeviceId) {
     lastDeviceIds = { ...lastDeviceIds, videoId: lastVideoDeviceId }
+  }
+
+  if (typeof systemAudio == "boolean") {
+    lastDeviceIds = { ...lastDeviceIds, systemAudio }
   }
 
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
@@ -176,6 +185,12 @@ async function setupMediaDevices() {
 
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
+
+  // System Audio
+  const systemAudio =
+    lastDeviceIds.systemAudio === undefined ? true : lastDeviceIds.systemAudio
+  systemAudioCheckbox.checked = systemAudio
+  streamSettings = { ...streamSettings, audio: systemAudio }
 
   if (hasMicrophone) {
     const lastAudioDevice = audioDevicesList.find(
@@ -215,7 +230,6 @@ async function setupMediaDevices() {
       ...streamSettings,
       cameraDeviceId: activeVideoDevice.deviceId,
     }
-    sendSettings()
   } else {
     activeVideoDevice = videoDevicesList[0]!
   }
@@ -223,6 +237,7 @@ async function setupMediaDevices() {
 function initMediaDevice() {
   setupMediaDevices()
     .then(() => {
+      sendSettings()
       if (activeVideoDevice) {
         videoDeviceContainer.innerHTML = ""
         videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
@@ -240,13 +255,11 @@ initMediaDevice()
 
 const changeMediaDevices = debounce(() => {
   initMediaDevice()
-  sendSettings()
   window.electronAPI.ipcRenderer.send("dropdown:close", {})
 })
 navigator.mediaDevices.addEventListener(
   "devicechange",
   () => {
-    console.log("devicechange")
     changeMediaDevices()
   },
   false
@@ -672,7 +685,6 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 // DOM
-
 const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
@@ -856,14 +868,12 @@ deviceAccessBtn.forEach((btn) => {
   )
 })
 
-const systemAudioCheckbox = document.querySelector(
-  ".system-audio-checkbox"
-) as HTMLInputElement
 systemAudioCheckbox.addEventListener(
   "change",
   (event) => {
     const input = event.target as HTMLInputElement
     streamSettings = { ...streamSettings, audio: input.checked }
+    setLastMediaDevices(undefined, undefined, input.checked)
     sendSettings()
   },
   false
