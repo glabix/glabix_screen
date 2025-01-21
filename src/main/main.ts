@@ -1071,6 +1071,8 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     logSender.sendLog("app.activated")
     createWindow()
+  } else {
+    showWindows()
   }
 })
 
