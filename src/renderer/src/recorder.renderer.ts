@@ -715,6 +715,10 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on(
   "record-settings-change",
   (event, settings: StreamSettings) => {
+    if (isRecording) {
+      return
+    }
+
     lastStreamSettings = settings
     initRecord(lastStreamSettings)
   }
