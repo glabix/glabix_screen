@@ -43,6 +43,7 @@ let lastStreamSettings: StreamSettings | undefined
 let desktopStream: MediaStream = new MediaStream()
 let voiceStream: MediaStream = new MediaStream()
 let requestId = 0
+let currentRecordedUuid: string | null = null
 
 function debounce(func, wait) {
   let timeoutId
@@ -82,6 +83,7 @@ function stopRecording() {
 function cancelRecording() {
   if (startTimer) {
     clearInterval(startTimer)
+    currentRecordedUuid = null
 
     if (lastStreamSettings) {
       initView(lastStreamSettings, true)
@@ -325,6 +327,7 @@ const createVideo = (_stream, _canvas, _video) => {
       window.electronAPI.ipcRenderer.send(RecordEvents.SEND_DATA, {
         data: arrayBuffer,
         isLast: !videoRecorder?.stream?.active,
+        fileUuid: currentRecordedUuid,
       })
       lastChunk = arrayBuffer
     }
@@ -717,7 +720,8 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on(
   RecordEvents.START,
-  (event, data: StreamSettings) => {
+  (event, data: StreamSettings, file_uuid: string) => {
+    currentRecordedUuid = file_uuid
     if (data.action == "fullScreenVideo") {
       countdownContainer.removeAttribute("hidden")
       let timeleft = 2

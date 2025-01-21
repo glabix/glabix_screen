@@ -24,7 +24,6 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
 import { createFileUploadCommand } from "./commands/create-file-upload.command"
-import { ChunkSlicer } from "./chunk/chunk-slicer"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -66,6 +65,12 @@ import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
+import File from "../database/models/Chunk"
+import Record from "../database/models/Record"
+import sequelize from "../database/index"
+import RecordService from "../services/record.service"
+import ChunkService from "../services/chunk.service"
+import StorageService from "../services/storage.service"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -146,6 +151,22 @@ function clearAllIntervals() {
   if (checkUnprocessedFilesInterval) {
     clearInterval(checkUnprocessedFilesInterval)
     checkUnprocessedFilesInterval = undefined
+  }
+}
+
+// Инициализация базы данных
+const initializeDatabase = async () => {
+  try {
+    await sequelize.authenticate() // Проверка подключения
+    console.log("Database connected successfully.")
+    // Создание всех таблиц, если они не существуют
+    const file = File
+    const chunk = Chunk
+
+    const res = await sequelize.sync({ force: true }) // force: false — не пересоздавать таблицы, если они уже есть
+    console.log("Database tables created or verified.", res.models)
+  } catch (error) {
+    console.error("Database connection failed:", error)
   }
 }
 
@@ -247,6 +268,7 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
 
   app.whenReady().then(() => {
+    initializeDatabase() // Инициализация базы данных
     chunkStorage = new ChunkStorageService()
     unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
@@ -1213,14 +1235,21 @@ ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
 
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
-    lastCreatedFileName = Date.now() + ""
-    mainWindow.webContents.send(RecordEvents.START, data)
+    StorageService.startRecord().then((r) => {
+      console.log(r)
+      mainWindow.webContents.send(
+        RecordEvents.START,
+        data,
+        r.getDataValue("uuid")
+      )
+    })
   }
   modalWindow.hide()
 })
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
-  const { data, isLast } = res
+  const { data, fileUuid, isLast } = res
+  console.log(fileUuid)
   if (!data.byteLength) {
     logSender.sendLog(
       "record.raw_file_chunk.save.error",
@@ -1234,6 +1263,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   unprocessedFilesService
     .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
     .then((rawFileName) => {
+      StorageService.addChunk(fileUuid, blob)
       logSender.sendLog(
         "record.raw_file_chunk.save.success",
         stringify({ byteLength: data.byteLength })
