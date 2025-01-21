@@ -17,6 +17,7 @@ import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
 import { Palette } from "@shared/helpers/palette"
+import { debounce } from "@shared/helpers/debounce"
 type PageViewType =
   | "modal"
   | "permissions"
@@ -26,6 +27,7 @@ type PageViewType =
 interface IDeviceIds {
   videoId?: string
   audioId?: string
+  systemAudio?: boolean
 }
 
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
@@ -46,6 +48,9 @@ const videoDeviceContainer = document.querySelector("#video_device_container")!
 const organizationContainer = document.querySelector(
   "#organizations_container"
 )!
+const systemAudioCheckbox = document.querySelector(
+  ".system-audio-checkbox"
+) as HTMLInputElement
 
 let isRecording = false
 
@@ -152,7 +157,8 @@ function getLastMediaDevices(): IDeviceIds {
 
 function setLastMediaDevices(
   lastAudioDeviceId?: string,
-  lastVideoDeviceId?: string
+  lastVideoDeviceId?: string,
+  systemAudio?: boolean
 ) {
   if (lastAudioDeviceId) {
     lastDeviceIds = { ...lastDeviceIds, audioId: lastAudioDeviceId }
@@ -160,6 +166,10 @@ function setLastMediaDevices(
 
   if (lastVideoDeviceId) {
     lastDeviceIds = { ...lastDeviceIds, videoId: lastVideoDeviceId }
+  }
+
+  if (typeof systemAudio == "boolean") {
+    lastDeviceIds = { ...lastDeviceIds, systemAudio }
   }
 
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
@@ -175,6 +185,12 @@ async function setupMediaDevices() {
 
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
+
+  // System Audio
+  const systemAudio =
+    lastDeviceIds.systemAudio === undefined ? true : lastDeviceIds.systemAudio
+  systemAudioCheckbox.checked = systemAudio
+  streamSettings = { ...streamSettings, audio: systemAudio }
 
   if (hasMicrophone) {
     const lastAudioDevice = audioDevicesList.find(
@@ -200,6 +216,7 @@ async function setupMediaDevices() {
     const lastVideoDevice = videoDevicesList.find(
       (d) => d.deviceId == lastDeviceIds.videoId
     )
+
     if (lastVideoDevice) {
       activeVideoDevice = lastVideoDevice
     } else {
@@ -208,27 +225,45 @@ async function setupMediaDevices() {
       )
       activeVideoDevice = defaultVideoDevice || videoDevicesList[1]!
     }
+
     streamSettings = {
       ...streamSettings,
       cameraDeviceId: activeVideoDevice.deviceId,
     }
-    sendSettings()
   } else {
     activeVideoDevice = videoDevicesList[0]!
   }
 }
+function initMediaDevice() {
+  setupMediaDevices()
+    .then(() => {
+      sendSettings()
+      if (activeVideoDevice) {
+        videoDeviceContainer.innerHTML = ""
+        videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
+      }
 
-setupMediaDevices()
-  .then(() => {
-    if (activeVideoDevice) {
-      videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
-    }
+      if (activeAudioDevice) {
+        audioDeviceContainer.innerHTML = ""
+        audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
+      }
+    })
+    .catch((e) => {})
+}
 
-    if (activeAudioDevice) {
-      audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
-    }
-  })
-  .catch((e) => {})
+initMediaDevice()
+
+const changeMediaDevices = debounce(() => {
+  initMediaDevice()
+  window.electronAPI.ipcRenderer.send("dropdown:close", {})
+})
+navigator.mediaDevices.addEventListener(
+  "devicechange",
+  () => {
+    changeMediaDevices()
+  },
+  false
+)
 
 function renderScreenSettings(item: IDropdownItem) {
   const container = document.querySelector(
@@ -650,7 +685,6 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 // DOM
-
 const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
@@ -834,14 +868,12 @@ deviceAccessBtn.forEach((btn) => {
   )
 })
 
-const systemAudioCheckbox = document.querySelector(
-  ".system-audio-checkbox"
-) as HTMLInputElement
 systemAudioCheckbox.addEventListener(
   "change",
   (event) => {
     const input = event.target as HTMLInputElement
     streamSettings = { ...streamSettings, audio: input.checked }
+    setLastMediaDevices(undefined, undefined, input.checked)
     sendSettings()
   },
   false

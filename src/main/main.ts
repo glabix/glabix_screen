@@ -153,17 +153,17 @@ function clearAllIntervals() {
 }
 
 function init(url: string) {
-  if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
-    return
-  }
-
   if (mainWindow) {
     // Someone tried to run a second instance, we should focus our window.
     checkOrganizationLimits().then(() => {
       showWindows()
     })
   }
-  // const url = commandLine.pop()
+
+  if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
+    return
+  }
+
   try {
     const u = new URL(url)
     const access_token = u.searchParams.get("access_token")
@@ -238,12 +238,11 @@ if (!gotTheLock) {
       init(url)
     })
   }
-  if (os.platform() == "win32") {
-    app.on("second-instance", (event, commandLine, workingDirectory) => {
-      const url = commandLine.pop()
-      init(url!)
-    })
-  }
+
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
+    const url = commandLine.pop()
+    init(url!)
+  })
 
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
