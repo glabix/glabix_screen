@@ -1,7 +1,5 @@
-import Record, { RecordCreationAttributes } from "../models/Record"
-import { GetAllChunksFilters, GetAllRecordsFilters } from "./types"
+import { GetAllChunksFilters } from "./types"
 import Chunk, { ChunkCreationAttributes } from "../models/Chunk"
-import { Op } from "sequelize"
 
 export const createChunkDal = async (
   payload: ChunkCreationAttributes

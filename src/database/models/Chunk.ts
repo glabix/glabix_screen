@@ -15,6 +15,7 @@ interface ChunkAttributes {
   fileUuid: string
   source: string | null
   status: ChunkStatus
+  index: number
   createdAt?: Date
   updatedAt?: Date
 }
@@ -40,12 +41,17 @@ Chunk.init(
         model: Record,
         key: "uuid",
       },
+      onDelete: "CASCADE",
     },
     source: {
       type: DataTypes.STRING,
       allowNull: true,
     },
     size: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    index: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
@@ -62,6 +68,6 @@ Chunk.init(
 )
 
 Chunk.belongsTo(Record, { foreignKey: "fileUuid" })
-Record.hasMany(Chunk, { foreignKey: "fileUuid" })
+Record.hasMany(Chunk, { foreignKey: "fileUuid", onDelete: "CASCADE" })
 
 export default Chunk

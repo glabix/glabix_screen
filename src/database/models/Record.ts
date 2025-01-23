@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional, Sequelize } from "sequelize"
 import sequelize from "../"
+import Chunk from "./Chunk"
 
 export enum RecordStatus {
   RECORDING = "recording",
@@ -20,6 +21,7 @@ interface RecordAttributes {
   status: RecordStatus
   createdAt?: Date
   updatedAt?: Date
+  Chunks?: Chunk[]
 }
 
 export interface RecordCreationAttributes

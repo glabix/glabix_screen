@@ -1,5 +1,6 @@
 import Record, { RecordCreationAttributes } from "../models/Record"
 import { GetAllRecordsFilters } from "./types"
+import Chunk from "../models/Chunk"
 
 export const createRecordDal = async (
   payload: RecordCreationAttributes
@@ -22,7 +23,7 @@ export const updateRecordDal = async (
 }
 
 export const getByUuidRecordDal = async (uuid: string): Promise<Record> => {
-  const record = await Record.findByPk(uuid)
+  const record = await Record.findByPk(uuid, { include: Chunk })
   if (!record) {
     // @todo throw custom error
     throw new Error("not found")
@@ -33,6 +34,7 @@ export const getByUuidRecordDal = async (uuid: string): Promise<Record> => {
 export const deleteByUuidRecordDal = async (uuid: string): Promise<string> => {
   const deletedRecordCount = await Record.destroy({
     where: { uuid },
+    cascade: true,
   })
   return uuid
 }

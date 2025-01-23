@@ -8,8 +8,7 @@ export function createFileUploadCommand(
   title: string,
   file_size: number,
   version: string,
-  preview: File | undefined,
-  callback: (err: null | Error, uuid: string | null) => void
+  preview: File | undefined
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads`
   const formData = new FormData()
@@ -23,25 +22,7 @@ export function createFileUploadCommand(
     formData.append("preview", preview)
   }
 
-  axios
-    .post<{
-      uuid: string
-    }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
-    .then((response) => {
-      if (response.status === 200 || response.status === 201) {
-        const uuid = response.data.uuid
-        callback(null, uuid)
-      } else {
-        callback(
-          new Error(
-            `Failed to create multipart file upload, code ${response.status}`
-          ),
-          null
-        )
-      }
-    })
-    .catch((e) => {
-      callback(e, null)
-      return e
-    })
+  return axios.post<{
+    uuid: string
+  }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
 }

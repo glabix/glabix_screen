@@ -71,6 +71,8 @@ import sequelize from "../database/index"
 import RecordService from "../services/record.service"
 import ChunkService from "../services/chunk.service"
 import StorageService from "../services/storage.service"
+import { RecordManager } from "../services/record-manager"
+import ChunkAccumulator from "../services/raw-chunk-saver"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -93,14 +95,14 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
   screen: false,
 }
 
-const tokenStorage = new TokenStorage()
-const logSender = new LogSender(tokenStorage)
+const logSender = new LogSender(TokenStorage)
 const chunkSize = 10 * 1024 * 1024
 
 const appState = new AppState()
 const store = new SimpleStore()
 let unprocessedFilesService: UnprocessedFilesService
 let chunkStorage: ChunkStorageService
+const chunkAccumulator = new ChunkAccumulator()
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -163,7 +165,8 @@ const initializeDatabase = async () => {
     const file = File
     const chunk = Chunk
 
-    const res = await sequelize.sync({ force: true }) // force: false — не пересоздавать таблицы, если они уже есть
+    const res = await sequelize.sync({ force: false }) // force: false — не пересоздавать таблицы, если они уже есть
+
     console.log("Database tables created or verified.", res.models)
   } catch (error) {
     console.error("Database connection failed:", error)
@@ -223,10 +226,10 @@ function appReload() {
 
 function checkOrganizationLimits(): Promise<any> {
   return new Promise((resolve) => {
-    if (tokenStorage && tokenStorage.dataIsActual()) {
+    if (TokenStorage && TokenStorage.dataIsActual()) {
       getOrganizationLimits(
-        tokenStorage.token!.access_token,
-        tokenStorage.organizationId!
+        TokenStorage.token!.access_token,
+        TokenStorage.organizationId!
       )
         .then(() => {
           resolve(true)
@@ -268,14 +271,15 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
 
   app.whenReady().then(() => {
-    initializeDatabase() // Инициализация базы данных
+    initializeDatabase().then(() => {
+      RecordManager.setTimer()
+    }) // Инициализация базы данных
     chunkStorage = new ChunkStorageService()
     unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdates()
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
-
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
@@ -290,7 +294,7 @@ if (!gotTheLock) {
 
     try {
       logSender.sendLog("user.read_auth_data")
-      tokenStorage.readAuthData()
+      TokenStorage.readAuthData()
       logSender.sendLog("app.started")
       createMenu()
 
@@ -899,7 +903,7 @@ function createScreenshotWindow(dataURL: string) {
 function showWindows() {
   logSender.sendLog("app.activated")
   registerShortCutsOnShow()
-  if (tokenStorage.dataIsActual()) {
+  if (TokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
     }
@@ -914,7 +918,7 @@ function showWindows() {
 function hideWindows() {
   logSender.sendLog("app.disactivated")
   unregisterShortCutsOnHide()
-  if (tokenStorage.dataIsActual()) {
+  if (TokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
     if (modalWindow) modalWindow.hide()
   } else {
@@ -923,7 +927,7 @@ function hideWindows() {
 }
 
 function toggleWindows() {
-  if (tokenStorage.dataIsActual()) {
+  if (TokenStorage.dataIsActual()) {
     if (modalWindow.isVisible() && mainWindow.isVisible()) {
       hideWindows()
     } else {
@@ -1022,7 +1026,7 @@ function createMenu() {
     {
       id: "menuLogOutItem",
       label: "Выйти из аккаунта",
-      visible: tokenStorage.dataIsActual(),
+      visible: TokenStorage.dataIsActual(),
       click: () => {
         logOut()
       },
@@ -1037,7 +1041,7 @@ function createMenu() {
 }
 
 function logOut() {
-  tokenStorage.reset()
+  TokenStorage.reset()
   mainWindow.hide()
   modalWindow.hide()
   loginWindow.show()
@@ -1213,8 +1217,8 @@ ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
 ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
   const file = dataURLToFile(data.dataURL, data.fileName)
   uploadScreenshotCommand(
-    tokenStorage.token!.access_token,
-    tokenStorage.organizationId!,
+    TokenStorage.token!.access_token,
+    TokenStorage.organizationId!,
     data.fileName,
     data.fileSize,
     getVersion(),
@@ -1248,8 +1252,11 @@ ipcMain.on(RecordEvents.START, (event, data) => {
 })
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
-  const { data, fileUuid, isLast } = res
-  console.log(fileUuid)
+  const { data, fileUuid, index, isLast, lastStreamSettings, stream, canvas } =
+    res
+  console.log(stream)
+  console.log(lastStreamSettings)
+  console.log(canvas)
   if (!data.byteLength) {
     logSender.sendLog(
       "record.raw_file_chunk.save.error",
@@ -1260,23 +1267,24 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     return
   }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  unprocessedFilesService
-    .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
-    .then((rawFileName) => {
-      StorageService.addChunk(fileUuid, blob)
-      logSender.sendLog(
-        "record.raw_file_chunk.save.success",
-        stringify({ byteLength: data.byteLength })
-      )
-    })
-    .catch((e) => {
-      logSender.sendLog(
-        "record.raw_file.save.error",
-        stringify({ err: e }),
-        true
-      )
-      showRecordErrorBox("Ошибка записи")
-    })
+  StorageService.addChunk(fileUuid, blob, index, isLast) //todo
+
+  // unprocessedFilesService
+  //   .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
+  //   .then((rawFileName) => {
+  //     logSender.sendLog(
+  //       "record.raw_file_chunk.save.success",
+  //       stringify({ byteLength: data.byteLength })
+  //     )
+  //   })
+  //   .catch((e) => {
+  //     logSender.sendLog(
+  //       "record.raw_file.save.error",
+  //       stringify({ err: e }),
+  //       true
+  //     )
+  //     showRecordErrorBox("Ошибка записи")
+  //   })
 })
 
 ipcMain.on("stop-recording", (event, data) => {
@@ -1335,7 +1343,7 @@ ipcMain.on("invalidate-shadow", (event, data) => {
   }
 })
 ipcMain.on("redirect:app", (event, route) => {
-  const url = route.replace("%orgId%", tokenStorage.organizationId)
+  const url = route.replace("%orgId%", TokenStorage.organizationId)
   const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
   openExternalLink(link)
   hideWindows()
@@ -1359,8 +1367,8 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
   logSender.sendLog("sessions.created")
   const { token, organization_id } = event as IAuthData
-  tokenStorage.encryptAuthData({ token, organization_id })
-  getCurrentUser(tokenStorage.token!.access_token)
+  TokenStorage.encryptAuthData({ token, organization_id })
+  getCurrentUser(TokenStorage.token!.access_token)
 })
 
 ipcMain.on(LoginEvents.USER_VERIFIED, (event: unknown) => {
@@ -1391,55 +1399,55 @@ ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
 })
 
 ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
-  const { rawFileName: timestampRawFileName } = event as { rawFileName: any }
-  logSender.sendLog(
-    "api.uploads.multipart_upload.try_to_create",
-    JSON.stringify({ rawFileName: timestampRawFileName })
-  )
-
-  unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
-  unprocessedFilesService
-    .getTotalChunks(timestampRawFileName, chunkSize)
-    .then((data) => {
-      if (data) {
-        const { totalSize, totalChunks } = data
-        const appVersion = getVersion()
-        logSender.sendLog("recording.uploads.chunks.stored.prepared")
-        const title = getTitle(timestampRawFileName)
-        const fileName = title + ".mp4"
-        const callback = (err: null | Error, uuid: string | null) => {
-          if (!err) {
-            const params = { uuid, rawFileName: timestampRawFileName }
-            ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
-          } else {
-            logSender.sendLog(
-              "api.uploads.multipart_upload.create.error",
-              stringify({ err }),
-              true
-            )
-            const params = {
-              filename: timestampRawFileName,
-            }
-            ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
-          }
-        }
-        const lastVideoPreview = store.get()["lastVideoPreview"]
-        const preview = lastVideoPreview
-          ? dataURLToFile(lastVideoPreview, fileName)
-          : undefined
-        createFileUploadCommand(
-          tokenStorage.token!.access_token,
-          tokenStorage.organizationId!,
-          fileName,
-          totalChunks,
-          title,
-          totalSize,
-          appVersion,
-          preview,
-          callback
-        )
-      }
-    })
+  // const { rawFileName: timestampRawFileName } = event as { rawFileName: any }
+  // logSender.sendLog(
+  //   "api.uploads.multipart_upload.try_to_create",
+  //   JSON.stringify({ rawFileName: timestampRawFileName })
+  // )
+  //
+  // unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
+  // unprocessedFilesService
+  //   .getTotalChunks(timestampRawFileName, chunkSize)
+  //   .then((data) => {
+  //     if (data) {
+  //       const { totalSize, totalChunks } = data
+  //       const appVersion = getVersion()
+  //       logSender.sendLog("recording.uploads.chunks.stored.prepared")
+  //       const title = getTitle(timestampRawFileName)
+  //       const fileName = title + ".mp4"
+  //       const callback = (err: null | Error, uuid: string | null) => {
+  //         if (!err) {
+  //           const params = { uuid, rawFileName: timestampRawFileName }
+  //           ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
+  //         } else {
+  //           logSender.sendLog(
+  //             "api.uploads.multipart_upload.create.error",
+  //             stringify({ err }),
+  //             true
+  //           )
+  //           const params = {
+  //             filename: timestampRawFileName,
+  //           }
+  //           ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
+  //         }
+  //       }
+  //       const lastVideoPreview = store.get()["lastVideoPreview"]
+  //       const preview = lastVideoPreview
+  //         ? dataURLToFile(lastVideoPreview, fileName)
+  //         : undefined
+  //       createFileUploadCommand(
+  //         tokenStorage.token!.access_token,
+  //         tokenStorage.organizationId!,
+  //         fileName,
+  //         totalChunks,
+  //         title,
+  //         totalSize,
+  //         appVersion,
+  //         preview,
+  //         callback
+  //       )
+  //     }
+  //   })
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
@@ -1455,7 +1463,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
     "recorder/org/" +
-    tokenStorage.organizationId +
+    TokenStorage.organizationId +
     "/" +
     "library/" +
     uuid
@@ -1653,8 +1661,8 @@ ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
     .then((data) => {
       typedChunk.startProcess()
       uploadFileChunkCommand(
-        tokenStorage.token!.access_token,
-        tokenStorage.organizationId!,
+        TokenStorage.token!.access_token,
+        TokenStorage.organizationId!,
         uuid,
         data,
         chunkNumber,
