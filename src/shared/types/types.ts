@@ -107,3 +107,10 @@ export interface IScreenshotImageData {
   height: number
   url: string
 }
+
+export interface ICropVideoData {
+  out_w: number
+  out_h: number
+  x: number
+  y: number
+}

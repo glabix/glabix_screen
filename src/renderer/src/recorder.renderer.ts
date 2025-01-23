@@ -1,6 +1,7 @@
 import "@renderer/styles/index-page.scss"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import {
+  ICropVideoData,
   IOrganizationLimits,
   ISimpleStoreData,
   RecorderState,
@@ -45,6 +46,8 @@ let voiceStream: MediaStream = new MediaStream()
 let requestId = 0
 let currentRecordedUuid: string | null = null
 let currentRecordChunksCount = 0
+let cropVideoData: ICropVideoData | undefined = undefined
+
 function debounce(func, wait) {
   let timeoutId
 
@@ -491,6 +494,7 @@ const clearView = () => {
   if (cropMoveable) {
     cropMoveable.destroy()
     cropMoveable = undefined
+    cropVideoData = undefined
   }
 
   if (cameraMoveable) {
@@ -515,6 +519,38 @@ const setNoMicrophoneAlerts = (settings) => {
   } else {
     document.body.classList.remove("no-microphone")
   }
+}
+
+const updateCropVideoData = (data: {
+  top?: number
+  left?: number
+  height?: number
+  width?: number
+}) => {
+  if (!cropVideoData) {
+    cropVideoData = <ICropVideoData>{}
+  }
+
+  if (data.top) {
+    cropVideoData = { ...cropVideoData, y: data.top }
+  }
+
+  if (data.left) {
+    cropVideoData = { ...cropVideoData, x: data.left }
+  }
+
+  if (data.width) {
+    cropVideoData = { ...cropVideoData, out_w: data.width }
+  }
+
+  if (data.height) {
+    cropVideoData = { ...cropVideoData, out_h: data.height }
+  }
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `updateCropVideoData`,
+    body: JSON.stringify(cropVideoData),
+  })
 }
 
 const initView = (settings: StreamSettings, force?: boolean) => {
@@ -564,8 +600,16 @@ const initView = (settings: StreamSettings, force?: boolean) => {
     screenContainer.removeAttribute("hidden")
     const screen = screenContainer.querySelector("#crop_video_screen")!
     const canvasVideo = screen.querySelector("canvas")!
-    canvasVideo.width = screen.getBoundingClientRect().width
-    canvasVideo.height = screen.getBoundingClientRect().height
+    const screenRect = screen.getBoundingClientRect()
+    canvasVideo.width = screenRect.width
+    canvasVideo.height = screenRect.height
+
+    updateCropVideoData({
+      top: screenRect.top || screenRect.y,
+      left: screenRect.left || screenRect.x,
+      width: screenRect.width,
+      height: screenRect.height,
+    })
 
     cropMoveable = new Moveable(document.body, {
       target: screen as MoveableRefTargetType,
@@ -582,6 +626,7 @@ const initView = (settings: StreamSettings, force?: boolean) => {
       .on("drag", ({ target, left, top }) => {
         target!.style.left = `${left}px`
         target!.style.top = `${top}px`
+        updateCropVideoData({ top, left })
         window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
       })
       .on("dragEnd", () => {
@@ -601,6 +646,8 @@ const initView = (settings: StreamSettings, force?: boolean) => {
       target.style.left = `${drag.left}px`
       target.style.width = `${width}px`
       target.style.height = `${height}px`
+
+      updateCropVideoData({ top: drag.top, left: drag.left, width, height })
 
       canvasVideo.width = width
       canvasVideo.height = height
@@ -691,7 +738,8 @@ function initRecord(data: StreamSettings) {
     const canvas = document.querySelector("#crop_video_screen canvas")
     initStream(data)
       .then((stream) => {
-        createVideo(stream, canvas, undefined)
+        // createVideo(stream, canvas, undefined)
+        createVideo(stream, undefined, undefined)
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: `${data.action}.combineStream.init`,
         })
@@ -757,41 +805,41 @@ window.electronAPI.ipcRenderer.on(
         const screenMove = cropMoveable!.getControlBoxElement()
         screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
 
-        const canvasVideo = document.querySelector(
-          "#__canvas_video_stream__"
-        )! as HTMLVideoElement
-        canvasVideo.play()
+        //   const canvasVideo = document.querySelector(
+        //     "#__canvas_video_stream__"
+        //   )! as HTMLVideoElement
+        //   canvasVideo.play()
 
-        // Координаты области экрана для захвата
-        const canvas = document.querySelector(
-          "#crop_video_screen canvas"
-        ) as HTMLCanvasElement
-        const canvasPosition = canvas.getBoundingClientRect()
-        const ctx = canvas.getContext("2d")
-        const deviceRation =
-          navigator.userAgent.indexOf("Mac") != -1 ? 1 : window.devicePixelRatio
-        const captureX = deviceRation * canvasPosition.left
-        const captureY = deviceRation * canvasPosition.top
-        const captureWidth = deviceRation * canvasPosition.width
-        const captureHeight = deviceRation * canvasPosition.height
+        //   // Координаты области экрана для захвата
+        //   const canvas = document.querySelector(
+        //     "#crop_video_screen canvas"
+        //   ) as HTMLCanvasElement
+        //   const canvasPosition = canvas.getBoundingClientRect()
+        //   const ctx = canvas.getContext("2d")
+        //   const deviceRation =
+        //     navigator.userAgent.indexOf("Mac") != -1 ? 1 : window.devicePixelRatio
+        //   const captureX = deviceRation * canvasPosition.left
+        //   const captureY = deviceRation * canvasPosition.top
+        //   const captureWidth = deviceRation * canvasPosition.width
+        //   const captureHeight = deviceRation * canvasPosition.height
 
-        // Обновление canvas с захваченной областью экрана
-        function updateCanvas() {
-          ctx!.drawImage(
-            canvasVideo,
-            captureX,
-            captureY,
-            captureWidth,
-            captureHeight,
-            0,
-            0,
-            canvasPosition.width,
-            canvasPosition.height
-          )
-          requestId = requestAnimationFrame(updateCanvas)
-        }
+        //   // Обновление canvas с захваченной областью экрана
+        //   function updateCanvas() {
+        //     ctx!.drawImage(
+        //       canvasVideo,
+        //       captureX,
+        //       captureY,
+        //       captureWidth,
+        //       captureHeight,
+        //       0,
+        //       0,
+        //       canvasPosition.width,
+        //       canvasPosition.height
+        //     )
+        //     requestId = requestAnimationFrame(updateCanvas)
+        //   }
 
-        updateCanvas()
+        //   updateCanvas()
       }
 
       setTimeout(() => {
