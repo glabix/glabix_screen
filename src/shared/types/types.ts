@@ -1,3 +1,5 @@
+import { BrowserWindow } from "electron"
+
 export type ScreenAction =
   | "fullScreenVideo"
   | "cropVideo"
@@ -128,4 +130,34 @@ export interface IAvatarData {
   bg_color_number: number
   currentOrganization: IOrganization
   organizations: IOrganization[]
+}
+
+export enum DialogWindowEvents {
+  CREATE = "dialog:create",
+  DESTROY = "dialog:destroy",
+  CALLBACK = "dialog:callback",
+  RENDER = "dialog:render",
+}
+
+export interface IDialogWindowEventData {
+  action: "ok" | "cancel"
+}
+
+export interface IDialogWindowButton {
+  type: "default" | "primary" | "danger"
+  action: "ok" | "cancel"
+  text: string
+}
+export interface IDialogWindowData {
+  title: string
+  text?: string
+  buttons: IDialogWindowButton[]
+}
+
+export interface IDialogWindowParams {
+  parentWindow?: BrowserWindow | null
+  activeDisplay?: Electron.Display
+  width?: number
+  height?: number
+  data: IDialogWindowData
 }

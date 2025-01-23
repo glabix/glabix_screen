@@ -40,6 +40,10 @@ import {
   IScreenshotImageData,
   IAccountData,
   IAvatarData,
+  IDialogWindowButton,
+  IDialogWindowData,
+  DialogWindowEvents,
+  IDialogWindowEventData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -69,6 +73,7 @@ import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { getAccountData } from "./commands/account-data.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
+import { createDialogWindow } from "@main/helpers/create-dialog"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -634,9 +639,6 @@ function createWindow() {
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
-
-  // SCREENSHOT
-  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -705,7 +707,22 @@ function createModal(parentWindow) {
       })
   }
 
+  // DIALOG TEST
+  const buttons: IDialogWindowButton[] = [
+    { type: "default", text: "Продолжить", action: "cancel" },
+    { type: "danger", text: "Остановить запись", action: "ok" },
+  ]
+  const data: IDialogWindowData = {
+    title: "Хотите остановить запись?",
+    text: "Запись не будет сохранена в библиотеку",
+    buttons: buttons,
+  }
+  createDialogWindow({ data })
+
   createDropdownWindow(modalWindow)
+  setTimeout(() => {
+    modalWindow.hide()
+  }, 1000)
 }
 
 function createDropdownWindow(parentWindow) {
@@ -1778,4 +1795,8 @@ ipcMain.on(RecordEvents.ERROR, (evt, data) => {
   const { title, body } = data
   logSender.sendLog(title, stringify(body))
   showRecordErrorBox("Ошибка во время захвата экрана", "Обратитесь в поддержку")
+})
+
+ipcMain.on(DialogWindowEvents.CALLBACK, (evt, data: IDialogWindowEventData) => {
+  console.log("DialogWindowEvents.CALLBACK", data)
 })

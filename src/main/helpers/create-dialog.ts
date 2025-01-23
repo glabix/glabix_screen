@@ -1,0 +1,86 @@
+import { BrowserWindow, screen, app } from "electron"
+import { is } from "@electron-toolkit/utils"
+import path, { join } from "path"
+import { DialogWindowEvents, IDialogWindowParams } from "@shared/types/types"
+
+export let dialogWindow: BrowserWindow | null = null
+
+export function createDefaultDialogWindowParams(
+  params: IDialogWindowParams
+): IDialogWindowParams {
+  let defaultParams: IDialogWindowParams = { ...params }
+  const cursor = screen.getCursorScreenPoint()
+  const currentScreen =
+    params.activeDisplay || screen.getDisplayNearestPoint(cursor)
+
+  defaultParams = {
+    ...params,
+    activeDisplay: currentScreen,
+    width: params.width || 400,
+    height: params.height || 200,
+  }
+
+  return defaultParams
+}
+
+export function createDialogWindow(_params: IDialogWindowParams): void {
+  if (dialogWindow) {
+    dialogWindow.destroy()
+    dialogWindow = null
+  }
+
+  const params = createDefaultDialogWindowParams(_params)
+  const screenBounds = params.activeDisplay!.bounds
+  const x = screenBounds.x + (screenBounds.width - params.width!) / 2
+  const y = screenBounds.y + (screenBounds.height - params.height!) / 2
+  const bounds: Electron.Rectangle = {
+    x,
+    y,
+    width: params.width!,
+    height: params.height!,
+  }
+
+  dialogWindow = new BrowserWindow({
+    fullscreenable: false,
+    maximizable: false,
+    // resizable: false,
+    minimizable: false,
+    width: bounds.width,
+    height: bounds.height,
+    frame: false,
+    x: bounds.x,
+    y: bounds.y,
+    show: false,
+    modal: true,
+    alwaysOnTop: true,
+    roundedCorners: true,
+    parent: params.parentWindow || undefined,
+    webPreferences: {
+      preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
+      nodeIntegration: true, // повышаем безопасность
+      zoomFactor: 1.0,
+      devTools: !app.isPackaged,
+      // contextIsolation: true,  // повышаем безопасность
+    },
+  })
+
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    dialogWindow
+      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/dialog.html`)
+      .then(() => {
+        dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
+        dialogWindow!.setBounds(bounds)
+        dialogWindow!.show()
+        dialogWindow!.moveTop()
+      })
+  } else {
+    dialogWindow
+      .loadFile(join(import.meta.dirname, "../renderer/dialog.html"))
+      .then(() => {
+        dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
+        dialogWindow!.setBounds(bounds)
+        dialogWindow!.show()
+        dialogWindow!.moveTop()
+      })
+  }
+}

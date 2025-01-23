@@ -35,6 +35,17 @@
     pointer-events: none;
   }
 
+  &--danger {
+    background-color: var(--error);
+    border-color: var(--error);
+    color: var(--light);
+  }
+
+  &--danger:hover {
+    background-color: var(--error-700);
+    border-color: var(--error-700);
+  }
+
   &--primary {
     background-color: var(--primary);
     border-color: var(--primary);
