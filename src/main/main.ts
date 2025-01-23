@@ -66,13 +66,11 @@ import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
 import File from "../database/models/Chunk"
-import Record from "../database/models/Record"
 import sequelize from "../database/index"
-import RecordService from "../services/record.service"
-import ChunkService from "../services/chunk.service"
 import StorageService from "../services/storage.service"
 import { RecordManager } from "../services/record-manager"
 import ChunkAccumulator from "../services/raw-chunk-saver"
+import { PreviewManager } from "../services/preview-manager"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -1268,6 +1266,10 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
   StorageService.addChunk(fileUuid, blob, index, isLast) //todo
+  const preview = store.get()["lastVideoPreview"]
+  if (preview && !PreviewManager.hasPreview(fileUuid)) {
+    PreviewManager.savePreview(fileUuid, preview)
+  }
 
   // unprocessedFilesService
   //   .saveFileWithStreams(blob, lastCreatedFileName!, isLast)

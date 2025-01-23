@@ -17,7 +17,7 @@ interface RecordAttributes {
   server_uuid: string | null
   version: string
   title: string
-  preview: string | null
+  previewSource: string | null
   status: RecordStatus
   createdAt?: Date
   updatedAt?: Date
@@ -25,7 +25,10 @@ interface RecordAttributes {
 }
 
 export interface RecordCreationAttributes
-  extends Optional<RecordAttributes, "uuid" | "server_uuid" | "preview"> {}
+  extends Optional<
+    RecordAttributes,
+    "uuid" | "server_uuid" | "previewSource"
+  > {}
 
 class Record
   extends Model<RecordAttributes, RecordCreationAttributes>
@@ -50,7 +53,7 @@ Record.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    preview: {
+    previewSource: {
       type: DataTypes.STRING,
       allowNull: true,
     },

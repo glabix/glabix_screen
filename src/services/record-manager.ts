@@ -6,6 +6,7 @@ import Record, { RecordStatus } from "../database/models/Record"
 import Chunk, { ChunkStatus } from "../database/models/Chunk"
 import { openExternalLink } from "../shared/helpers/open-external-link"
 import { Notification } from "electron"
+import { PreviewManager } from "./preview-manager"
 
 export class RecordManager {
   static tokenStorage = new TokenStorage()
@@ -14,6 +15,7 @@ export class RecordManager {
   static currentProcessRecordUuid: string | null = null
   static lastRecordUuid: string | null = null
   static chunksDeleteProcess = false
+  static previewsDeleteProcess = false
   constructor() {}
 
   static async setTimer() {
@@ -29,6 +31,12 @@ export class RecordManager {
       this.chunksDeleteProcess = false
     }
 
+    if (!this.previewsDeleteProcess) {
+      this.previewsDeleteProcess = true
+      await this.deleteUnknownPreviews()
+      this.previewsDeleteProcess = false
+    }
+
     const timer = setInterval(() => {
       if (!this.currentProcessRecordUuid) {
         this.resolveUnprocessedRecords()
@@ -41,6 +49,11 @@ export class RecordManager {
         await this.deleteUnknownChunks()
         this.chunksDeleteProcess = false
       }
+      if (!this.previewsDeleteProcess) {
+        this.previewsDeleteProcess = true
+        await this.deleteUnknownPreviews()
+        this.previewsDeleteProcess = false
+      }
     }, 30 * 1000)
   }
 
@@ -51,6 +64,10 @@ export class RecordManager {
 
   static async deleteUnknownChunks() {
     await StorageService.deleteUnknownChunks()
+  }
+
+  static async deleteUnknownPreviews() {
+    await PreviewManager.deleteUnknownPreviews()
   }
 
   static async resolveUnprocessedRecords() {

@@ -31,6 +31,7 @@ import { LogSender } from "../main/helpers/log-sender"
 import { stringify } from "../main/helpers/stringify"
 import { uploadFileChunkCommand } from "../main/commands/upload-file-chunk.command"
 import { RecordManager } from "./record-manager"
+import { PreviewManager } from "./preview-manager"
 
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
@@ -198,9 +199,11 @@ class StorageService {
     const count = fileChunks.length
     const appVersion = getVersion()
     const fileName = title + ".mp4"
-    console.log("fileName", fileName)
-    console.log("this.tokenStorage.token", TokenStorage.token)
     let error = false
+    const preview = (await PreviewManager.getPreview(
+      record.getDataValue("previewSource")
+    )) as File
+    console.log(123123123123123, preview)
     try {
       const response = await createFileUploadCommand(
         TokenStorage.token!.access_token,
@@ -210,7 +213,7 @@ class StorageService {
         title,
         size,
         appVersion,
-        undefined
+        preview
       )
       console.log(response.status)
       if (response.status === 200 || response.status === 201) {
@@ -227,7 +230,6 @@ class StorageService {
         )
       }
     } catch (err) {
-      console.log(err)
       this.logSender.sendLog(
         "api.uploads.multipart_upload.create.error",
         stringify({ err }),
