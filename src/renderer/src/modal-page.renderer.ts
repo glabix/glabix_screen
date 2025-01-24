@@ -217,7 +217,7 @@ function initVisualAudio() {
           const el = audioDeviceContainer.querySelector(
             "button"
           ) as HTMLButtonElement
-          el.style.background = `linear-gradient(90deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
+          el.style.background = `linear-gradient(0deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
           visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
         }
 
