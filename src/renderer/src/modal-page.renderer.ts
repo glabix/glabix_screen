@@ -210,6 +210,10 @@ async function setupMediaDevices() {
     }
   } else {
     activeAudioDevice = audioDevicesList[0]!
+    streamSettings = {
+      ...streamSettings,
+      audioDeviceId: undefined,
+    }
   }
 
   if (hasCamera) {
@@ -232,12 +236,17 @@ async function setupMediaDevices() {
     }
   } else {
     activeVideoDevice = videoDevicesList[0]!
+    streamSettings = {
+      ...streamSettings,
+      cameraDeviceId: undefined,
+    }
   }
 }
 function initMediaDevice() {
   setupMediaDevices()
     .then(() => {
       sendSettings()
+
       if (activeVideoDevice) {
         videoDeviceContainer.innerHTML = ""
         videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
@@ -252,7 +261,6 @@ function initMediaDevice() {
 }
 
 initMediaDevice()
-
 const changeMediaDevices = debounce(() => {
   initMediaDevice()
   window.electronAPI.ipcRenderer.send("dropdown:close", {})
