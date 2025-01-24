@@ -739,12 +739,17 @@ document.addEventListener(
           title: "screen.settings.close",
         })
       } else {
-        const offsetY = btn.getBoundingClientRect().top
+        const offsetY = Math.round(btn.getBoundingClientRect().top) || 0
         const action = btn.dataset.action as ScreenAction
         const list: IDropdownList = {
           type: "screenActions",
           items: getDropdownItems("screenActions"),
         }
+
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `screen.settings.open - offsetY: ${offsetY}`,
+        })
+
         window.electronAPI.ipcRenderer.send("dropdown:open", {
           action,
           offsetY,
@@ -762,11 +767,16 @@ document.addEventListener(
           title: "webcam.settings.close",
         })
       } else {
-        const offsetY = btn.getBoundingClientRect().top
+        const offsetY = Math.round(btn.getBoundingClientRect().top) || 0
         const list: IDropdownList = {
           type: "videoDevices",
           items: getDropdownItems("videoDevices"),
         }
+
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `webcam.settings.open - offsetY: ${offsetY}`,
+        })
+
         window.electronAPI.ipcRenderer.send("dropdown:open", {
           offsetY,
           list,
@@ -783,11 +793,16 @@ document.addEventListener(
           title: "microphone.settings.close",
         })
       } else {
-        const offsetY = btn.getBoundingClientRect().top
+        const offsetY = Math.round(btn.getBoundingClientRect().top) || 0
         const list: IDropdownList = {
           type: "audioDevices",
           items: getDropdownItems("audioDevices"),
         }
+
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `microphone.settings.open - offsetY: ${offsetY}`,
+        })
+
         window.electronAPI.ipcRenderer.send("dropdown:open", {
           offsetY,
           list,
