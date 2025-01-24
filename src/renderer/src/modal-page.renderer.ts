@@ -204,7 +204,7 @@ function initVisualAudio() {
       })
       .then((stream) => {
         visualAudioStream = stream
-        const source = context.createMediaStreamSource(stream)
+        const source = context.createMediaStreamSource(visualAudioStream)
         const analyzer = context.createAnalyser()
         const fbcArray = new Uint8Array(analyzer.frequencyBinCount)
         analyzer.fftSize = 256
