@@ -7,6 +7,8 @@ import Chunk, { ChunkStatus } from "../database/models/Chunk"
 import { openExternalLink } from "../shared/helpers/open-external-link"
 import { Notification } from "electron"
 import { PreviewManager } from "./preview-manager"
+import { stringify } from "querystring"
+import { httpErrorPareser } from "../main/helpers/http-error-pareser"
 
 export class RecordManager {
   static tokenStorage = new TokenStorage()
@@ -16,6 +18,7 @@ export class RecordManager {
   static lastRecordUuid: string | null = null
   static chunksDeleteProcess = false
   static previewsDeleteProcess = false
+
   constructor() {}
 
   static async setTimer() {
@@ -105,10 +108,15 @@ export class RecordManager {
 
   static async recordServerCreate(record: Record): Promise<Record | null> {
     const uuid = record.getDataValue("uuid")
+    this.logSender.sendLog("record.manager.server_create", stringify({ uuid }))
     return await StorageService.createFileOnServer(record.getDataValue("uuid"))
   }
 
   static async resolveRecordComplete(uuid: string) {
+    this.logSender.sendLog(
+      "record.manager.resolve.complete",
+      stringify({ uuid })
+    )
     const record = await getByUuidRecordDal(uuid)
     const recordChunks = record.getDataValue("Chunks")
     const unloadedChunk = recordChunks.find(
@@ -116,18 +124,26 @@ export class RecordManager {
     )
     if (!unloadedChunk) {
       // если нет незагруженных чанков
-      await StorageService.fileUploadEnd(uuid)
+      await StorageService.RecordUploadEnd(uuid)
     }
   }
 
   static async processRecord(uuid: string, force = false) {
-    const record = await getByUuidRecordDal(uuid)
-    const status = record.getDataValue("status")
-    if (status === RecordStatus.RECORDING) {
-      return
-    } else if (status === RecordStatus.RECORDED) {
-      this.currentProcessRecordUuid = uuid
-      try {
+    this.logSender.sendLog(
+      "record.manager.process.start",
+      stringify({ uuid, force })
+    )
+    try {
+      const record = await getByUuidRecordDal(uuid)
+      const status = record.getDataValue("status")
+      if (status === RecordStatus.RECORDING) {
+        return
+      } else if (status === RecordStatus.RECORDED) {
+        this.logSender.sendLog(
+          "record.manager.process.start.find.recorded",
+          stringify({ uuid, past: this.currentProcessRecordUuid })
+        )
+        this.currentProcessRecordUuid = uuid
         const updatedRecord = await this.recordServerCreate(record)
         if (this.lastRecordUuid === uuid) {
           this.openLibraryPage(updatedRecord, false)
@@ -136,17 +152,25 @@ export class RecordManager {
         }
         await this.loadRecordChunks(uuid)
         await this.resolveRecordComplete(uuid)
-      } catch (e) {}
-      this.currentProcessRecordUuid = null
-      return
-    } else if (status === RecordStatus.CREATED_ON_SERVER) {
-      this.currentProcessRecordUuid = uuid
-      try {
+        this.currentProcessRecordUuid = null
+        return
+      } else if (status === RecordStatus.CREATED_ON_SERVER) {
+        this.logSender.sendLog(
+          "record.manager.process.start.find.created_on_server",
+          stringify({ uuid, past: this.currentProcessRecordUuid })
+        )
+        this.currentProcessRecordUuid = uuid
         await this.loadRecordChunks(uuid)
         await this.resolveRecordComplete(uuid)
-      } catch (e) {}
-      this.currentProcessRecordUuid = null
-      return
+        this.currentProcessRecordUuid = null
+        return
+      }
+    } catch (err) {
+      const parsedError = httpErrorPareser(err)
+      this.logSender.sendLog(
+        "record.manager.process.error",
+        stringify({ uuid, error: parsedError | err })
+      )
     }
   }
 

@@ -32,6 +32,7 @@ import { stringify } from "../main/helpers/stringify"
 import { uploadFileChunkCommand } from "../main/commands/upload-file-chunk.command"
 import { RecordManager } from "./record-manager"
 import { PreviewManager } from "./preview-manager"
+import { ICropVideoData } from "../shared/types/types"
 
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
@@ -39,6 +40,10 @@ class StorageService {
   static async startRecord(): Promise<Record> {
     const title = getTitle(Date.now())
     const version = getVersion()
+    this.logSender.sendLog(
+      "record.database.create.start",
+      stringify({ title, version })
+    )
     return createRecordDal({
       title,
       version,
@@ -53,6 +58,10 @@ class StorageService {
     index: number,
     isLast: boolean
   ) {
+    this.logSender.sendLog(
+      "record.recording.chunk.received.process.start",
+      stringify({ fileUuid, count: index, byteLength: blob.size })
+    )
     if (index === 1) {
       this.lastChunk = null
     }
@@ -76,6 +85,16 @@ class StorageService {
     let totalSize = await this.getFileSize(source)
 
     if (totalSize > chunkSizeLimit) {
+      this.logSender.sendLog(
+        "record.recording.chunk.received.process.chunk_size_limit",
+        stringify({
+          fileUuid,
+          count: index,
+          byteLength: blob.size,
+          totalSize,
+          chunkSizeLimit,
+        })
+      )
       // Создаем новый чанк с новым UUID для следующего файла
       this.lastChunk = await createChunkDal({
         fileUuid,
@@ -85,13 +104,18 @@ class StorageService {
       })
       source = path.join(this.storagePath, this.lastChunk.getDataValue("uuid"))
       totalSize = 0 // Сбрасываем размер, так как начинаем новый файл
+    } else {
+      this.logSender.sendLog(
+        "record.recording.chunk.received.process.to_current_chunk",
+        stringify({ fileUuid, count: index, byteLength: blob.size })
+      )
     }
 
     // Создаем директорию, если её нет
     fs.mkdirSync(this.storagePath, { recursive: true })
 
     // Записываем данные в файл
-    await this.writeFile(source, buffer)
+    await this.writeChunk(source, buffer)
 
     // Обновляем статус чанка в БД
     await this.updateChunkStatus(
@@ -100,12 +124,10 @@ class StorageService {
       totalSize + buffer.byteLength
     )
 
-    // Если это последний чанк, завершаем запись
-    if (isLast) {
-      await this.endRecord(fileUuid)
-      RecordManager.newRecord(fileUuid)
-    }
-
+    this.logSender.sendLog(
+      "record.recording.chunk.received.process.end",
+      stringify({ fileUuid, count: index })
+    )
     return source
   }
 
@@ -120,7 +142,7 @@ class StorageService {
   }
 
   // Функция для записи данных в файл
-  static async writeFile(source: string, buffer: Buffer): Promise<void> {
+  static async writeChunk(source: string, buffer: Buffer): Promise<void> {
     return new Promise((resolve, reject) => {
       const writeStream = fs.createWriteStream(source, { flags: "a" })
       writeStream.write(buffer, (err) => {
@@ -132,6 +154,11 @@ class StorageService {
       writeStream.end()
       writeStream.on("finish", resolve)
       writeStream.on("error", (err) => {
+        this.logSender.sendLog(
+          "record.recording.chunk.received.storage.error",
+          stringify({ source, size: buffer.byteLength }),
+          true
+        )
         fsErrorParser(err, source)
         reject(err)
       })
@@ -177,7 +204,13 @@ class StorageService {
 
     // Удаляем файлы
     await Promise.all(
-      filesToDelete.map((file) => deleteFile(path.join(this.storagePath, file)))
+      filesToDelete.map((file) => {
+        this.logSender.sendLog(
+          "storage.unlink",
+          stringify({ source: path.join(this.storagePath, file) })
+        )
+        return deleteFile(path.join(this.storagePath, file))
+      })
     )
   }
 
@@ -185,10 +218,18 @@ class StorageService {
     const update: Partial<RecordCreationAttributes> = {
       status: RecordStatus.RECORDED,
     }
-    return await updateRecordDal(fileUuid, update)
+    const record = await updateRecordDal(fileUuid, update)
+    RecordManager.newRecord(fileUuid)
+    return record
   }
 
   static async createFileOnServer(fileUuid: string): Promise<Record | null> {
+    this.logSender.sendLog(
+      "record.create_on_server.start",
+      stringify({
+        fileUuid,
+      })
+    )
     let record = await getByUuidRecordDal(fileUuid)
     const title = record.getDataValue("title")
     const fileChunks = record.getDataValue("Chunks")
@@ -199,12 +240,38 @@ class StorageService {
     const count = fileChunks.length
     const appVersion = getVersion()
     const fileName = title + ".mp4"
+    let crop: ICropVideoData | null = null
+    if (
+      record.getDataValue("out_w") !== null &&
+      record.getDataValue("out_h") !== null &&
+      record.getDataValue("x") !== null &&
+      record.getDataValue("y") !== null
+    ) {
+      crop = {
+        out_w: record.getDataValue("out_w"),
+        out_h: record.getDataValue("out_h"),
+        x: record.getDataValue("x"),
+        y: record.getDataValue("y"),
+      }
+    }
     let error = false
-    const preview = (await PreviewManager.getPreview(
-      record.getDataValue("previewSource")
-    )) as File
-    console.log(123123123123123, preview)
+    const previewSource = record.getDataValue("previewSource")
+    let preview: File | null = null
+    if (previewSource) {
+      preview = (await PreviewManager.getPreview(previewSource)) as File
+    }
     try {
+      this.logSender.sendLog(
+        "record.create_on_server.response",
+        stringify({
+          fileUuid,
+          title,
+          count,
+          size,
+          isCrop: !!crop,
+          isPreview: !!preview,
+        })
+      )
       const response = await createFileUploadCommand(
         TokenStorage.token!.access_token,
         TokenStorage.organizationId!,
@@ -213,9 +280,9 @@ class StorageService {
         title,
         size,
         appVersion,
-        preview
+        preview,
+        crop
       )
-      console.log(response.status)
       if (response.status === 200 || response.status === 201) {
         const server_uuid = response.data.uuid
         const update: Partial<RecordCreationAttributes> = {
@@ -231,12 +298,11 @@ class StorageService {
       }
     } catch (err) {
       this.logSender.sendLog(
-        "api.uploads.multipart_upload.create.error",
-        stringify({ err }),
+        "record.create_on_server.error",
+        stringify({ fileUuid, err }),
         true
       )
       error = true
-      // ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
     }
     if (!error) {
       return record
@@ -249,10 +315,19 @@ class StorageService {
     let chunk = _chunk
     const record = await getByUuidRecordDal(chunk.getDataValue("fileUuid"))
     const serverUuid = record.getDataValue("server_uuid")
+
     let data: Buffer | null = null
     let error = false
     const chunkNumber = chunk.getDataValue("index")
     const size = chunk.getDataValue("size")
+    this.logSender.sendLog(
+      "chunk.upload.start",
+      stringify({
+        RecordServerUuid: serverUuid,
+        index: chunkNumber,
+        size,
+      })
+    )
     try {
       data = await fs.promises.readFile(chunk.getDataValue("source"))
     } catch (err) {
@@ -261,6 +336,16 @@ class StorageService {
       //   stringify({ err }),
       //   true
       // )
+      this.logSender.sendLog(
+        "chunk.upload.storage.get.error",
+        stringify({
+          RecordServerUuid: serverUuid,
+          index: chunkNumber,
+          size,
+          err,
+        }),
+        true
+      )
       error = true
       return null
     }
@@ -285,14 +370,13 @@ class StorageService {
         )
       }
     } catch (e) {
-      console.log(e)
       this.logSender.sendLog(
-        "api.uploads.chunks.upload_error",
+        "chunk.upload.error",
         stringify({
-          chunk_number: chunkNumber,
-          chunk_size: size,
+          RecordServerUuid: serverUuid,
+          index: chunkNumber,
+          size,
           real_size: data?.length || null,
-          file_uuid: serverUuid,
           e,
         }),
         true
@@ -303,14 +387,22 @@ class StorageService {
       chunk = await updateChunkDal(_chunk.getDataValue("uuid"), update)
       error = true
     }
-    if (error) {
+    if (!error) {
+      this.logSender.sendLog(
+        "chunk.upload.success",
+        stringify({
+          RecordServerUuid: serverUuid,
+          index: chunkNumber,
+          size,
+        })
+      )
       return chunk
     } else {
       return null
     }
   }
 
-  static async fileUploadEnd(fileUuid: string) {
+  static async RecordUploadEnd(fileUuid: string) {
     await updateRecordDal(fileUuid, { status: RecordStatus.COMPLETED })
     await deleteByUuidRecordDal(fileUuid)
   }
@@ -334,6 +426,20 @@ class StorageService {
       const uuid = sc.getDataValue("uuid")
       updateChunkDal(uuid, { status: ChunkStatus.PENDING })
     })
+  }
+
+  static async setCropData(uuid: string, data: ICropVideoData) {
+    const { out_w, out_h, x, y } = data
+    const record = await updateRecordDal(uuid, { out_w, out_h, x, y })
+    return record
+  }
+
+  static async cancelRecord(uuid: string) {
+    const record = await updateRecordDal(uuid, {
+      status: RecordStatus.CANCELED,
+    })
+    await deleteByUuidRecordDal(uuid)
+    return uuid
   }
 }
 

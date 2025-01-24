@@ -1,4 +1,5 @@
 import axios from "axios"
+import { ICropVideoData } from "../../shared/types/types"
 
 export function createFileUploadCommand(
   token: string,
@@ -8,7 +9,8 @@ export function createFileUploadCommand(
   title: string,
   file_size: number,
   version: string,
-  preview: File | undefined
+  preview: File | undefined,
+  crop: ICropVideoData | null
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads`
   const formData = new FormData()
@@ -17,7 +19,12 @@ export function createFileUploadCommand(
   formData.append("chunks_count", chunks_count.toString())
   formData.append("file_size", file_size.toString())
   formData.append("version", version)
-
+  if (crop) {
+    formData.append("crop[out_w]", crop.out_w.toString())
+    formData.append("crop[out_h]", crop.out_h.toString())
+    formData.append("crop[x]", crop.x.toString())
+    formData.append("crop[y]", crop.y.toString())
+  }
   if (preview) {
     formData.append("preview", preview)
   }

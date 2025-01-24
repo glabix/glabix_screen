@@ -17,7 +17,6 @@ export class PreviewManager {
 
   static dataUrlToBuffer(dataUrl: string): Buffer {
     // Разделяем dataURL на метаданные и данные
-    console.log(dataUrl)
     const matches = dataUrl.match(/^data:(.+?);base64,(.+)$/)
     if (!matches || matches.length !== 3) {
       throw new Error("Invalid dataURL format")

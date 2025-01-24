@@ -5,11 +5,9 @@ import Chunk from "./Chunk"
 export enum RecordStatus {
   RECORDING = "recording",
   RECORDED = "recorded",
-  CREATING_ON_SERVER = "creating_on_server",
   CREATED_ON_SERVER = "created_on_server",
-  CHUNKS_UPLOADING = "chunks_uploading",
-  CHUNKS_UPLOADED = "chunks_uploaded",
   COMPLETED = "completed",
+  CANCELED = "canceled",
 }
 
 interface RecordAttributes {
@@ -19,6 +17,10 @@ interface RecordAttributes {
   title: string
   previewSource: string | null
   status: RecordStatus
+  out_w: number
+  out_h: number
+  x: number
+  y: number
   createdAt?: Date
   updatedAt?: Date
   Chunks?: Chunk[]
@@ -27,7 +29,7 @@ interface RecordAttributes {
 export interface RecordCreationAttributes
   extends Optional<
     RecordAttributes,
-    "uuid" | "server_uuid" | "previewSource"
+    "uuid" | "server_uuid" | "previewSource" | "out_w" | "out_h" | "x" | "y"
   > {}
 
 class Record
@@ -60,6 +62,22 @@ Record.init(
     status: {
       type: DataTypes.ENUM(...Object.values(RecordStatus)),
       allowNull: false,
+    },
+    out_w: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    out_h: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    x: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    y: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
   },
   {

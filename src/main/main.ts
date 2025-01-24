@@ -37,6 +37,7 @@ import {
   SimpleStoreEvents,
   ModalWindowHeight,
   IScreenshotImageData,
+  ICropVideoData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -1238,7 +1239,6 @@ ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     StorageService.startRecord().then((r) => {
-      console.log(r)
       mainWindow.webContents.send(
         RecordEvents.START,
         data,
@@ -1249,16 +1249,33 @@ ipcMain.on(RecordEvents.START, (event, data) => {
   modalWindow.hide()
 })
 
+ipcMain.on(RecordEvents.CANCEL, (event, data) => {
+  const { fileUuid } = data as { fileUuid: string }
+  StorageService.cancelRecord(fileUuid)
+})
+
+ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
+  const { fileUuid, cropVideoData } = data as {
+    fileUuid: string
+    cropVideoData: ICropVideoData
+  }
+  logSender.sendLog(
+    "record.recording.set_crop.data.received",
+    stringify({ fileUuid, cropVideoData })
+  )
+  StorageService.setCropData(fileUuid, cropVideoData)
+})
+
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
-  const { data, fileUuid, index, isLast, lastStreamSettings, stream, canvas } =
-    res
-  console.log(stream)
-  console.log(lastStreamSettings)
-  console.log(canvas)
+  const { data, fileUuid, index, isLast } = res
+  logSender.sendLog(
+    "record.recording.chunk.received",
+    stringify({ fileUuid, byteLength: data.byteLength })
+  )
   if (!data.byteLength) {
     logSender.sendLog(
-      "record.raw_file_chunk.save.error",
-      stringify({ byteLength: data.byteLength }),
+      "record.recording.chunk.received.error",
+      stringify({ fileUuid, byteLength: data.byteLength }),
       true
     )
     showRecordErrorBox("Ошибка записи")
@@ -1268,6 +1285,10 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   StorageService.addChunk(fileUuid, blob, index, isLast) //todo
   const preview = store.get()["lastVideoPreview"]
   if (preview && !PreviewManager.hasPreview(fileUuid)) {
+    logSender.sendLog(
+      "record.recording.preview.received",
+      stringify({ fileUuid })
+    )
     PreviewManager.savePreview(fileUuid, preview)
   }
 
@@ -1384,20 +1405,9 @@ ipcMain.on(RecordEvents.ERROR, (event, file) => {
   showRecordErrorBox()
 })
 
-ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
-  unprocessedFilesService
-    .awaitWriteFile(lastCreatedFileName!)
-    .then((rawFileName) => {
-      logSender.sendLog("record.raw_file.full.save.success")
-      ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
-    })
-    .catch((e) => {
-      logSender.sendLog(
-        "record.raw_file.full.await.error",
-        stringify({ err: e }),
-        true
-      )
-    })
+ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, data) => {
+  const { fileUuid } = data
+  StorageService.endRecord(fileUuid)
 })
 
 ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {

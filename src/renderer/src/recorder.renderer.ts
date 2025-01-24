@@ -328,16 +328,12 @@ const createVideo = (_stream, _canvas, _video) => {
     const blob = new Blob([e.data], { type: getSupportedMimeType() })
     const reader = new FileReader()
     reader.onload = function () {
-      console.log(lastStreamSettings)
       const arrayBuffer = reader.result
       window.electronAPI.ipcRenderer.send(RecordEvents.SEND_DATA, {
         data: arrayBuffer,
         isLast: !videoRecorder?.stream?.active,
         index: currentRecordChunksCount,
         fileUuid: currentRecordedUuid,
-        lastStreamSettings,
-        stream,
-        canvas,
       })
       lastChunk = arrayBuffer
     }
@@ -350,7 +346,9 @@ const createVideo = (_stream, _canvas, _video) => {
     })
     timer.stop()
 
-    window.electronAPI.ipcRenderer.send(FileUploadEvents.RECORD_CREATED)
+    window.electronAPI.ipcRenderer.send(FileUploadEvents.RECORD_CREATED, {
+      fileUuid: currentRecordedUuid,
+    })
 
     lastChunk = null // Reset the lastChunk for the next recording
 
@@ -804,7 +802,10 @@ window.electronAPI.ipcRenderer.on(
         screen.classList.add("is-recording")
         const screenMove = cropMoveable!.getControlBoxElement()
         screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
-
+        window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
+          cropVideoData,
+          fileUuid: file_uuid,
+        })
         //   const canvasVideo = document.querySelector(
         //     "#__canvas_video_stream__"
         //   )! as HTMLVideoElement
