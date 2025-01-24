@@ -1,6 +1,9 @@
 import "@renderer/styles/index-page.scss"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import {
+  DialogWindowEvents,
+  IDialogWindowButton,
+  IDialogWindowData,
   IOrganizationLimits,
   ISimpleStoreData,
   RecorderState,
@@ -31,6 +34,8 @@ const stopBtn = document.getElementById("stopBtn")! as HTMLButtonElement
 const cancelBtn = document.getElementById("cancelBtn")! as HTMLButtonElement
 const pauseBtn = document.getElementById("pauseBtn")! as HTMLButtonElement
 const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
+const deleteBtn = document.getElementById("deleteBtn")! as HTMLButtonElement
+const restartBtn = document.getElementById("restartBtn")! as HTMLButtonElement
 const changeCameraOnlySizeBtn = document.querySelectorAll(
   ".js-camera-only-size"
 )!
@@ -134,6 +139,43 @@ pauseBtn.addEventListener("click", () => {
   if (videoRecorder && videoRecorder.state == "recording") {
     videoRecorder.pause()
     timer.pause()
+  }
+})
+
+deleteBtn.addEventListener("click", () => {
+  // if (videoRecorder && videoRecorder.state == "recording") {
+  if (true) {
+    const buttons: IDialogWindowButton[] = [
+      { type: "default", text: "Продолжить", action: "cancel" },
+      { type: "danger", text: "Остановить запись", action: "ok" },
+    ]
+    const data: IDialogWindowData = {
+      title: "Хотите остановить запись?",
+      text: "Запись не будет сохранена в библиотеку",
+      buttons: buttons,
+    }
+
+    window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
+    // videoRecorder.pause()
+    // timer.pause()
+  }
+})
+restartBtn.addEventListener("click", () => {
+  // if (videoRecorder && videoRecorder.state == "recording") {
+  if (true) {
+    const buttons: IDialogWindowButton[] = [
+      { type: "default", text: "Продолжить", action: "cancel" },
+      { type: "danger", text: "Начать заново", action: "ok" },
+    ]
+    const data: IDialogWindowData = {
+      title: "Хотите начать запись заново?",
+      text: "Текущая запись не будет сохранена в библиотеку",
+      buttons: buttons,
+    }
+
+    window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
+    // videoRecorder.pause()
+    // timer.pause()
   }
 })
 

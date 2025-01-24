@@ -43,7 +43,7 @@ import {
   IDialogWindowButton,
   IDialogWindowData,
   DialogWindowEvents,
-  IDialogWindowEventData,
+  IDialogWindowCallbackData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -73,7 +73,10 @@ import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { getAccountData } from "./commands/account-data.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
-import { createDialogWindow } from "@main/helpers/create-dialog"
+import {
+  createDialogWindow,
+  destroyDialogWindow,
+} from "@main/helpers/create-dialog"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -707,22 +710,7 @@ function createModal(parentWindow) {
       })
   }
 
-  // DIALOG TEST
-  const buttons: IDialogWindowButton[] = [
-    { type: "default", text: "Продолжить", action: "cancel" },
-    { type: "danger", text: "Остановить запись", action: "ok" },
-  ]
-  const data: IDialogWindowData = {
-    title: "Хотите остановить запись?",
-    text: "Запись не будет сохранена в библиотеку",
-    buttons: buttons,
-  }
-  createDialogWindow({ data })
-
   createDropdownWindow(modalWindow)
-  setTimeout(() => {
-    modalWindow.hide()
-  }, 1000)
 }
 
 function createDropdownWindow(parentWindow) {
@@ -1797,6 +1785,24 @@ ipcMain.on(RecordEvents.ERROR, (evt, data) => {
   showRecordErrorBox("Ошибка во время захвата экрана", "Обратитесь в поддержку")
 })
 
-ipcMain.on(DialogWindowEvents.CALLBACK, (evt, data: IDialogWindowEventData) => {
-  console.log("DialogWindowEvents.CALLBACK", data)
+ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
+  if (modalWindow && modalWindow.isVisible()) {
+    modalWindow.hide()
+  }
+
+  createDialogWindow({ data })
 })
+
+ipcMain.on(
+  DialogWindowEvents.CALLBACK,
+  (evt, data: IDialogWindowCallbackData) => {
+    if (data.action == "cancel") {
+      destroyDialogWindow()
+      mainWindow.focusOnWebView()
+    }
+
+    if (data.action == "ok") {
+      // ok
+    }
+  }
+)

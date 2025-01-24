@@ -134,12 +134,11 @@ export interface IAvatarData {
 
 export enum DialogWindowEvents {
   CREATE = "dialog:create",
-  DESTROY = "dialog:destroy",
   CALLBACK = "dialog:callback",
   RENDER = "dialog:render",
 }
 
-export interface IDialogWindowEventData {
+export interface IDialogWindowCallbackData {
   action: "ok" | "cancel"
 }
 

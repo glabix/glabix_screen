@@ -23,16 +23,30 @@ export function createDefaultDialogWindowParams(
   return defaultParams
 }
 
-export function createDialogWindow(_params: IDialogWindowParams): void {
+export function destroyDialogWindow(callback?: () => void): void {
   if (dialogWindow) {
     dialogWindow.destroy()
     dialogWindow = null
+
+    if (callback) {
+      callback()
+    }
+  }
+}
+
+export function createDialogWindow(_params: IDialogWindowParams): void {
+  if (dialogWindow) {
+    destroyDialogWindow()
   }
 
   const params = createDefaultDialogWindowParams(_params)
   const screenBounds = params.activeDisplay!.bounds
-  const x = screenBounds.x + (screenBounds.width - params.width!) / 2
-  const y = screenBounds.y + (screenBounds.height - params.height!) / 2
+  const x = Math.round(
+    screenBounds.x + (screenBounds.width - params.width!) / 2
+  )
+  const y = Math.round(
+    screenBounds.y + (screenBounds.height - params.height!) / 2
+  )
   const bounds: Electron.Rectangle = {
     x,
     y,
@@ -43,7 +57,7 @@ export function createDialogWindow(_params: IDialogWindowParams): void {
   dialogWindow = new BrowserWindow({
     fullscreenable: false,
     maximizable: false,
-    // resizable: false,
+    resizable: false,
     minimizable: false,
     width: bounds.width,
     height: bounds.height,
