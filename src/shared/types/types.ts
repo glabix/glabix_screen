@@ -23,6 +23,7 @@ export interface StreamSettings {
 export enum ModalWindowHeight {
   WIN = 480,
   MAC = 395,
+  PROFILE = 500,
 }
 
 export interface IAppState {
@@ -36,6 +37,7 @@ export interface IUser {
 
 export interface IOrganization {
   id: number
+  name: string
 }
 
 export interface IJWTToken {
@@ -47,6 +49,8 @@ export interface IJWTToken {
 export interface IAuthData {
   token: IJWTToken
   organization_id: number
+  user_id?: number
+  entity_id?: number
 }
 
 export enum SimpleStoreEvents {
@@ -113,4 +117,22 @@ export interface ICropVideoData {
   out_h: number
   x: number
   y: number
+}
+
+export interface IAccountData {
+  id: number
+  name: string
+  initials: string
+  avatar_url: string | null
+  organizations: IOrganization[]
+}
+
+export interface IAvatarData {
+  id: number
+  name: string
+  initials: string
+  avatar_url: string | null
+  bg_color_number: number
+  currentOrganization: IOrganization
+  organizations: IOrganization[]
 }

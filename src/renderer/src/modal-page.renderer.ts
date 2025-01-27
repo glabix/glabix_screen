@@ -10,29 +10,50 @@ import {
   ScreenAction,
   StreamSettings,
   ModalWindowHeight,
+  IAvatarData,
+  SimpleStoreEvents,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
-type PageViewType = "modal" | "permissions" | "limits" | "no-microphone"
+import { Palette } from "@shared/helpers/palette"
+import { debounce } from "@shared/helpers/debounce"
+type PageViewType =
+  | "modal"
+  | "permissions"
+  | "limits"
+  | "no-microphone"
+  | "profile"
 interface IDeviceIds {
   videoId?: string
   audioId?: string
+  systemAudio?: boolean
 }
 
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
+const ACCOUNT_DATA = "ACCOUNT_DATA"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
 let isAllowScreenshots: boolean | undefined = undefined
 let activePageView: PageViewType
 let openedDropdownType: DropdownListType | undefined = undefined
 const modalContent = document.querySelector(".modal-content")!
+const profileContent = document.querySelector(".profile-content")!
 const permissionsContent = document.querySelector(".permissions-content")!
 const limitsContent = document.querySelector(".limits-content")!
 const noMicrophoneContent = document.querySelector(".no-microphone-content")!
 
 const audioDeviceContainer = document.querySelector("#audio_device_container")!
 const videoDeviceContainer = document.querySelector("#video_device_container")!
+const organizationContainer = document.querySelector(
+  "#organizations_container"
+)!
+const systemAudioCheckbox = document.querySelector(
+  ".system-audio-checkbox"
+) as HTMLInputElement
+
+let isRecording = false
+
 let screenActionsList: IDropdownItem[] = [
   {
     id: "fullScreenVideo",
@@ -92,6 +113,8 @@ let audioDevicesList: MediaDeviceInfo[] = []
 let activeAudioDevice: MediaDeviceInfo
 let hasCamera = false
 let hasMicrophone = false
+let visualAudioAnimationId = 0
+let visualAudioStream: MediaStream | null = null
 let lastDeviceIds: IDeviceIds = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
@@ -136,7 +159,8 @@ function getLastMediaDevices(): IDeviceIds {
 
 function setLastMediaDevices(
   lastAudioDeviceId?: string,
-  lastVideoDeviceId?: string
+  lastVideoDeviceId?: string,
+  systemAudio?: boolean
 ) {
   if (lastAudioDeviceId) {
     lastDeviceIds = { ...lastDeviceIds, audioId: lastAudioDeviceId }
@@ -146,7 +170,64 @@ function setLastMediaDevices(
     lastDeviceIds = { ...lastDeviceIds, videoId: lastVideoDeviceId }
   }
 
+  if (typeof systemAudio == "boolean") {
+    lastDeviceIds = { ...lastDeviceIds, systemAudio }
+  }
+
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
+}
+
+function initVisualAudio() {
+  if (visualAudioStream) {
+    visualAudioStream.getTracks().forEach((s) => s.stop())
+    visualAudioStream = null
+    cancelAnimationFrame(visualAudioAnimationId)
+    visualAudioAnimationId = 0
+  }
+
+  const context = new AudioContext()
+  if (
+    streamSettings.audioDeviceId &&
+    streamSettings.audioDeviceId != "no-microphone"
+  ) {
+    navigator.mediaDevices
+      .getUserMedia({
+        audio: {
+          deviceId: streamSettings.audioDeviceId,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+          channelCount: 1,
+        },
+        video: false,
+      })
+      .then((stream) => {
+        visualAudioStream = stream
+        const source = context.createMediaStreamSource(visualAudioStream)
+        const analyzer = context.createAnalyser()
+        const fbcArray = new Uint8Array(analyzer.frequencyBinCount)
+        analyzer.fftSize = 256
+        source.connect(analyzer)
+
+        function updateVisual() {
+          analyzer.getByteFrequencyData(fbcArray)
+          const level =
+            fbcArray.reduce((accum, val) => accum + val, 0) / fbcArray.length
+          const el = audioDeviceContainer.querySelector(
+            "button"
+          ) as HTMLButtonElement
+          el.style.background = `linear-gradient(0deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
+          visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
+        }
+
+        updateVisual()
+      })
+      .catch((e) => {})
+  } else {
+    cancelAnimationFrame(visualAudioAnimationId)
+    visualAudioAnimationId = 0
+  }
 }
 
 async function setupMediaDevices() {
@@ -159,6 +240,12 @@ async function setupMediaDevices() {
 
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
+
+  // System Audio
+  const systemAudio =
+    lastDeviceIds.systemAudio === undefined ? true : lastDeviceIds.systemAudio
+  systemAudioCheckbox.checked = systemAudio
+  streamSettings = { ...streamSettings, audio: systemAudio }
 
   if (hasMicrophone) {
     const lastAudioDevice = audioDevicesList.find(
@@ -178,12 +265,17 @@ async function setupMediaDevices() {
     }
   } else {
     activeAudioDevice = audioDevicesList[0]!
+    streamSettings = {
+      ...streamSettings,
+      audioDeviceId: undefined,
+    }
   }
 
   if (hasCamera) {
     const lastVideoDevice = videoDevicesList.find(
       (d) => d.deviceId == lastDeviceIds.videoId
     )
+
     if (lastVideoDevice) {
       activeVideoDevice = lastVideoDevice
     } else {
@@ -192,27 +284,50 @@ async function setupMediaDevices() {
       )
       activeVideoDevice = defaultVideoDevice || videoDevicesList[1]!
     }
+
     streamSettings = {
       ...streamSettings,
       cameraDeviceId: activeVideoDevice.deviceId,
     }
-    sendSettings()
   } else {
     activeVideoDevice = videoDevicesList[0]!
+    streamSettings = {
+      ...streamSettings,
+      cameraDeviceId: undefined,
+    }
   }
 }
+function initMediaDevice() {
+  setupMediaDevices()
+    .then(() => {
+      sendSettings()
+      initVisualAudio()
 
-setupMediaDevices()
-  .then(() => {
-    if (activeVideoDevice) {
-      videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
-    }
+      if (activeVideoDevice) {
+        videoDeviceContainer.innerHTML = ""
+        videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
+      }
 
-    if (activeAudioDevice) {
-      audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
-    }
-  })
-  .catch((e) => {})
+      if (activeAudioDevice) {
+        audioDeviceContainer.innerHTML = ""
+        audioDeviceContainer.appendChild(renderDeviceButton(activeAudioDevice))
+      }
+    })
+    .catch((e) => {})
+}
+
+initMediaDevice()
+const changeMediaDevices = debounce(() => {
+  initMediaDevice()
+  window.electronAPI.ipcRenderer.send("dropdown:close", {})
+})
+navigator.mediaDevices.addEventListener(
+  "devicechange",
+  () => {
+    changeMediaDevices()
+  },
+  false
+)
 
 function renderScreenSettings(item: IDropdownItem) {
   const container = document.querySelector(
@@ -285,6 +400,53 @@ function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
   return clone
 }
 
+function renderProfile(data: IAvatarData) {
+  const containers = document.querySelectorAll(".profile-container")
+  const template = document.querySelector(
+    "#profile_tpl"
+  )! as HTMLTemplateElement
+
+  containers.forEach((container) => {
+    const clone = template.content.cloneNode(true) as HTMLElement
+    const userName = clone.querySelector(".user-name")!
+    const orgName = clone.querySelector(".org-name")!
+    const avatar = clone.querySelector(".avatar")! as HTMLElement
+    const img = avatar.querySelector("img")!
+
+    userName.innerHTML = data.name
+    orgName.innerHTML = data.currentOrganization.name
+
+    if (data.avatar_url) {
+      img.src = data.avatar_url
+      img.removeAttribute("hidden")
+    } else {
+      img.setAttribute("hidden", "")
+      avatar.innerHTML = data.initials
+      avatar.style.backgroundColor = Palette.common[data.bg_color_number]!
+    }
+    container.innerHTML = ""
+    container.appendChild(clone)
+  })
+}
+
+function renderOrganizations(data: IAvatarData) {
+  const template = document.querySelector(
+    "#organization_tpl"
+  )! as HTMLTemplateElement
+
+  organizationContainer.innerHTML = ""
+
+  data.organizations.forEach((o) => {
+    const clone = template.content.cloneNode(true) as HTMLElement
+    const btn = clone.querySelector("button")!
+    const span = clone.querySelector("span")!
+
+    span.innerHTML = o.name
+    btn.dataset.id = `${o.id}`
+    organizationContainer.appendChild(clone)
+  })
+}
+
 function getDropdownItems(type: DropdownListType): IDropdownItem[] {
   let items: IDropdownItem[] = []
 
@@ -346,6 +508,7 @@ function sendSettings() {
 function setPageView(view: PageViewType) {
   const sections = [
     modalContent,
+    profileContent,
     permissionsContent,
     limitsContent,
     noMicrophoneContent,
@@ -355,8 +518,9 @@ function setPageView(view: PageViewType) {
   footer.removeAttribute("hidden")
   activePageView = view
 
-  if (isAllowRecords === false && view != "permissions") {
+  if (isAllowRecords === false && !["permissions", "profile"].includes(view)) {
     limitsContent.removeAttribute("hidden")
+    activePageView = "limits"
     return
   }
 
@@ -372,6 +536,9 @@ function setPageView(view: PageViewType) {
       break
     case "no-microphone":
       noMicrophoneContent.removeAttribute("hidden")
+      break
+    case "profile":
+      profileContent.removeAttribute("hidden")
       break
   }
 }
@@ -496,12 +663,17 @@ window.electronAPI.ipcRenderer.on(
 
     openedDropdownType = undefined
     sendSettings()
+    initVisualAudio()
   }
 )
 
 window.electronAPI.ipcRenderer.on(
   "dropdown:select.screenshot",
   (event, data: IDropdownPageSelectData) => {
+    if (isRecording) {
+      return
+    }
+
     activeScreenActionItem = screenActionsList[0]!
     streamSettings = {
       ...streamSettings,
@@ -555,6 +727,29 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
+window.electronAPI.ipcRenderer.on(
+  "userAccountData:get",
+  (event, data: IAvatarData) => {
+    const localDataStr = localStorage.getItem(ACCOUNT_DATA)
+    const newDataStr = JSON.stringify(data)
+    const localData = localDataStr ? JSON.parse(localDataStr) : null
+
+    if (newDataStr != localDataStr) {
+      renderProfile(data)
+      renderOrganizations(data)
+      localStorage.setItem(ACCOUNT_DATA, newDataStr)
+    } else if (localData) {
+      renderProfile(localData)
+      renderOrganizations(localData)
+    }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  isRecording = state["recordingState"] == "recording"
+})
+
+// DOM
 const redirectToPlansBtn = document.querySelector("#redirectToPlans")!
 const windowsToolbar = document.querySelector(".windows-toolbar")!
 const windowsMinimizeBtn = document.querySelector("#windows_minimize")!
@@ -609,12 +804,17 @@ document.addEventListener(
           title: "screen.settings.close",
         })
       } else {
-        const offsetY = btn.getBoundingClientRect().top
+        const offsetY = Math.round(btn.getBoundingClientRect().top) || 0
         const action = btn.dataset.action as ScreenAction
         const list: IDropdownList = {
           type: "screenActions",
           items: getDropdownItems("screenActions"),
         }
+
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `screen.settings.open - offsetY: ${offsetY}`,
+        })
+
         window.electronAPI.ipcRenderer.send("dropdown:open", {
           action,
           offsetY,
@@ -632,11 +832,16 @@ document.addEventListener(
           title: "webcam.settings.close",
         })
       } else {
-        const offsetY = btn.getBoundingClientRect().top
+        const offsetY = Math.round(btn.getBoundingClientRect().top) || 0
         const list: IDropdownList = {
           type: "videoDevices",
           items: getDropdownItems("videoDevices"),
         }
+
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `webcam.settings.open - offsetY: ${offsetY}`,
+        })
+
         window.electronAPI.ipcRenderer.send("dropdown:open", {
           offsetY,
           list,
@@ -653,11 +858,16 @@ document.addEventListener(
           title: "microphone.settings.close",
         })
       } else {
-        const offsetY = btn.getBoundingClientRect().top
+        const offsetY = Math.round(btn.getBoundingClientRect().top) || 0
         const list: IDropdownList = {
           type: "audioDevices",
           items: getDropdownItems("audioDevices"),
         }
+
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `microphone.settings.open - offsetY: ${offsetY}`,
+        })
+
         window.electronAPI.ipcRenderer.send("dropdown:open", {
           offsetY,
           list,
@@ -738,14 +948,12 @@ deviceAccessBtn.forEach((btn) => {
   )
 })
 
-const systemAudioCheckbox = document.querySelector(
-  ".system-audio-checkbox"
-) as HTMLInputElement
 systemAudioCheckbox.addEventListener(
   "change",
   (event) => {
     const input = event.target as HTMLInputElement
     streamSettings = { ...streamSettings, audio: input.checked }
+    setLastMediaDevices(undefined, undefined, input.checked)
     sendSettings()
   },
   false
@@ -816,6 +1024,54 @@ startBtn.addEventListener(
     }
 
     start()
+  },
+  false
+)
+
+const logoutBtn = document.querySelector(".js-logout-btn")!
+logoutBtn.addEventListener(
+  "click",
+  () => {
+    window.electronAPI.ipcRenderer.send("app:logout")
+    setPageView("modal")
+  },
+  false
+)
+
+const profileToggleBtn = document.querySelectorAll(".js-profile-toggle-btn")
+profileToggleBtn.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    () => {
+      if (["modal", "limits"].includes(activePageView)) {
+        setPageView("profile")
+        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          alwaysOnTop: true,
+          width: 300,
+          height: ModalWindowHeight.PROFILE,
+        })
+      } else {
+        setPageView("modal")
+        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+          alwaysOnTop: true,
+          width: 300,
+          height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
+        })
+      }
+    },
+    false
+  )
+})
+
+organizationContainer.addEventListener(
+  "click",
+  (event) => {
+    const target = event.target as HTMLButtonElement
+
+    if (target.nodeName.toLowerCase() == "button") {
+      const orgId = Number(target.dataset.id)
+      window.electronAPI.ipcRenderer.send("change-organization", orgId)
+    }
   },
   false
 )

@@ -38,6 +38,8 @@ import {
   ModalWindowHeight,
   IScreenshotImageData,
   ICropVideoData,
+  IAccountData,
+  IAvatarData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -65,6 +67,7 @@ import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
+import { getAccountData } from "./commands/account-data.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
 import File from "../database/models/Chunk"
 import sequelize from "../database/index"
@@ -171,17 +174,17 @@ const initializeDatabase = async () => {
 }
 
 function init(url: string) {
-  if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
-    return
-  }
-
   if (mainWindow) {
     // Someone tried to run a second instance, we should focus our window.
     checkOrganizationLimits().then(() => {
       showWindows()
     })
   }
-  // const url = commandLine.pop()
+
+  if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
+    return
+  }
+
   try {
     const u = new URL(url)
     const access_token = u.searchParams.get("access_token")
@@ -256,12 +259,11 @@ if (!gotTheLock) {
       init(url)
     })
   }
-  if (os.platform() == "win32") {
-    app.on("second-instance", (event, commandLine, workingDirectory) => {
-      const url = commandLine.pop()
-      init(url!)
-    })
-  }
+
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
+    const url = commandLine.pop()
+    init(url!)
+  })
 
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
@@ -294,6 +296,8 @@ if (!gotTheLock) {
       TokenStorage.readAuthData()
       logSender.sendLog("app.started")
       createMenu()
+
+      loadAccountData(tokenStorage)
 
       checkOrganizationLimits().then(() => {
         showWindows()
@@ -429,19 +433,24 @@ function registerShortCuts() {
   })
 
   globalShortcut.register("CommandOrControl+Shift+5", () => {
+    const isRecording = (store.get() as any).recordingState == "recording"
+
     if (isScreenshotAllowed) {
       const data = {
         action: "cropScreenshot",
       }
 
-      const cursorPosition = screen.getCursorScreenPoint()
-      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-      mainWindow.webContents.send("screen:change", activeDisplay)
+      if (!isRecording) {
+        const cursorPosition = screen.getCursorScreenPoint()
+        activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+        mainWindow.webContents.send("screen:change", activeDisplay)
 
-      modalWindow.hide()
-      mainWindow.setBounds(activeDisplay.bounds)
-      mainWindow.show()
-      mainWindow.focus()
+        modalWindow.hide()
+        mainWindow.setBounds(activeDisplay.bounds)
+        mainWindow.show()
+        mainWindow.focus()
+      }
+
       mainWindow.webContents.send("dropdown:select.screenshot", data)
       modalWindow.webContents.send("dropdown:select.screenshot", data)
     }
@@ -455,6 +464,20 @@ function registerShortCutsOnShow() {
 
 function unregisterShortCutsOnHide() {
   globalShortcut.unregister("Command+H")
+}
+
+function loadAccountData(_tokenStorage: TokenStorage) {
+  if (!_tokenStorage.token || !_tokenStorage.organizationId) {
+    return
+  }
+
+  if (_tokenStorage.entityId) {
+    getAccountData(_tokenStorage.token!.access_token, _tokenStorage.entityId)
+  } else {
+    getCurrentUser(_tokenStorage.token!.access_token).then((res: IUser) => {
+      getAccountData(_tokenStorage.token!.access_token, res.id)
+    })
+  }
 }
 
 function watchMediaDevicesAccessChange() {
@@ -644,7 +667,7 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    // resizable: false,
+    resizable: false,
     width: 300,
     height:
       os.platform() == "win32" ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
@@ -681,6 +704,7 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
+    loadAccountData(tokenStorage)
   })
 
   modalWindow.on("blur", () => {})
@@ -850,7 +874,10 @@ function createScreenshotWindow(dataURL: string) {
     mainWindowBounds.y + (mainWindowBounds.height - height - spacing) / 2
   const bounds: Electron.Rectangle = { x, y, width, height: height + spacing }
 
-  hideWindows()
+  const isRecording = (store.get() as any).recordingState == "recording"
+  if (!isRecording) {
+    hideWindows()
+  }
 
   screenshotWindow = new BrowserWindow({
     titleBarStyle: "hidden",
@@ -867,6 +894,7 @@ function createScreenshotWindow(dataURL: string) {
     show: false,
     // frame: false,
     roundedCorners: true,
+    parent: isRecording ? mainWindow : undefined,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
@@ -1066,6 +1094,8 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     logSender.sendLog("app.activated")
     createWindow()
+  } else {
+    showWindows()
   }
 })
 
@@ -1086,6 +1116,17 @@ app.on("before-quit", () => {
 ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   win?.setIgnoreMouseEvents(ignore, options)
+})
+
+ipcMain.on("change-organization", (event, orgId: number) => {
+  const lastTokenStorageData: IAuthData = {
+    token: tokenStorage.token!,
+    organization_id: orgId,
+  }
+
+  hideWindows()
+  tokenStorage.reset()
+  ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
 })
 
 ipcMain.on("modal-window:render", (event, data) => {
@@ -1234,6 +1275,32 @@ ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
   })
 })
 
+ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
+  if (modalWindow && tokenStorage.organizationId) {
+    const currentOrgId = tokenStorage.organizationId
+    const currentOrg = data.organizations.find(
+      (o) => o.id == currentOrgId
+    )! as any
+    const avatarData: IAvatarData = {
+      id: data.id,
+      name: data.name,
+      initials: data.initials,
+      avatar_url: data.avatar_url,
+      bg_color_number:
+        currentOrg.organization_users.find((u) => u.user_id == data.id)
+          ?.color || 0,
+      currentOrganization: { id: currentOrg.id, name: currentOrg.name },
+      organizations: data.organizations.map((o) => ({
+        id: o.id,
+        name: o.name,
+      })),
+    }
+
+    logSender.sendLog("api.accountData.get", stringify(avatarData))
+    modalWindow.webContents.send("userAccountData:get", avatarData)
+  }
+})
+
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     StorageService.startRecord().then((r) => {
@@ -1321,10 +1388,21 @@ ipcMain.on("stop-recording", (event, data) => {
   }
   modalWindow.show()
 })
+
 ipcMain.on("windows:minimize", (event, data) => {
-  modalWindow.close()
-  if (screenshotWindow) {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win == screenshotWindow) {
     screenshotWindow.hide()
+  } else {
+    hideWindows()
+  }
+})
+ipcMain.on("windows:close", (event, data) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win == screenshotWindow) {
+    screenshotWindow.hide()
+  } else {
+    hideWindows()
   }
 })
 
@@ -1337,13 +1415,6 @@ ipcMain.on("windows:maximize", (event, data) => {
       screenshotWindow.setBounds(screenshotWindowBounds)
       screenshotWindowBounds = undefined
     }
-  }
-})
-
-ipcMain.on("windows:close", (event, data) => {
-  modalWindow.close()
-  if (screenshotWindow) {
-    screenshotWindow.hide()
   }
 })
 
@@ -1395,15 +1466,19 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
   logSender.sendLog("sessions.created")
   const { token, organization_id } = event as IAuthData
-  TokenStorage.encryptAuthData({ token, organization_id })
-  getCurrentUser(TokenStorage.token!.access_token)
-})
 
-ipcMain.on(LoginEvents.USER_VERIFIED, (event: unknown) => {
-  logSender.sendLog("user.verified")
-  const user = event as IUser
-  appState.set({ ...appState.state, user })
-  ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
+  getCurrentUser(token!.access_token).then((res: IUser) => {
+    getAccountData(token!.access_token, res.id).then((accountData) => {
+      tokenStorage.encryptAuthData({
+        token,
+        organization_id,
+        user_id: accountData.id,
+        entity_id: res.id,
+      })
+      logSender.sendLog("user.verified")
+      ipcMain.emit(LoginEvents.LOGIN_SUCCESS)
+    })
+  })
 })
 
 ipcMain.on(RecordEvents.ERROR, (event, file) => {
