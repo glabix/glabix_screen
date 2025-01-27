@@ -7,8 +7,8 @@ import Chunk, { ChunkStatus } from "../database/models/Chunk"
 import { openExternalLink } from "../shared/helpers/open-external-link"
 import { Notification } from "electron"
 import { PreviewManager } from "./preview-manager"
-import { stringify } from "querystring"
 import { httpErrorPareser } from "../main/helpers/http-error-pareser"
+import { stringify } from "../main/helpers/stringify"
 
 export class RecordManager {
   static tokenStorage = new TokenStorage()
@@ -109,7 +109,17 @@ export class RecordManager {
   static async recordServerCreate(record: Record): Promise<Record | null> {
     const uuid = record.getDataValue("uuid")
     this.logSender.sendLog("record.manager.server_create", stringify({ uuid }))
-    return await StorageService.createFileOnServer(record.getDataValue("uuid"))
+    try {
+      return await StorageService.createFileOnServer(uuid)
+    } catch (err) {
+      const parsedError = httpErrorPareser(err)
+      this.logSender.sendLog(
+        "record.manager.server_create.error",
+        stringify({ uuid, error: parsedError | err }),
+        true
+      )
+      throw err
+    }
   }
 
   static async resolveRecordComplete(uuid: string) {
@@ -169,8 +179,10 @@ export class RecordManager {
       const parsedError = httpErrorPareser(err)
       this.logSender.sendLog(
         "record.manager.process.error",
-        stringify({ uuid, error: parsedError | err })
+        stringify({ uuid, error: parsedError | err }),
+        true
       )
+      this.currentProcessRecordUuid = null
     }
   }
 

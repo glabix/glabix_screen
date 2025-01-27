@@ -346,7 +346,7 @@ const createVideo = (_stream, _canvas, _video) => {
     })
     timer.stop()
 
-    window.electronAPI.ipcRenderer.send(FileUploadEvents.RECORD_CREATED, {
+    window.electronAPI.ipcRenderer.send(RecordEvents.STOP, {
       fileUuid: currentRecordedUuid,
     })
 

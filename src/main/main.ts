@@ -70,7 +70,6 @@ import File from "../database/models/Chunk"
 import sequelize from "../database/index"
 import StorageService from "../services/storage.service"
 import { RecordManager } from "../services/record-manager"
-import ChunkAccumulator from "../services/raw-chunk-saver"
 import { PreviewManager } from "../services/preview-manager"
 
 let activeDisplay: Electron.Display
@@ -101,7 +100,6 @@ const appState = new AppState()
 const store = new SimpleStore()
 let unprocessedFilesService: UnprocessedFilesService
 let chunkStorage: ChunkStorageService
-const chunkAccumulator = new ChunkAccumulator()
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -1282,7 +1280,14 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     return
   }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  StorageService.addChunk(fileUuid, blob, index, isLast) //todo
+  StorageService.addChunk(fileUuid, blob, index, isLast).catch((e) => {
+    logSender.sendLog(
+      "record.recording.chunk.received.error",
+      stringify({ fileUuid, e }),
+      true
+    )
+    showRecordErrorBox("Ошибка записи")
+  })
   const preview = store.get()["lastVideoPreview"]
   if (preview && !PreviewManager.hasPreview(fileUuid)) {
     logSender.sendLog(
@@ -1405,7 +1410,7 @@ ipcMain.on(RecordEvents.ERROR, (event, file) => {
   showRecordErrorBox()
 })
 
-ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, data) => {
+ipcMain.on(RecordEvents.STOP, (event, data) => {
   const { fileUuid } = data
   StorageService.endRecord(fileUuid)
 })

@@ -3,7 +3,6 @@ import { fsErrorParser } from "../main/helpers/fs-error-parser"
 import path from "path"
 import { app } from "electron"
 import { getAllRecordDal, updateRecordDal } from "../database/dal/Record"
-import { getAllChunkDal } from "../database/dal/Chunk"
 
 export class PreviewManager {
   static storagePath = path.join(app.getPath("userData"), "PreviewStorage")

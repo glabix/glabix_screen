@@ -8,6 +8,7 @@ const dbPath = path.join(appDataPath, "Database")
 const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: path.join(dbPath, "db.sqlite"), // Путь к базе данных,
+  logging: false,
 })
 
 export default sequelize

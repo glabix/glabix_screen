@@ -110,12 +110,19 @@ class StorageService {
         stringify({ fileUuid, count: index, byteLength: blob.size })
       )
     }
-
-    // Создаем директорию, если её нет
-    fs.mkdirSync(this.storagePath, { recursive: true })
-
-    // Записываем данные в файл
-    await this.writeChunk(source, buffer)
+    try {
+      // Создаем директорию, если её нет
+      fs.mkdirSync(this.storagePath, { recursive: true })
+      // Записываем данные в файл
+      await this.writeChunk(source, buffer)
+    } catch (e) {
+      this.logSender.sendLog(
+        "record.recording.chunk.received.process.fs.error",
+        stringify({ fileUuid, count: index, byteLength: blob.size, e }),
+        true
+      )
+      throw e
+    }
 
     // Обновляем статус чанка в БД
     await this.updateChunkStatus(
@@ -145,6 +152,13 @@ class StorageService {
   static async writeChunk(source: string, buffer: Buffer): Promise<void> {
     return new Promise((resolve, reject) => {
       const writeStream = fs.createWriteStream(source, { flags: "a" })
+      // function simulateError() {
+      //   const random = Math.random(); // Генерируем число от 0 до 1
+      //   return random < 0.3; // 30% вероятность
+      // }
+      // if (simulateError()) {
+      //   writeStream.emit("error", { code: "ENOSPC", message: "Нет места на устройстве" });
+      // }
       writeStream.write(buffer, (err) => {
         if (err) {
           fsErrorParser(err, source)
@@ -254,7 +268,6 @@ class StorageService {
         y: record.getDataValue("y"),
       }
     }
-    let error = false
     const previewSource = record.getDataValue("previewSource")
     let preview: File | null = null
     if (previewSource) {
@@ -289,8 +302,7 @@ class StorageService {
           status: RecordStatus.CREATED_ON_SERVER,
           server_uuid,
         }
-        record = await updateRecordDal(fileUuid, update)
-        console.log("server_uuid", server_uuid)
+        return await updateRecordDal(fileUuid, update)
       } else {
         throw new Error(
           `Failed to create multipart file upload, code ${response.status}`
@@ -302,12 +314,7 @@ class StorageService {
         stringify({ fileUuid, err }),
         true
       )
-      error = true
-    }
-    if (!error) {
-      return record
-    } else {
-      return null
+      throw err
     }
   }
 
@@ -317,7 +324,6 @@ class StorageService {
     const serverUuid = record.getDataValue("server_uuid")
 
     let data: Buffer | null = null
-    let error = false
     const chunkNumber = chunk.getDataValue("index")
     const size = chunk.getDataValue("size")
     this.logSender.sendLog(
@@ -329,25 +335,21 @@ class StorageService {
       })
     )
     try {
-      data = await fs.promises.readFile(chunk.getDataValue("source"))
+      const path = chunk.getDataValue("source")
+      data = await fs.promises.readFile(path)
     } catch (err) {
-      // this.logSender.sendLog(
-      //   "api.uploads.multipart_upload.create.error", // todo
-      //   stringify({ err }),
-      //   true
-      // )
       this.logSender.sendLog(
         "chunk.upload.storage.get.error",
         stringify({
           RecordServerUuid: serverUuid,
           index: chunkNumber,
           size,
+          path,
           err,
         }),
         true
       )
-      error = true
-      return null
+      throw err
     }
     try {
       chunk = await updateChunkDal(_chunk.getDataValue("uuid"), {
@@ -381,25 +383,20 @@ class StorageService {
         }),
         true
       )
-      const update: Partial<ChunkCreationAttributes> = {
+      await updateChunkDal(_chunk.getDataValue("uuid"), {
         status: ChunkStatus.PENDING,
-      }
-      chunk = await updateChunkDal(_chunk.getDataValue("uuid"), update)
-      error = true
+      })
+      throw e
     }
-    if (!error) {
-      this.logSender.sendLog(
-        "chunk.upload.success",
-        stringify({
-          RecordServerUuid: serverUuid,
-          index: chunkNumber,
-          size,
-        })
-      )
-      return chunk
-    } else {
-      return null
-    }
+    this.logSender.sendLog(
+      "chunk.upload.success",
+      stringify({
+        RecordServerUuid: serverUuid,
+        index: chunkNumber,
+        size,
+      })
+    )
+    return chunk
   }
 
   static async RecordUploadEnd(fileUuid: string) {
