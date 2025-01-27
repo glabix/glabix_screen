@@ -79,22 +79,15 @@ export function createDialogWindow(_params: IDialogWindowParams): void {
   })
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    dialogWindow
-      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/dialog.html`)
-      .then(() => {
-        dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
-        dialogWindow!.setBounds(bounds)
-        dialogWindow!.show()
-        dialogWindow!.moveTop()
-      })
+    dialogWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/dialog.html`)
   } else {
-    dialogWindow
-      .loadFile(join(import.meta.dirname, "../renderer/dialog.html"))
-      .then(() => {
-        dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
-        dialogWindow!.setBounds(bounds)
-        dialogWindow!.show()
-        dialogWindow!.moveTop()
-      })
+    dialogWindow.loadFile(join(import.meta.dirname, "../renderer/dialog.html"))
   }
+
+  dialogWindow.webContents.on("did-finish-load", () => {
+    dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
+    dialogWindow!.setBounds(bounds)
+    dialogWindow!.show()
+    dialogWindow!.moveTop()
+  })
 }

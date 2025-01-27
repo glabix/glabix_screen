@@ -147,6 +147,7 @@ export enum DialogWindowEvents {
 
 export interface IDialogWindowCallbackData {
   action: "ok" | "cancel"
+  data?: any
 }
 
 export interface IDialogWindowButton {
@@ -158,6 +159,7 @@ export interface IDialogWindowData {
   title: string
   text?: string
   buttons: IDialogWindowButton[]
+  data?: any
 }
 
 export interface IDialogWindowParams {

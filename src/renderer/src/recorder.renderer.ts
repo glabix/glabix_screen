@@ -11,6 +11,7 @@ import {
   ScreenAction,
   SimpleStoreEvents,
   StreamSettings,
+  IDialogWindowCallbackData,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
@@ -53,6 +54,8 @@ let currentRecordedUuid: string | null = null
 let currentRecordChunksCount = 0
 let cropVideoData: ICropVideoData | undefined = undefined
 let isRecording = false
+let isRecordCanceled = false
+let isRecordRestart = false
 
 function debounce(func, wait) {
   let timeoutId
@@ -149,8 +152,7 @@ pauseBtn.addEventListener("click", () => {
 })
 
 deleteBtn.addEventListener("click", () => {
-  // if (videoRecorder && videoRecorder.state == "recording") {
-  if (true) {
+  if (videoRecorder?.state == "recording") {
     const buttons: IDialogWindowButton[] = [
       { type: "default", text: "Продолжить", action: "cancel" },
       { type: "danger", text: "Остановить запись", action: "ok" },
@@ -159,16 +161,18 @@ deleteBtn.addEventListener("click", () => {
       title: "Хотите остановить запись?",
       text: "Запись не будет сохранена в библиотеку",
       buttons: buttons,
+      data: { uuid: currentRecordedUuid },
     }
 
     window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
-    // videoRecorder.pause()
-    // timer.pause()
+    isRecordCanceled = true
+
+    videoRecorder.pause()
+    timer.pause()
   }
 })
 restartBtn.addEventListener("click", () => {
-  // if (videoRecorder && videoRecorder.state == "recording") {
-  if (true) {
+  if (videoRecorder?.state == "recording") {
     const buttons: IDialogWindowButton[] = [
       { type: "default", text: "Продолжить", action: "cancel" },
       { type: "danger", text: "Начать заново", action: "ok" },
@@ -177,11 +181,13 @@ restartBtn.addEventListener("click", () => {
       title: "Хотите начать запись заново?",
       text: "Текущая запись не будет сохранена в библиотеку",
       buttons: buttons,
+      data: { uuid: currentRecordedUuid },
     }
 
     window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
-    // videoRecorder.pause()
-    // timer.pause()
+    isRecordRestart = true
+    videoRecorder.pause()
+    timer.pause()
   }
 })
 
@@ -387,11 +393,18 @@ const createVideo = (_stream, _canvas, _video) => {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "videoRecorder.onstop",
     })
+
     timer.stop()
 
-    window.electronAPI.ipcRenderer.send(RecordEvents.STOP, {
-      fileUuid: currentRecordedUuid,
-    })
+    if (isRecordCanceled || isRecordRestart) {
+      window.electronAPI.ipcRenderer.send(RecordEvents.CANCEL, {
+        fileUuid: currentRecordedUuid,
+      })
+    } else {
+      window.electronAPI.ipcRenderer.send(RecordEvents.STOP, {
+        fileUuid: currentRecordedUuid,
+      })
+    }
 
     lastChunk = null // Reset the lastChunk for the next recording
 
@@ -497,6 +510,8 @@ const startRecording = () => {
       title: "videoRecorder.start()",
     })
 
+    isRecordCanceled = false
+    isRecordRestart = false
     timer.start(true)
     updateRecorderState("recording")
 
@@ -823,6 +838,31 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
+  DialogWindowEvents.CALLBACK,
+  (event, data: IDialogWindowCallbackData) => {
+    if (data.action == "cancel") {
+      if (videoRecorder?.state == "paused") {
+        videoRecorder.resume()
+        timer.start(true)
+        isRecordCanceled = false
+      }
+    }
+
+    if (data.action == "ok") {
+      if (isRecordRestart || isRecordCanceled) {
+        stopRecording()
+        if (isRecordRestart) {
+          window.electronAPI.ipcRenderer.send(
+            RecordEvents.START,
+            lastStreamSettings
+          )
+        }
+      }
+    }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
   RecordEvents.START,
   (event, data: StreamSettings, file_uuid: string) => {
     currentRecordedUuid = file_uuid
@@ -927,15 +967,32 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 
   if (["stopped"].includes(state["recordingState"])) {
     stopRecording()
-    window.electronAPI.ipcRenderer.send("stop-recording", {})
+    window.electronAPI.ipcRenderer.send("stop-recording", {
+      showModal: !isRecordRestart,
+    })
     lastScreenAction = undefined
     controlPanel.classList.remove("is-recording")
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `!!!!!lastStreamSettings!!!!! 000000 `,
+      body: JSON.stringify({
+        lastStreamSettings,
+      }),
+    })
+    // const settings: StreamSettings = lastStreamSettings!
     const settings: StreamSettings =
-      lastStreamSettings!.action == "cropVideo"
+      lastStreamSettings!.action == "cropVideo" && !isRecordRestart
         ? { ...lastStreamSettings, action: "fullScreenVideo" }
         : lastStreamSettings!
     initRecord(settings)
+
     lastStreamSettings = settings
+
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `!!!!!lastStreamSettings!!!!! 1111111 `,
+      body: JSON.stringify({
+        lastStreamSettings,
+      }),
+    })
     window.electronAPI.ipcRenderer.send("modal-window:render", settings.action)
   }
 

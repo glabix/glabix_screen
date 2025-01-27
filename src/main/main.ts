@@ -691,6 +691,10 @@ function createModal(parentWindow) {
   })
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver")
+  modalWindow.on("show", () => {
+    console.log('modalWindow.on("show")')
+  })
+
   modalWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
     modalWindow.webContents.send("modal-window:hide")
@@ -699,6 +703,7 @@ function createModal(parentWindow) {
   })
   modalWindow.on("ready-to-show", () => {
     checkOrganizationLimits()
+    loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
   })
 
@@ -727,12 +732,12 @@ function createModal(parentWindow) {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
   } else {
-    modalWindow
-      .loadFile(join(import.meta.dirname, "../renderer/modal.html"))
-      .then(() => {
-        modalWindow.webContents.send("app:version", app.getVersion())
-      })
+    modalWindow.loadFile(join(import.meta.dirname, "../renderer/modal.html"))
   }
+
+  modalWindow.webContents.on("did-finish-load", () => {
+    modalWindow.webContents.send("app:version", app.getVersion())
+  })
 
   createDropdownWindow(modalWindow)
 }
@@ -771,12 +776,14 @@ function createDropdownWindow(parentWindow) {
       `${process.env["ELECTRON_RENDERER_URL"]}/dropdown.html`
     )
   } else {
-    dropdownWindow
-      .loadFile(join(import.meta.dirname, "../renderer/dropdown.html"))
-      .then(() => {
-        dropdownWindow.webContents.send("app:version", app.getVersion())
-      })
+    dropdownWindow.loadFile(
+      join(import.meta.dirname, "../renderer/dropdown.html")
+    )
   }
+
+  dropdownWindow.webContents.on("did-finish-load", () => {
+    dropdownWindow.webContents.send("app:version", app.getVersion())
+  })
 
   dropdownWindow.on("hide", () => {
     modalWindow.webContents.send("dropdown:hide", {})
@@ -817,12 +824,12 @@ function createLoginWindow() {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loginWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/login.html`)
   } else {
-    loginWindow
-      .loadFile(join(import.meta.dirname, "../renderer/login.html"))
-      .then(() => {
-        loginWindow.webContents.send("app:version", app.getVersion())
-      })
+    loginWindow.loadFile(join(import.meta.dirname, "../renderer/login.html"))
   }
+
+  loginWindow.webContents.on("did-finish-load", () => {
+    loginWindow.webContents.send("app:version", app.getVersion())
+  })
 }
 
 function createScreenshotWindow(dataURL: string) {
@@ -911,24 +918,21 @@ function createScreenshotWindow(dataURL: string) {
   })
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    screenshotWindow
-      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
-      .then(() => {
-        screenshotWindow.webContents.send("screenshot:getImage", imageData)
-        screenshotWindow.setBounds(bounds)
-        screenshotWindow.show()
-        screenshotWindow.moveTop()
-      })
+    screenshotWindow.loadURL(
+      `${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`
+    )
   } else {
-    screenshotWindow
-      .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
-      .then(() => {
-        screenshotWindow.webContents.send("screenshot:getImage", imageData)
-        screenshotWindow.setBounds(bounds)
-        screenshotWindow.show()
-        screenshotWindow.moveTop()
-      })
+    screenshotWindow.loadFile(
+      join(import.meta.dirname, "../renderer/screenshot.html")
+    )
   }
+
+  screenshotWindow.webContents.on("did-finish-load", () => {
+    screenshotWindow.webContents.send("screenshot:getImage", imageData)
+    screenshotWindow.setBounds(bounds)
+    screenshotWindow.show()
+    screenshotWindow.moveTop()
+  })
 }
 
 function showWindows() {
@@ -1317,11 +1321,13 @@ ipcMain.on(RecordEvents.START, (event, data) => {
       )
     })
   }
+
   modalWindow.hide()
 })
 
 ipcMain.on(RecordEvents.CANCEL, (event, data) => {
   const { fileUuid } = data as { fileUuid: string }
+  logSender.sendLog("record.recording.cancel", stringify({ fileUuid }))
   StorageService.cancelRecord(fileUuid)
 })
 
@@ -1392,7 +1398,10 @@ ipcMain.on("stop-recording", (event, data) => {
   if (mainWindow) {
     mainWindow.webContents.send("stop-recording")
   }
-  modalWindow.show()
+
+  if (data?.showModal) {
+    modalWindow.show()
+  }
 })
 
 ipcMain.on("windows:minimize", (event, data) => {
@@ -1858,7 +1867,10 @@ ipcMain.on(
     }
 
     if (data.action == "ok") {
-      // ok
+      destroyDialogWindow()
+      mainWindow.focusOnWebView()
     }
+
+    mainWindow.webContents.send(DialogWindowEvents.CALLBACK, data)
   }
 )
