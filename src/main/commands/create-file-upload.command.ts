@@ -1,4 +1,5 @@
 import axios from "axios"
+import { ICropVideoData } from "../../shared/types/types"
 
 export function createFileUploadCommand(
   token: string,
@@ -9,7 +10,7 @@ export function createFileUploadCommand(
   file_size: number,
   version: string,
   preview: File | undefined,
-  callback: (err: null | Error, uuid: string | null) => void
+  crop: ICropVideoData | null
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads`
   const formData = new FormData()
@@ -18,30 +19,17 @@ export function createFileUploadCommand(
   formData.append("chunks_count", chunks_count.toString())
   formData.append("file_size", file_size.toString())
   formData.append("version", version)
-
+  if (crop) {
+    formData.append("crop[out_w]", crop.out_w.toString())
+    formData.append("crop[out_h]", crop.out_h.toString())
+    formData.append("crop[x]", crop.x.toString())
+    formData.append("crop[y]", crop.y.toString())
+  }
   if (preview) {
     formData.append("preview", preview)
   }
 
-  axios
-    .post<{
-      uuid: string
-    }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
-    .then((response) => {
-      if (response.status === 200 || response.status === 201) {
-        const uuid = response.data.uuid
-        callback(null, uuid)
-      } else {
-        callback(
-          new Error(
-            `Failed to create multipart file upload, code ${response.status}`
-          ),
-          null
-        )
-      }
-    })
-    .catch((e) => {
-      callback(e, null)
-      return e
-    })
+  return axios.post<{
+    uuid: string
+  }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
 }

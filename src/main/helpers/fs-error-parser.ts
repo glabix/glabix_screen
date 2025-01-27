@@ -6,7 +6,6 @@ const logSender = new LogSender()
 
 export function fsErrorParser(err, chunkPath) {
   if (err.code === "ENOENT") {
-    logSender.sendLog(`Путь ${chunkPath} не существует`, stringify(err), true)
     showRecordErrorBox(
       "Ошибка при работе с файловой системой ENOENT",
       "Перезапустите приложение"
@@ -45,7 +44,6 @@ export function fsErrorParser(err, chunkPath) {
       "Перезапустите приложение"
     )
   } else {
-    console.log(err)
     // Для других ошибок просто передаем их
     logSender.sendLog(`Неизвестная ошибка`, stringify(err), true)
     showRecordErrorBox(

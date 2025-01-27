@@ -114,6 +114,13 @@ export interface IScreenshotImageData {
   url: string
 }
 
+export interface ICropVideoData {
+  out_w: number
+  out_h: number
+  x: number
+  y: number
+}
+
 export interface IAccountData {
   id: number
   name: string
