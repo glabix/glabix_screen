@@ -69,7 +69,8 @@ import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { getAccountData } from "./commands/account-data.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
-import File from "../database/models/Chunk"
+import Chunk from "../database/models/Chunk"
+import Record from "../database/models/Record"
 import sequelize from "../database/index"
 import StorageService from "../services/storage.service"
 import { RecordManager } from "../services/record-manager"
@@ -162,7 +163,7 @@ const initializeDatabase = async () => {
     await sequelize.authenticate() // Проверка подключения
     console.log("Database connected successfully.")
     // Создание всех таблиц, если они не существуют
-    const file = File
+    const record = Record
     const chunk = Chunk
 
     const res = await sequelize.sync({ force: false }) // force: false — не пересоздавать таблицы, если они уже есть
@@ -297,7 +298,7 @@ if (!gotTheLock) {
       logSender.sendLog("app.started")
       createMenu()
 
-      loadAccountData(tokenStorage)
+      loadAccountData(TokenStorage)
 
       checkOrganizationLimits().then(() => {
         showWindows()
@@ -704,7 +705,7 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
-    loadAccountData(tokenStorage)
+    loadAccountData(TokenStorage)
   })
 
   modalWindow.on("blur", () => {})
@@ -1120,12 +1121,12 @@ ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
 
 ipcMain.on("change-organization", (event, orgId: number) => {
   const lastTokenStorageData: IAuthData = {
-    token: tokenStorage.token!,
+    token: TokenStorage.token!,
     organization_id: orgId,
   }
 
   hideWindows()
-  tokenStorage.reset()
+  TokenStorage.reset()
   ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
 })
 
@@ -1276,8 +1277,8 @@ ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
 })
 
 ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
-  if (modalWindow && tokenStorage.organizationId) {
-    const currentOrgId = tokenStorage.organizationId
+  if (modalWindow && TokenStorage.organizationId) {
+    const currentOrgId = TokenStorage.organizationId
     const currentOrg = data.organizations.find(
       (o) => o.id == currentOrgId
     )! as any
@@ -1469,7 +1470,7 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
 
   getCurrentUser(token!.access_token).then((res: IUser) => {
     getAccountData(token!.access_token, res.id).then((accountData) => {
-      tokenStorage.encryptAuthData({
+      TokenStorage.encryptAuthData({
         token,
         organization_id,
         user_id: accountData.id,
