@@ -22,6 +22,7 @@ interface ChunkAttributes {
 
 export interface ChunkCreationAttributes
   extends Optional<ChunkAttributes, "uuid" | "source"> {}
+
 class Chunk
   extends Model<ChunkAttributes, ChunkCreationAttributes>
   implements ChunkAttributes {}
