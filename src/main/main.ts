@@ -23,7 +23,6 @@ import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
-import { createFileUploadCommand } from "./commands/create-file-upload.command"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -44,7 +43,6 @@ import {
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
 import { ChunkStorageService } from "./chunk/chunk-storage.service"
-import { Chunk } from "./chunk/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
 import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
@@ -1646,135 +1644,135 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
-  const { chunk } = event as { chunk: Chunk }
-  const typedChunk = chunk as Chunk
-  const uuid = typedChunk.fileUuid
-  const chunkNumber = typedChunk.index + 1
-  logSender.sendLog(
-    "api.uploads.chunks.upload_started",
-    JSON.stringify({
-      chunk_number: chunkNumber,
-      chunk_size: typedChunk.size,
-      file_uuid: typedChunk.fileUuid,
-    })
-  )
-  const callback = (err, data) => {
-    typedChunk.cancelProcess()
-    if (err?.error?.code === "conflict_request") {
-      logSender.sendLog(
-        "api.uploads.chunks.upload_conflict_request",
-        stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk?.size,
-          file_uuid: typedChunk?.fileUuid,
-          e: err,
-        }),
-        false
-      )
-      chunkStorage
-        .removeChunk(typedChunk)
-        .then(() => {
-          logSender.sendLog(
-            "chunks.storage.delete.success",
-            JSON.stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-            })
-          )
-          ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
-            uuid,
-            chunkNumber,
-          })
-        })
-        .catch((e) => {
-          logSender.sendLog(
-            "chunks.storage.delete.error",
-            stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-              e,
-            }),
-            true
-          )
-        })
-    } else if (!err) {
-      logSender.sendLog(
-        "api.uploads.chunks.upload_completed",
-        JSON.stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk.size,
-          file_uuid: typedChunk.fileUuid,
-        })
-      )
-      chunkStorage
-        .removeChunk(typedChunk)
-        .then(() => {
-          logSender.sendLog(
-            "chunks.storage.delete.success",
-            JSON.stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-            })
-          )
-          ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
-            uuid,
-            chunkNumber,
-          })
-        })
-        .catch((e) => {
-          logSender.sendLog(
-            "chunks.storage.delete.error",
-            stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-              e,
-            }),
-            true
-          )
-        })
-    } else {
-      logSender.sendLog(
-        "api.uploads.chunks.upload_error",
-        stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk.size,
-          file_uuid: typedChunk.fileUuid,
-          e: err,
-        }),
-        true
-      )
-    }
-  }
-  typedChunk
-    .getData()
-    .then((data) => {
-      typedChunk.startProcess()
-      uploadFileChunkCommand(
-        TokenStorage.token!.access_token,
-        TokenStorage.organizationId!,
-        uuid,
-        data,
-        chunkNumber,
-        callback
-      )
-    })
-    .catch((e) => {
-      typedChunk.cancelProcess()
-      logSender.sendLog(
-        "chunks.storage.getData.error",
-        stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk.size,
-          file_uuid: typedChunk.fileUuid,
-          e,
-        }),
-        true
-      )
-    })
+  // const { chunk } = event
+  // const typedChunk = chunk
+  // const uuid = typedChunk.fileUuid
+  // const chunkNumber = typedChunk.index + 1
+  // logSender.sendLog(
+  //   "api.uploads.chunks.upload_started",
+  //   JSON.stringify({
+  //     chunk_number: chunkNumber,
+  //     chunk_size: typedChunk.size,
+  //     file_uuid: typedChunk.fileUuid,
+  //   })
+  // )
+  // const callback = (err, data) => {
+  //   typedChunk.cancelProcess()
+  //   if (err?.error?.code === "conflict_request") {
+  //     logSender.sendLog(
+  //       "api.uploads.chunks.upload_conflict_request",
+  //       stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk?.size,
+  //         file_uuid: typedChunk?.fileUuid,
+  //         e: err,
+  //       }),
+  //       false
+  //     )
+  //     chunkStorage
+  //       .removeChunk(typedChunk)
+  //       .then(() => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.success",
+  //           JSON.stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //           })
+  //         )
+  //         ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
+  //           uuid,
+  //           chunkNumber,
+  //         })
+  //       })
+  //       .catch((e) => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.error",
+  //           stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //             e,
+  //           }),
+  //           true
+  //         )
+  //       })
+  //   } else if (!err) {
+  //     logSender.sendLog(
+  //       "api.uploads.chunks.upload_completed",
+  //       JSON.stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk.size,
+  //         file_uuid: typedChunk.fileUuid,
+  //       })
+  //     )
+  //     chunkStorage
+  //       .removeChunk(typedChunk)
+  //       .then(() => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.success",
+  //           JSON.stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //           })
+  //         )
+  //         ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
+  //           uuid,
+  //           chunkNumber,
+  //         })
+  //       })
+  //       .catch((e) => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.error",
+  //           stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //             e,
+  //           }),
+  //           true
+  //         )
+  //       })
+  //   } else {
+  //     logSender.sendLog(
+  //       "api.uploads.chunks.upload_error",
+  //       stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk.size,
+  //         file_uuid: typedChunk.fileUuid,
+  //         e: err,
+  //       }),
+  //       true
+  //     )
+  //   }
+  // }
+  // typedChunk
+  //   .getData()
+  //   .then((data) => {
+  //     typedChunk.startProcess()
+  //     uploadFileChunkCommand(
+  //       TokenStorage.token!.access_token,
+  //       TokenStorage.organizationId!,
+  //       uuid,
+  //       data,
+  //       chunkNumber,
+  //       callback
+  //     )
+  //   })
+  //   .catch((e) => {
+  //     typedChunk.cancelProcess()
+  //     logSender.sendLog(
+  //       "chunks.storage.getData.error",
+  //       stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk.size,
+  //         file_uuid: typedChunk.fileUuid,
+  //         e,
+  //       }),
+  //       true
+  //     )
+  //   })
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
