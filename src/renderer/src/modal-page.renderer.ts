@@ -113,6 +113,8 @@ let audioDevicesList: MediaDeviceInfo[] = []
 let activeAudioDevice: MediaDeviceInfo
 let hasCamera = false
 let hasMicrophone = false
+let visualAudioAnimationId = 0
+let visualAudioStream: MediaStream | null = null
 let lastDeviceIds: IDeviceIds = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
@@ -175,6 +177,59 @@ function setLastMediaDevices(
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
 }
 
+function initVisualAudio() {
+  if (visualAudioStream) {
+    visualAudioStream.getTracks().forEach((s) => s.stop())
+    visualAudioStream = null
+    cancelAnimationFrame(visualAudioAnimationId)
+    visualAudioAnimationId = 0
+  }
+
+  const context = new AudioContext()
+  if (
+    streamSettings.audioDeviceId &&
+    streamSettings.audioDeviceId != "no-microphone"
+  ) {
+    navigator.mediaDevices
+      .getUserMedia({
+        audio: {
+          deviceId: streamSettings.audioDeviceId,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+          channelCount: 1,
+        },
+        video: false,
+      })
+      .then((stream) => {
+        visualAudioStream = stream
+        const source = context.createMediaStreamSource(visualAudioStream)
+        const analyzer = context.createAnalyser()
+        const fbcArray = new Uint8Array(analyzer.frequencyBinCount)
+        analyzer.fftSize = 256
+        source.connect(analyzer)
+
+        function updateVisual() {
+          analyzer.getByteFrequencyData(fbcArray)
+          const level =
+            fbcArray.reduce((accum, val) => accum + val, 0) / fbcArray.length
+          const el = audioDeviceContainer.querySelector(
+            "button"
+          ) as HTMLButtonElement
+          el.style.background = `linear-gradient(0deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
+          visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
+        }
+
+        updateVisual()
+      })
+      .catch((e) => {})
+  } else {
+    cancelAnimationFrame(visualAudioAnimationId)
+    visualAudioAnimationId = 0
+  }
+}
+
 async function setupMediaDevices() {
   lastDeviceIds = getLastMediaDevices()
   const devices = await navigator.mediaDevices.enumerateDevices()
@@ -210,6 +265,10 @@ async function setupMediaDevices() {
     }
   } else {
     activeAudioDevice = audioDevicesList[0]!
+    streamSettings = {
+      ...streamSettings,
+      audioDeviceId: undefined,
+    }
   }
 
   if (hasCamera) {
@@ -232,12 +291,18 @@ async function setupMediaDevices() {
     }
   } else {
     activeVideoDevice = videoDevicesList[0]!
+    streamSettings = {
+      ...streamSettings,
+      cameraDeviceId: undefined,
+    }
   }
 }
 function initMediaDevice() {
   setupMediaDevices()
     .then(() => {
       sendSettings()
+      initVisualAudio()
+
       if (activeVideoDevice) {
         videoDeviceContainer.innerHTML = ""
         videoDeviceContainer.appendChild(renderDeviceButton(activeVideoDevice))
@@ -252,7 +317,6 @@ function initMediaDevice() {
 }
 
 initMediaDevice()
-
 const changeMediaDevices = debounce(() => {
   initMediaDevice()
   window.electronAPI.ipcRenderer.send("dropdown:close", {})
@@ -599,6 +663,7 @@ window.electronAPI.ipcRenderer.on(
 
     openedDropdownType = undefined
     sendSettings()
+    initVisualAudio()
   }
 )
 
