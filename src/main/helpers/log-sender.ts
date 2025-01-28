@@ -19,8 +19,8 @@ export class LogSender {
   }
   sendLog(title: string, body: string = "", err = false) {
     setLog(err ? LogLevel.ERROR : LogLevel.DEBUG, "send log:", title, body)
-    const token = this.tokenStorage?.token?.access_token
-    const orgId = this.tokenStorage?.organizationId
+    const token = TokenStorage?.token?.access_token
+    const orgId = TokenStorage?.organizationId
     const app_version = getVersion()
     if (token && orgId) {
       createAppLogAuthCommand(token, orgId, app_version, title, body)

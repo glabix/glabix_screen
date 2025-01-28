@@ -20,7 +20,7 @@ import {
 } from "../database/dal/Chunk"
 import {
   createRecordDal,
-  deleteByUuidRecordDal,
+  deleteByUuidRecordsDal,
   getAllRecordDal,
   getByUuidRecordDal,
   updateRecordDal,
@@ -37,6 +37,9 @@ import { ICropVideoData } from "../shared/types/types"
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
   static logSender = new LogSender(TokenStorage)
+  private static lastChunk: Chunk | null = null // Храним последний чанк в классе
+  static canceledRecordsUuids: string[] = []
+
   static async startRecord(): Promise<Record> {
     const title = getTitle(Date.now())
     const version = getVersion()
@@ -50,7 +53,6 @@ class StorageService {
       status: RecordStatus.RECORDING,
     })
   }
-  private static lastChunk: Chunk | null = null // Храним последний чанк в классе
 
   static async addChunk(
     fileUuid: string,
@@ -58,6 +60,13 @@ class StorageService {
     index: number,
     isLast: boolean
   ) {
+    if (this.canceledRecordsUuids.indexOf(fileUuid) !== -1) {
+      this.logSender.sendLog(
+        "record.recording.chunk.received.process.canceled_recording",
+        stringify({ fileUuid, byteLength: blob.size })
+      )
+      return
+    }
     this.logSender.sendLog(
       "record.recording.chunk.received.process.start",
       stringify({ fileUuid, count: index, byteLength: blob.size })
@@ -123,14 +132,12 @@ class StorageService {
       )
       throw e
     }
-
     // Обновляем статус чанка в БД
     await this.updateChunkStatus(
       this.lastChunk,
       source,
       totalSize + buffer.byteLength
     )
-
     this.logSender.sendLog(
       "record.recording.chunk.received.process.end",
       stringify({ fileUuid, count: index })
@@ -184,13 +191,14 @@ class StorageService {
     chunk: Chunk,
     source: string,
     size: number
-  ): Promise<void> {
+  ): Promise<Chunk> {
     const updates: Partial<ChunkCreationAttributes> = {
       status: ChunkStatus.PENDING,
       source: source,
       size: size,
     }
-    await updateChunkDal(chunk.getDataValue("uuid"), updates)
+    const uuid = chunk.getDataValue("uuid")
+    return await updateChunkDal(uuid, updates)
   }
 
   static async deleteUnknownChunks() {
@@ -401,7 +409,7 @@ class StorageService {
 
   static async RecordUploadEnd(fileUuid: string) {
     await updateRecordDal(fileUuid, { status: RecordStatus.COMPLETED })
-    await deleteByUuidRecordDal(fileUuid)
+    await deleteByUuidRecordsDal([fileUuid])
   }
 
   static async updateRecordingFiles() {
@@ -432,11 +440,51 @@ class StorageService {
   }
 
   static async cancelRecord(uuid: string) {
+    this.canceledRecordsUuids.push(uuid)
     const record = await updateRecordDal(uuid, {
       status: RecordStatus.CANCELED,
     })
-    await deleteByUuidRecordDal(uuid)
     return uuid
+  }
+
+  static async canceledRecordsDelete() {
+    const oneMinutesAgo = new Date(new Date().getTime() - 1 * 60000) // Текущее время минус 1 минута
+    const canceled = await getAllRecordDal({
+      status: RecordStatus.CANCELED,
+      updatedBefore: oneMinutesAgo,
+    })
+    if (canceled.length) {
+      const uuids = canceled.map((c) => c.getDataValue("uuid"))
+      this.logSender.sendLog(
+        "manager.cancel_records_delete.start",
+        stringify({ uuids: uuids })
+      )
+      await deleteByUuidRecordsDal(uuids)
+      this.logSender.sendLog(
+        "manager.cancel_records_delete.success",
+        stringify({ uuids: uuids })
+      )
+    }
+  }
+
+  static async competedRecordsDelete() {
+    const oneMinutesAgo = new Date(new Date().getTime() - 1 * 60000) // Текущее время минус 1 минута
+    const canceled = await getAllRecordDal({
+      status: RecordStatus.COMPLETED,
+      updatedBefore: oneMinutesAgo,
+    })
+    if (canceled.length) {
+      const uuids = canceled.map((c) => c.getDataValue("uuid"))
+      this.logSender.sendLog(
+        "manager.complete_records_delete.start",
+        stringify({ uuids: uuids })
+      )
+      await deleteByUuidRecordsDal(uuids)
+      this.logSender.sendLog(
+        "manager.complete_records_delete.success",
+        stringify({ uuids: uuids })
+      )
+    }
   }
 }
 

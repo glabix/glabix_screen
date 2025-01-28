@@ -31,13 +31,12 @@ export const updateChunkDal = async (
       "chunk.database.update.error",
       stringify({
         uuid,
-        fileUuid: chunk.getDataValue("fileUuid"),
         payload: { ...payload },
         text: "not found",
       }),
       true
     )
-    throw new Error("not found")
+    throw new Error(`record ${uuid} not found`)
   }
   const updatedChunk = await (chunk as Chunk).update(payload)
   logSender.sendLog(

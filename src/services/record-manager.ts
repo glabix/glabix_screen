@@ -18,7 +18,7 @@ export class RecordManager {
   static lastRecordUuid: string | null = null
   static chunksDeleteProcess = false
   static previewsDeleteProcess = false
-
+  static completedAndCanceledRecordsProcess = false
   constructor() {}
 
   static async setTimer() {
@@ -26,6 +26,12 @@ export class RecordManager {
 
     if (!this.currentProcessRecordUuid) {
       await this.resolveUnprocessedRecords()
+    }
+
+    if (!this.completedAndCanceledRecordsProcess) {
+      this.completedAndCanceledRecordsProcess = true
+      await this.completedAndCanceledRecordsDelete()
+      this.completedAndCanceledRecordsProcess = false
     }
 
     if (!this.chunksDeleteProcess) {
@@ -46,23 +52,31 @@ export class RecordManager {
       }
     }, 30 * 1000)
 
-    const timer2 = setInterval(async () => {
-      if (!this.chunksDeleteProcess) {
-        this.chunksDeleteProcess = true
-        await this.deleteUnknownChunks()
-        this.chunksDeleteProcess = false
-      }
-      if (!this.previewsDeleteProcess) {
-        this.previewsDeleteProcess = true
-        await this.deleteUnknownPreviews()
-        this.previewsDeleteProcess = false
-      }
-    }, 30 * 1000)
+    const timer2 = setInterval(
+      async () => {
+        if (!this.completedAndCanceledRecordsProcess) {
+          this.completedAndCanceledRecordsProcess = true
+          await this.completedAndCanceledRecordsDelete()
+          this.completedAndCanceledRecordsProcess = false
+        }
+        if (!this.chunksDeleteProcess) {
+          this.chunksDeleteProcess = true
+          await this.deleteUnknownChunks()
+          this.chunksDeleteProcess = false
+        }
+        if (!this.previewsDeleteProcess) {
+          this.previewsDeleteProcess = true
+          await this.deleteUnknownPreviews()
+          this.previewsDeleteProcess = false
+        }
+      },
+      3 * 60 * 1000
+    )
   }
 
-  static updateRecordsInProgress() {
-    StorageService.updateLoadingChunks()
-    StorageService.updateRecordingFiles()
+  static async updateRecordsInProgress() {
+    await StorageService.updateLoadingChunks()
+    await StorageService.updateRecordingFiles()
   }
 
   static async deleteUnknownChunks() {
@@ -71,6 +85,11 @@ export class RecordManager {
 
   static async deleteUnknownPreviews() {
     await PreviewManager.deleteUnknownPreviews()
+  }
+
+  static async completedAndCanceledRecordsDelete() {
+    await StorageService.canceledRecordsDelete()
+    await StorageService.competedRecordsDelete()
   }
 
   static async resolveUnprocessedRecords() {

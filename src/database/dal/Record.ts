@@ -3,6 +3,7 @@ import { GetAllRecordsFilters } from "./types"
 import Chunk from "../models/Chunk"
 import { stringify } from "../../main/helpers/stringify"
 import { LogSender } from "../../main/helpers/log-sender"
+import { Op } from "sequelize"
 const logSender = new LogSender()
 
 export const createRecordDal = async (
@@ -37,7 +38,7 @@ export const updateRecordDal = async (
       true
     )
     // @todo throw custom error
-    throw new Error("not found")
+    throw new Error(`record ${uuid} not found`)
   }
   const updatedRecord = await (record as Record).update(payload)
   logSender.sendLog(
@@ -59,12 +60,14 @@ export const getByUuidRecordDal = async (uuid: string): Promise<Record> => {
   return record
 }
 
-export const deleteByUuidRecordDal = async (uuid: string): Promise<string> => {
+export const deleteByUuidRecordsDal = async (
+  uuids: string[]
+): Promise<string[]> => {
   const deletedRecordCount = await Record.destroy({
-    where: { uuid },
+    where: { uuid: uuids },
     cascade: true,
   })
-  return uuid
+  return uuids
 }
 
 export const getAllRecordDal = async (
@@ -73,6 +76,12 @@ export const getAllRecordDal = async (
   return Record.findAll({
     where: {
       ...(filters?.status && { status: filters.status }),
+      ...(filters?.updatedAfter && {
+        updatedAt: { [Op.gte]: filters.updatedAfter },
+      }),
+      ...(filters?.updatedBefore && {
+        updatedAt: { [Op.lte]: filters.updatedBefore },
+      }),
     },
   })
 }
