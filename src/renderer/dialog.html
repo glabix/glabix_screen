@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title></title>
+  </head>
+
+  <body>
+    <div class="windows-toolbar" hidden>
+      <button
+        type="button"
+        id="windows_close"
+        class="windows-toolbar-btn close"
+      >
+        <i class="i i-close"></i>
+      </button>
+    </div>
+
+    <div class="dialog-container">
+      <div class="flex-grow-1 text-center p-6">
+        <div
+          class="dialog-title font-weight-600 mb-6 text-lg"
+          id="dialog_title"
+          hidden
+        ></div>
+        <div class="dialog-text" id="dialog_text" hidden></div>
+      </div>
+      <div class="dialog-footer p-4" id="dialog_footer"></div>
+    </div>
+
+    <template id="dialog_button_tpl">
+      <div>
+        <button type="button" class="btn btn--sm"></button>
+      </div>
+    </template>
+    <script type="module" src="./src/dialog.renderer.ts"></script>
+  </body>
+</html>

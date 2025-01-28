@@ -7,11 +7,11 @@ import path from "path"
 import { LogLevel, setLog } from "@main/helpers/set-log"
 
 export class TokenStorage {
-  private _token: IJWTToken | null = null
-  private _organizationId: number | null = null
-  private _userId: number | null = null
-  private _entityId: number | null = null
-  readonly authDataFileName =
+  private static _token: IJWTToken | null = null
+  private static _organizationId: number | null = null
+  private static _userId: number | null = null
+  private static _entityId: number | null = null
+  static readonly authDataFileName =
     os.platform() == "darwin"
       ? path.join(
           os.homedir(),
@@ -27,22 +27,22 @@ export class TokenStorage {
           app.getName(),
           "authData.enc"
         )
-  get token(): IJWTToken | null {
+  static get token(): IJWTToken | null {
     return this._token
   }
 
-  get organizationId(): number | null {
+  static get organizationId(): number | null {
     return this._organizationId
   }
 
-  get userId(): number | null {
+  static get userId(): number | null {
     return this._userId
   }
-  get entityId(): number | null {
+  static get entityId(): number | null {
     return this._entityId
   }
 
-  encryptAuthData(authData: IAuthData): void {
+  static encryptAuthData(authData: IAuthData): void {
     if (safeStorage.isEncryptionAvailable()) {
       const encryptedData = safeStorage.encryptString(JSON.stringify(authData))
       fs.writeFileSync(this.authDataFileName, encryptedData)
@@ -55,7 +55,7 @@ export class TokenStorage {
     }
   }
 
-  readAuthData(): void {
+  static readAuthData(): void {
     setLog(LogLevel.SILLY, `Read auth data`)
     if (fs.existsSync(this.authDataFileName)) {
       const encryptedDataBuffer = fs.readFileSync(this.authDataFileName)
@@ -79,7 +79,7 @@ export class TokenStorage {
     }
   }
 
-  dataIsActual(): boolean {
+  static dataIsActual(): boolean {
     if (!this._token || !this._organizationId) {
       return false
     }
@@ -92,7 +92,7 @@ export class TokenStorage {
     )
   }
 
-  reset() {
+  static reset() {
     setLog(LogLevel.DEBUG, "Reset auth data")
     this._token = null
     this._organizationId = null

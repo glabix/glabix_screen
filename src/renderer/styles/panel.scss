@@ -7,6 +7,9 @@
   pointer-events: none;
 }
 
+body.is-dialog-open .panel-wrapper {
+  pointer-events: none !important;
+}
 .body--is-recording .panel-wrapper {
   opacity: 0.7;
   transition: opacity 0.15s;

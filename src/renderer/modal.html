@@ -294,20 +294,23 @@
 
     <template id="media_device_tpl">
       <div class="mb-3">
-        <button class="btn justify-start text-overflow items-center">
-          <div class="flex-center-5 pointer-events-none min-w-5 mr-3">
+        <button class="btn justify-start text-overflow items-center relative">
+          <div
+            class="flex-center-5 pointer-events-none min-w-5 mr-3 relative z-10"
+          >
             <i class="i i--lg"></i>
           </div>
           <span
-            class="text-overflow text-left flex-grow-1 pointer-events-none"
+            class="text-overflow text-left flex-grow-1 pointer-events-none relative z-10"
           ></span>
-          <label class="form-toggle ml-1" hidden>
+          <label class="form-toggle relative z-10 ml-1" hidden>
             <input
               class="form-toggle-input media-device-checkbox"
               type="checkbox"
             />
-            <span class="form-toggle-label"></span>
+            <span class="form-toggle-label relative z-10"></span>
           </label>
+          <canvas class="visualizer" hidden></canvas>
         </button>
       </div>
     </template>

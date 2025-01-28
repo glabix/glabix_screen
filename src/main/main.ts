@@ -23,8 +23,6 @@ import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
-import { createFileUploadCommand } from "./commands/create-file-upload.command"
-import { ChunkSlicer } from "./chunk/chunk-slicer"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -38,13 +36,16 @@ import {
   SimpleStoreEvents,
   ModalWindowHeight,
   IScreenshotImageData,
+  ICropVideoData,
   IAccountData,
   IAvatarData,
+  DialogWindowEvents,
+  IDialogWindowData,
+  IDialogWindowCallbackData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
 import { ChunkStorageService } from "./chunk/chunk-storage.service"
-import { Chunk } from "./chunk/chunk"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
 import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
@@ -69,12 +70,23 @@ import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { fsErrorParser } from "./helpers/fs-error-parser"
 import { getAccountData } from "./commands/account-data.command"
+import Chunk from "../database/models/Chunk"
+import Record from "../database/models/Record"
+import sequelize from "../database/index"
+import StorageService from "../services/storage.service"
+import { RecordManager } from "../services/record-manager"
+import { PreviewManager } from "../services/preview-manager"
+import {
+  createDialogWindow,
+  destroyDialogWindow,
+} from "./helpers/create-dialog"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
+let isDialogWindowOpen = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -91,8 +103,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
   screen: false,
 }
 
-const tokenStorage = new TokenStorage()
-const logSender = new LogSender(tokenStorage)
+const logSender = new LogSender(TokenStorage)
 const chunkSize = 10 * 1024 * 1024
 
 const appState = new AppState()
@@ -152,6 +163,23 @@ function clearAllIntervals() {
   }
 }
 
+// Инициализация базы данных
+const initializeDatabase = async () => {
+  try {
+    await sequelize.authenticate() // Проверка подключения
+    console.log("Database connected successfully.")
+    // Создание всех таблиц, если они не существуют
+    const record = Record
+    const chunk = Chunk
+
+    const res = await sequelize.sync({ force: false }) // force: false — не пересоздавать таблицы, если они уже есть
+
+    console.log("Database tables created or verified.", res.models)
+  } catch (error) {
+    console.error("Database connection failed:", error)
+  }
+}
+
 function init(url: string) {
   if (mainWindow) {
     // Someone tried to run a second instance, we should focus our window.
@@ -205,10 +233,10 @@ function appReload() {
 
 function checkOrganizationLimits(): Promise<any> {
   return new Promise((resolve) => {
-    if (tokenStorage && tokenStorage.dataIsActual()) {
+    if (TokenStorage && TokenStorage.dataIsActual()) {
       getOrganizationLimits(
-        tokenStorage.token!.access_token,
-        tokenStorage.organizationId!
+        TokenStorage.token!.access_token,
+        TokenStorage.organizationId!
       )
         .then(() => {
           resolve(true)
@@ -249,13 +277,15 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
 
   app.whenReady().then(() => {
+    initializeDatabase().then(() => {
+      RecordManager.setTimer()
+    }) // Инициализация базы данных
     chunkStorage = new ChunkStorageService()
     unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdates()
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
-
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
@@ -270,11 +300,11 @@ if (!gotTheLock) {
 
     try {
       logSender.sendLog("user.read_auth_data")
-      tokenStorage.readAuthData()
-      logSender.sendLog("user.read_auth_data.success")
+      TokenStorage.readAuthData()
+      logSender.sendLog("app.started")
       createMenu()
 
-      loadAccountData(tokenStorage)
+      loadAccountData()
 
       checkOrganizationLimits().then(() => {
         showWindows()
@@ -356,8 +386,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver")
-                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
                     }
                   })
                   .catch((e) => {})
@@ -378,8 +408,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver")
-                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
                     }
                   })
                   .catch((e) => {})
@@ -443,16 +473,16 @@ function unregisterShortCutsOnHide() {
   globalShortcut.unregister("Command+H")
 }
 
-function loadAccountData(_tokenStorage: TokenStorage) {
-  if (!_tokenStorage.token || !_tokenStorage.organizationId) {
+function loadAccountData() {
+  if (!TokenStorage.token || !TokenStorage.organizationId) {
     return
   }
 
-  if (_tokenStorage.entityId) {
-    getAccountData(_tokenStorage.token!.access_token, _tokenStorage.entityId)
+  if (TokenStorage.entityId) {
+    getAccountData(TokenStorage.token!.access_token, TokenStorage.entityId)
   } else {
-    getCurrentUser(_tokenStorage.token!.access_token).then((res: IUser) => {
-      getAccountData(_tokenStorage.token!.access_token, res.id)
+    getCurrentUser(TokenStorage.token!.access_token).then((res: IUser) => {
+      getAccountData(TokenStorage.token!.access_token, res.id)
     })
   }
 }
@@ -611,8 +641,8 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver")
-  mainWindow.setAlwaysOnTop(true, "screen-saver")
+  // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
   // mainWindow.setFullScreenable(false)
   // mainWindow.setIgnoreMouseEvents(true, { forward: true })
@@ -634,9 +664,6 @@ function createWindow() {
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
-
-  // SCREENSHOT
-  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -661,7 +688,11 @@ function createModal(parentWindow) {
     },
   })
   // modalWindow.webContents.openDevTools()
-  modalWindow.setAlwaysOnTop(true, "screen-saver")
+  modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  modalWindow.on("show", () => {
+    console.log('modalWindow.on("show")')
+  })
+
   modalWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
     modalWindow.webContents.send("modal-window:hide")
@@ -670,6 +701,7 @@ function createModal(parentWindow) {
   })
   modalWindow.on("ready-to-show", () => {
     checkOrganizationLimits()
+    loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
   })
 
@@ -681,7 +713,7 @@ function createModal(parentWindow) {
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
-    loadAccountData(tokenStorage)
+    loadAccountData()
   })
 
   modalWindow.on("blur", () => {})
@@ -698,12 +730,12 @@ function createModal(parentWindow) {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
   } else {
-    modalWindow
-      .loadFile(join(import.meta.dirname, "../renderer/modal.html"))
-      .then(() => {
-        modalWindow.webContents.send("app:version", app.getVersion())
-      })
+    modalWindow.loadFile(join(import.meta.dirname, "../renderer/modal.html"))
   }
+
+  modalWindow.webContents.on("did-finish-load", () => {
+    modalWindow.webContents.send("app:version", app.getVersion())
+  })
 
   createDropdownWindow(modalWindow)
 }
@@ -732,7 +764,7 @@ function createDropdownWindow(parentWindow) {
     },
   })
   // dropdownWindow.webContents.openDevTools()
-  dropdownWindow.setAlwaysOnTop(true, "screen-saver")
+  dropdownWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
   }
@@ -742,12 +774,14 @@ function createDropdownWindow(parentWindow) {
       `${process.env["ELECTRON_RENDERER_URL"]}/dropdown.html`
     )
   } else {
-    dropdownWindow
-      .loadFile(join(import.meta.dirname, "../renderer/dropdown.html"))
-      .then(() => {
-        dropdownWindow.webContents.send("app:version", app.getVersion())
-      })
+    dropdownWindow.loadFile(
+      join(import.meta.dirname, "../renderer/dropdown.html")
+    )
   }
+
+  dropdownWindow.webContents.on("did-finish-load", () => {
+    dropdownWindow.webContents.send("app:version", app.getVersion())
+  })
 
   dropdownWindow.on("hide", () => {
     modalWindow.webContents.send("dropdown:hide", {})
@@ -788,12 +822,12 @@ function createLoginWindow() {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     loginWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/login.html`)
   } else {
-    loginWindow
-      .loadFile(join(import.meta.dirname, "../renderer/login.html"))
-      .then(() => {
-        loginWindow.webContents.send("app:version", app.getVersion())
-      })
+    loginWindow.loadFile(join(import.meta.dirname, "../renderer/login.html"))
   }
+
+  loginWindow.webContents.on("did-finish-load", () => {
+    loginWindow.webContents.send("app:version", app.getVersion())
+  })
 }
 
 function createScreenshotWindow(dataURL: string) {
@@ -882,30 +916,31 @@ function createScreenshotWindow(dataURL: string) {
   })
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    screenshotWindow
-      .loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`)
-      .then(() => {
-        screenshotWindow.webContents.send("screenshot:getImage", imageData)
-        screenshotWindow.setBounds(bounds)
-        screenshotWindow.show()
-        screenshotWindow.moveTop()
-      })
+    screenshotWindow.loadURL(
+      `${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`
+    )
   } else {
-    screenshotWindow
-      .loadFile(join(import.meta.dirname, "../renderer/screenshot.html"))
-      .then(() => {
-        screenshotWindow.webContents.send("screenshot:getImage", imageData)
-        screenshotWindow.setBounds(bounds)
-        screenshotWindow.show()
-        screenshotWindow.moveTop()
-      })
+    screenshotWindow.loadFile(
+      join(import.meta.dirname, "../renderer/screenshot.html")
+    )
   }
+
+  screenshotWindow.webContents.on("did-finish-load", () => {
+    screenshotWindow.webContents.send("screenshot:getImage", imageData)
+    screenshotWindow.setBounds(bounds)
+    screenshotWindow.show()
+    screenshotWindow.moveTop()
+  })
 }
 
 function showWindows() {
+  if (isDialogWindowOpen) {
+    return
+  }
+
   logSender.sendLog("app.activated")
   registerShortCutsOnShow()
-  if (tokenStorage.dataIsActual()) {
+  if (TokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
     }
@@ -920,7 +955,7 @@ function showWindows() {
 function hideWindows() {
   logSender.sendLog("app.disactivated")
   unregisterShortCutsOnHide()
-  if (tokenStorage.dataIsActual()) {
+  if (TokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
     if (modalWindow) modalWindow.hide()
   } else {
@@ -929,7 +964,7 @@ function hideWindows() {
 }
 
 function toggleWindows() {
-  if (tokenStorage.dataIsActual()) {
+  if (TokenStorage.dataIsActual()) {
     if (modalWindow.isVisible() && mainWindow.isVisible()) {
       hideWindows()
     } else {
@@ -1028,7 +1063,7 @@ function createMenu() {
     {
       id: "menuLogOutItem",
       label: "Выйти из аккаунта",
-      visible: tokenStorage.dataIsActual(),
+      visible: TokenStorage.dataIsActual(),
       click: () => {
         logOut()
       },
@@ -1043,7 +1078,7 @@ function createMenu() {
 }
 
 function logOut() {
-  tokenStorage.reset()
+  TokenStorage.reset()
   mainWindow.hide()
   modalWindow.hide()
   loginWindow.show()
@@ -1097,12 +1132,12 @@ ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
 
 ipcMain.on("change-organization", (event, orgId: number) => {
   const lastTokenStorageData: IAuthData = {
-    token: tokenStorage.token!,
+    token: TokenStorage.token!,
     organization_id: orgId,
   }
 
   hideWindows()
-  tokenStorage.reset()
+  TokenStorage.reset()
   ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
 })
 
@@ -1129,8 +1164,8 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "screen-saver")
-          modalWindow.setAlwaysOnTop(true, "screen-saver")
+          mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+          modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
           modalWindow.setAlwaysOnTop(true, "modal-panel")
@@ -1232,8 +1267,8 @@ ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
 ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
   const file = dataURLToFile(data.dataURL, data.fileName)
   uploadScreenshotCommand(
-    tokenStorage.token!.access_token,
-    tokenStorage.organizationId!,
+    TokenStorage.token!.access_token,
+    TokenStorage.organizationId!,
     data.fileName,
     data.fileSize,
     getVersion(),
@@ -1253,8 +1288,8 @@ ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
 })
 
 ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
-  if (modalWindow && tokenStorage.organizationId) {
-    const currentOrgId = tokenStorage.organizationId
+  if (modalWindow && TokenStorage.organizationId) {
+    const currentOrgId = TokenStorage.organizationId
     const currentOrg = data.organizations.find(
       (o) => o.id == currentOrgId
     )! as any
@@ -1280,47 +1315,95 @@ ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
 
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
-    lastCreatedFileName = Date.now() + ""
-    mainWindow.webContents.send(RecordEvents.START, data)
+    StorageService.startRecord().then((r) => {
+      mainWindow.webContents.send(
+        RecordEvents.START,
+        data,
+        r.getDataValue("uuid")
+      )
+    })
   }
+
   modalWindow.hide()
 })
 
+ipcMain.on(RecordEvents.CANCEL, (event, data) => {
+  const { fileUuid } = data as { fileUuid: string }
+  logSender.sendLog("record.recording.cancel", stringify({ fileUuid }))
+  StorageService.cancelRecord(fileUuid)
+})
+
+ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
+  const { fileUuid, cropVideoData } = data as {
+    fileUuid: string
+    cropVideoData: ICropVideoData
+  }
+  logSender.sendLog(
+    "record.recording.set_crop.data.received",
+    stringify({ fileUuid, cropVideoData })
+  )
+  StorageService.setCropData(fileUuid, cropVideoData)
+})
+
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
-  const { data, isLast } = res
+  const { data, fileUuid, index, isLast } = res
+  logSender.sendLog(
+    "record.recording.chunk.received",
+    stringify({ fileUuid, byteLength: data.byteLength })
+  )
   if (!data.byteLength) {
     logSender.sendLog(
-      "record.raw_file_chunk.save.error",
-      stringify({ byteLength: data.byteLength }),
+      "record.recording.chunk.received.error",
+      stringify({ fileUuid, byteLength: data.byteLength }),
       true
     )
     showRecordErrorBox("Ошибка записи")
     return
   }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  unprocessedFilesService
-    .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
-    .then((rawFileName) => {
-      logSender.sendLog(
-        "record.raw_file_chunk.save.success",
-        stringify({ byteLength: data.byteLength })
-      )
-    })
-    .catch((e) => {
-      logSender.sendLog(
-        "record.raw_file.save.error",
-        stringify({ err: e }),
-        true
-      )
-      showRecordErrorBox("Ошибка записи")
-    })
+  StorageService.addChunk(fileUuid, blob, index, isLast).catch((e) => {
+    logSender.sendLog(
+      "record.recording.chunk.received.error",
+      stringify({ fileUuid, e }),
+      true
+    )
+    showRecordErrorBox("Ошибка записи")
+  })
+  const preview = store.get()["lastVideoPreview"]
+  if (preview && !PreviewManager.hasPreview(fileUuid)) {
+    logSender.sendLog(
+      "record.recording.preview.received",
+      stringify({ fileUuid })
+    )
+    PreviewManager.savePreview(fileUuid, preview)
+  }
+
+  // unprocessedFilesService
+  //   .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
+  //   .then((rawFileName) => {
+  //     logSender.sendLog(
+  //       "record.raw_file_chunk.save.success",
+  //       stringify({ byteLength: data.byteLength })
+  //     )
+  //   })
+  //   .catch((e) => {
+  //     logSender.sendLog(
+  //       "record.raw_file.save.error",
+  //       stringify({ err: e }),
+  //       true
+  //     )
+  //     showRecordErrorBox("Ошибка записи")
+  //   })
 })
 
 ipcMain.on("stop-recording", (event, data) => {
   if (mainWindow) {
     mainWindow.webContents.send("stop-recording")
   }
-  modalWindow.show()
+
+  if (data?.showModal) {
+    modalWindow.show()
+  }
 })
 
 ipcMain.on("windows:minimize", (event, data) => {
@@ -1376,7 +1459,7 @@ ipcMain.on("invalidate-shadow", (event, data) => {
   }
 })
 ipcMain.on("redirect:app", (event, route) => {
-  const url = route.replace("%orgId%", tokenStorage.organizationId)
+  const url = route.replace("%orgId%", TokenStorage.organizationId)
   const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
   openExternalLink(link)
   hideWindows()
@@ -1403,7 +1486,7 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
 
   getCurrentUser(token!.access_token).then((res: IUser) => {
     getAccountData(token!.access_token, res.id).then((accountData) => {
-      tokenStorage.encryptAuthData({
+      TokenStorage.encryptAuthData({
         token,
         organization_id,
         user_id: accountData.id,
@@ -1419,72 +1502,61 @@ ipcMain.on(RecordEvents.ERROR, (event, file) => {
   showRecordErrorBox()
 })
 
-ipcMain.on(FileUploadEvents.RECORD_CREATED, (event, file) => {
-  unprocessedFilesService
-    .awaitWriteFile(lastCreatedFileName!)
-    .then((rawFileName) => {
-      logSender.sendLog("record.raw_file.full.save.success")
-      ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, { rawFileName })
-    })
-    .catch((e) => {
-      logSender.sendLog(
-        "record.raw_file.full.await.error",
-        stringify({ err: e }),
-        true
-      )
-    })
+ipcMain.on(RecordEvents.STOP, (event, data) => {
+  const { fileUuid } = data
+  StorageService.endRecord(fileUuid)
 })
 
 ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
-  const { rawFileName: timestampRawFileName } = event as { rawFileName: any }
-  logSender.sendLog(
-    "api.uploads.multipart_upload.try_to_create",
-    JSON.stringify({ rawFileName: timestampRawFileName })
-  )
-
-  unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
-  unprocessedFilesService
-    .getTotalChunks(timestampRawFileName, chunkSize)
-    .then((data) => {
-      if (data) {
-        const { totalSize, totalChunks } = data
-        const appVersion = getVersion()
-        logSender.sendLog("recording.uploads.chunks.stored.prepared")
-        const title = getTitle(timestampRawFileName)
-        const fileName = title + ".mp4"
-        const callback = (err: null | Error, uuid: string | null) => {
-          if (!err) {
-            const params = { uuid, rawFileName: timestampRawFileName }
-            ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
-          } else {
-            logSender.sendLog(
-              "api.uploads.multipart_upload.create.error",
-              stringify({ err }),
-              true
-            )
-            const params = {
-              filename: timestampRawFileName,
-            }
-            ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
-          }
-        }
-        const lastVideoPreview = store.get()["lastVideoPreview"]
-        const preview = lastVideoPreview
-          ? dataURLToFile(lastVideoPreview, fileName)
-          : undefined
-        createFileUploadCommand(
-          tokenStorage.token!.access_token,
-          tokenStorage.organizationId!,
-          fileName,
-          totalChunks,
-          title,
-          totalSize,
-          appVersion,
-          preview,
-          callback
-        )
-      }
-    })
+  // const { rawFileName: timestampRawFileName } = event as { rawFileName: any }
+  // logSender.sendLog(
+  //   "api.uploads.multipart_upload.try_to_create",
+  //   JSON.stringify({ rawFileName: timestampRawFileName })
+  // )
+  //
+  // unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
+  // unprocessedFilesService
+  //   .getTotalChunks(timestampRawFileName, chunkSize)
+  //   .then((data) => {
+  //     if (data) {
+  //       const { totalSize, totalChunks } = data
+  //       const appVersion = getVersion()
+  //       logSender.sendLog("recording.uploads.chunks.stored.prepared")
+  //       const title = getTitle(timestampRawFileName)
+  //       const fileName = title + ".mp4"
+  //       const callback = (err: null | Error, uuid: string | null) => {
+  //         if (!err) {
+  //           const params = { uuid, rawFileName: timestampRawFileName }
+  //           ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
+  //         } else {
+  //           logSender.sendLog(
+  //             "api.uploads.multipart_upload.create.error",
+  //             stringify({ err }),
+  //             true
+  //           )
+  //           const params = {
+  //             filename: timestampRawFileName,
+  //           }
+  //           ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
+  //         }
+  //       }
+  //       const lastVideoPreview = store.get()["lastVideoPreview"]
+  //       const preview = lastVideoPreview
+  //         ? dataURLToFile(lastVideoPreview, fileName)
+  //         : undefined
+  //       createFileUploadCommand(
+  //         tokenStorage.token!.access_token,
+  //         tokenStorage.organizationId!,
+  //         fileName,
+  //         totalChunks,
+  //         title,
+  //         totalSize,
+  //         appVersion,
+  //         preview,
+  //         callback
+  //       )
+  //     }
+  //   })
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
@@ -1500,7 +1572,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
   const shared =
     import.meta.env.VITE_AUTH_APP_URL +
     "recorder/org/" +
-    tokenStorage.organizationId +
+    TokenStorage.organizationId +
     "/" +
     "library/" +
     uuid
@@ -1590,135 +1662,135 @@ ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
 })
 
 ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
-  const { chunk } = event as { chunk: Chunk }
-  const typedChunk = chunk as Chunk
-  const uuid = typedChunk.fileUuid
-  const chunkNumber = typedChunk.index + 1
-  logSender.sendLog(
-    "api.uploads.chunks.upload_started",
-    JSON.stringify({
-      chunk_number: chunkNumber,
-      chunk_size: typedChunk.size,
-      file_uuid: typedChunk.fileUuid,
-    })
-  )
-  const callback = (err, data) => {
-    typedChunk.cancelProcess()
-    if (err?.error?.code === "conflict_request") {
-      logSender.sendLog(
-        "api.uploads.chunks.upload_conflict_request",
-        stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk?.size,
-          file_uuid: typedChunk?.fileUuid,
-          e: err,
-        }),
-        false
-      )
-      chunkStorage
-        .removeChunk(typedChunk)
-        .then(() => {
-          logSender.sendLog(
-            "chunks.storage.delete.success",
-            JSON.stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-            })
-          )
-          ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
-            uuid,
-            chunkNumber,
-          })
-        })
-        .catch((e) => {
-          logSender.sendLog(
-            "chunks.storage.delete.error",
-            stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-              e,
-            }),
-            true
-          )
-        })
-    } else if (!err) {
-      logSender.sendLog(
-        "api.uploads.chunks.upload_completed",
-        JSON.stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk.size,
-          file_uuid: typedChunk.fileUuid,
-        })
-      )
-      chunkStorage
-        .removeChunk(typedChunk)
-        .then(() => {
-          logSender.sendLog(
-            "chunks.storage.delete.success",
-            JSON.stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-            })
-          )
-          ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
-            uuid,
-            chunkNumber,
-          })
-        })
-        .catch((e) => {
-          logSender.sendLog(
-            "chunks.storage.delete.error",
-            stringify({
-              chunk_number: chunkNumber,
-              chunk_size: typedChunk.size,
-              file_uuid: typedChunk.fileUuid,
-              e,
-            }),
-            true
-          )
-        })
-    } else {
-      logSender.sendLog(
-        "api.uploads.chunks.upload_error",
-        stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk.size,
-          file_uuid: typedChunk.fileUuid,
-          e: err,
-        }),
-        true
-      )
-    }
-  }
-  typedChunk
-    .getData()
-    .then((data) => {
-      typedChunk.startProcess()
-      uploadFileChunkCommand(
-        tokenStorage.token!.access_token,
-        tokenStorage.organizationId!,
-        uuid,
-        data,
-        chunkNumber,
-        callback
-      )
-    })
-    .catch((e) => {
-      typedChunk.cancelProcess()
-      logSender.sendLog(
-        "chunks.storage.getData.error",
-        stringify({
-          chunk_number: chunkNumber,
-          chunk_size: typedChunk.size,
-          file_uuid: typedChunk.fileUuid,
-          e,
-        }),
-        true
-      )
-    })
+  // const { chunk } = event
+  // const typedChunk = chunk
+  // const uuid = typedChunk.fileUuid
+  // const chunkNumber = typedChunk.index + 1
+  // logSender.sendLog(
+  //   "api.uploads.chunks.upload_started",
+  //   JSON.stringify({
+  //     chunk_number: chunkNumber,
+  //     chunk_size: typedChunk.size,
+  //     file_uuid: typedChunk.fileUuid,
+  //   })
+  // )
+  // const callback = (err, data) => {
+  //   typedChunk.cancelProcess()
+  //   if (err?.error?.code === "conflict_request") {
+  //     logSender.sendLog(
+  //       "api.uploads.chunks.upload_conflict_request",
+  //       stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk?.size,
+  //         file_uuid: typedChunk?.fileUuid,
+  //         e: err,
+  //       }),
+  //       false
+  //     )
+  //     chunkStorage
+  //       .removeChunk(typedChunk)
+  //       .then(() => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.success",
+  //           JSON.stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //           })
+  //         )
+  //         ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
+  //           uuid,
+  //           chunkNumber,
+  //         })
+  //       })
+  //       .catch((e) => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.error",
+  //           stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //             e,
+  //           }),
+  //           true
+  //         )
+  //       })
+  //   } else if (!err) {
+  //     logSender.sendLog(
+  //       "api.uploads.chunks.upload_completed",
+  //       JSON.stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk.size,
+  //         file_uuid: typedChunk.fileUuid,
+  //       })
+  //     )
+  //     chunkStorage
+  //       .removeChunk(typedChunk)
+  //       .then(() => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.success",
+  //           JSON.stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //           })
+  //         )
+  //         ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
+  //           uuid,
+  //           chunkNumber,
+  //         })
+  //       })
+  //       .catch((e) => {
+  //         logSender.sendLog(
+  //           "chunks.storage.delete.error",
+  //           stringify({
+  //             chunk_number: chunkNumber,
+  //             chunk_size: typedChunk.size,
+  //             file_uuid: typedChunk.fileUuid,
+  //             e,
+  //           }),
+  //           true
+  //         )
+  //       })
+  //   } else {
+  //     logSender.sendLog(
+  //       "api.uploads.chunks.upload_error",
+  //       stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk.size,
+  //         file_uuid: typedChunk.fileUuid,
+  //         e: err,
+  //       }),
+  //       true
+  //     )
+  //   }
+  // }
+  // typedChunk
+  //   .getData()
+  //   .then((data) => {
+  //     typedChunk.startProcess()
+  //     uploadFileChunkCommand(
+  //       TokenStorage.token!.access_token,
+  //       TokenStorage.organizationId!,
+  //       uuid,
+  //       data,
+  //       chunkNumber,
+  //       callback
+  //     )
+  //   })
+  //   .catch((e) => {
+  //     typedChunk.cancelProcess()
+  //     logSender.sendLog(
+  //       "chunks.storage.getData.error",
+  //       stringify({
+  //         chunk_number: chunkNumber,
+  //         chunk_size: typedChunk.size,
+  //         file_uuid: typedChunk.fileUuid,
+  //         e,
+  //       }),
+  //       true
+  //     )
+  //   })
 })
 
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
@@ -1779,3 +1851,30 @@ ipcMain.on(RecordEvents.ERROR, (evt, data) => {
   logSender.sendLog(title, stringify(body))
   showRecordErrorBox("Ошибка во время захвата экрана", "Обратитесь в поддержку")
 })
+
+ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
+  if (modalWindow && modalWindow.isVisible()) {
+    modalWindow.hide()
+  }
+
+  createDialogWindow({ data })
+  isDialogWindowOpen = true
+})
+
+ipcMain.on(
+  DialogWindowEvents.CALLBACK,
+  (evt, data: IDialogWindowCallbackData) => {
+    if (data.action == "cancel") {
+      destroyDialogWindow()
+      mainWindow.focusOnWebView()
+    }
+
+    if (data.action == "ok") {
+      destroyDialogWindow()
+      mainWindow.focusOnWebView()
+    }
+
+    mainWindow.webContents.send(DialogWindowEvents.CALLBACK, data)
+    isDialogWindowOpen = false
+  }
+)
