@@ -80,7 +80,8 @@ import {
   createDialogWindow,
   destroyDialogWindow,
 } from "./helpers/create-dialog"
-import { MigrateOldStorage } from "../services/migrate-old-storage"
+import { MigrateOldStorageUnprocessed } from "../services/migrate-old-storage-unprocessed"
+import { MigrateOldStoragePrepared } from "../services/migrate-old-storage-prepared"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -279,8 +280,10 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     initializeDatabase().then(() => {
       RecordManager.setTimer()
-      const a = new MigrateOldStorage()
+      const a = new MigrateOldStorageUnprocessed()
+      const b = new MigrateOldStoragePrepared()
       a.migrate()
+      b.migrate()
     }) // Инициализация базы данных
     chunkStorage = new ChunkStorageService()
     unprocessedFilesService = new UnprocessedFilesService()

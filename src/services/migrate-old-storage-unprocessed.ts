@@ -9,7 +9,7 @@ import { getVersion } from "../main/helpers/get-version"
 import { createChunkDal, updateChunkDal } from "../database/dal/Chunk"
 import { ChunkStatus } from "../database/models/Chunk"
 
-export class MigrateOldStorage {
+export class MigrateOldStorageUnprocessed {
   readonly mainPath =
     os.platform() == "darwin"
       ? path.join(
@@ -31,10 +31,16 @@ export class MigrateOldStorage {
   constructor() {}
 
   async migrate() {
+    try {
+      const flag = await fs.promises.access(this.mainPath)
+    } catch (e) {
+      return
+    }
     const groupedFiles = await this.getGroupedFiles(this.mainPath)
     console.log("groupedFiles", groupedFiles)
     if (Object.keys(groupedFiles).length > 0) {
       for (const timestamp in groupedFiles) {
+        const files = groupedFiles[timestamp]
         const title = getTitle(+timestamp)
         const rec = await createRecordDal({
           title,
@@ -51,6 +57,7 @@ export class MigrateOldStorage {
           fileUuid
         )
         await updateRecordDal(fileUuid, { status: RecordStatus.RECORDED })
+        await this.deleteProcessedFiles(files, this.mainPath)
       }
       console.log("New chunks created successfully.")
     } else {
@@ -118,6 +125,18 @@ export class MigrateOldStorage {
         currentSize = 0
         chunkIndex++
       }
+    }
+  }
+  async deleteProcessedFiles(files, dir) {
+    try {
+      for (const file of files) {
+        const filePath = path.join(dir, file)
+        // Асинхронное удаление файла
+        console.log(`Deleted: ${file}`)
+      }
+      console.log("All files deleted successfully.")
+    } catch (error) {
+      console.error("Error deleting files:", error)
     }
   }
 }
