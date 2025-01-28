@@ -86,6 +86,7 @@ let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
+let isDialogWindowOpen = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -385,8 +386,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver")
-                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
                     }
                   })
                   .catch((e) => {})
@@ -407,8 +408,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver")
-                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
                     }
                   })
                   .catch((e) => {})
@@ -640,8 +641,8 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver")
-  mainWindow.setAlwaysOnTop(true, "screen-saver")
+  // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
   // mainWindow.setFullScreenable(false)
   // mainWindow.setIgnoreMouseEvents(true, { forward: true })
@@ -663,9 +664,6 @@ function createWindow() {
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
-
-  // SCREENSHOT
-  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -690,7 +688,7 @@ function createModal(parentWindow) {
     },
   })
   // modalWindow.webContents.openDevTools()
-  modalWindow.setAlwaysOnTop(true, "screen-saver")
+  modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   modalWindow.on("show", () => {
     console.log('modalWindow.on("show")')
   })
@@ -766,7 +764,7 @@ function createDropdownWindow(parentWindow) {
     },
   })
   // dropdownWindow.webContents.openDevTools()
-  dropdownWindow.setAlwaysOnTop(true, "screen-saver")
+  dropdownWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
   }
@@ -936,6 +934,10 @@ function createScreenshotWindow(dataURL: string) {
 }
 
 function showWindows() {
+  if (isDialogWindowOpen) {
+    return
+  }
+
   logSender.sendLog("app.activated")
   registerShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
@@ -1162,8 +1164,8 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "screen-saver")
-          modalWindow.setAlwaysOnTop(true, "screen-saver")
+          mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+          modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
           modalWindow.setAlwaysOnTop(true, "modal-panel")
@@ -1856,6 +1858,7 @@ ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
   }
 
   createDialogWindow({ data })
+  isDialogWindowOpen = true
 })
 
 ipcMain.on(
@@ -1872,5 +1875,6 @@ ipcMain.on(
     }
 
     mainWindow.webContents.send(DialogWindowEvents.CALLBACK, data)
+    isDialogWindowOpen = false
   }
 )

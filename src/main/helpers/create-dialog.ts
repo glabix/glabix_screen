@@ -84,6 +84,7 @@ export function createDialogWindow(_params: IDialogWindowParams): void {
     dialogWindow.loadFile(join(import.meta.dirname, "../renderer/dialog.html"))
   }
 
+  dialogWindow.setAlwaysOnTop(true, "screen-saver", 999999)
   dialogWindow.webContents.on("did-finish-load", () => {
     dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
     dialogWindow!.setBounds(bounds)
