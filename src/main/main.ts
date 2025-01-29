@@ -1357,6 +1357,19 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     "record.recording.set_crop.data.received",
     stringify({ fileUuid, cropVideoData })
   )
+
+  console.log(
+    "!!!!!!activeDisplay.scaleFactor!!!!!!1",
+    activeDisplay.scaleFactor
+  )
+
+  const cropData: ICropVideoData = {
+    x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
+    y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
+    out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
+    out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
+  }
+
   StorageService.setCropData(fileUuid, cropVideoData)
 })
 

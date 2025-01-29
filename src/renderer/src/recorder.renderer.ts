@@ -673,8 +673,8 @@ const initView = (settings: StreamSettings, force?: boolean) => {
     canvasVideo.height = screenRect.height
 
     updateCropVideoData({
-      top: screenRect.top || screenRect.y,
-      left: screenRect.left || screenRect.x,
+      top: screenRect.top,
+      left: screenRect.left,
       width: screenRect.width,
       height: screenRect.height,
     })
@@ -913,6 +913,7 @@ window.electronAPI.ipcRenderer.on(
         screen.classList.add("is-recording")
         const screenMove = cropMoveable!.getControlBoxElement()
         screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
+
         window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
           cropVideoData,
           fileUuid: file_uuid,
