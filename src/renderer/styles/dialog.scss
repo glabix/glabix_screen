@@ -1,7 +1,6 @@
-@import "styles.scss";
-@import "_forms.scss";
-@import "_buttons.scss";
-@import "_windows-toolbar.scss";
+@forward "styles.scss";
+@forward "_forms.scss";
+@forward "_buttons.scss";
 
 *,
 *::after,

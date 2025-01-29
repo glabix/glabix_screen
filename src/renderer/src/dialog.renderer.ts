@@ -1,23 +1,5 @@
 import "@renderer/styles/dialog.scss"
 import { DialogWindowEvents, IDialogWindowData } from "@shared/types/types"
-const windowsToolbar = document.querySelector(".windows-toolbar")!
-const windowsCloseBtn = document.querySelector("#windows_close")!
-
-const isWindows = navigator.userAgent.indexOf("Windows") != -1
-
-if (isWindows) {
-  windowsToolbar.removeAttribute("hidden")
-}
-
-windowsCloseBtn.addEventListener(
-  "click",
-  () => {
-    if (isWindows) {
-      window.electronAPI.ipcRenderer.send("windows:close", {})
-    }
-  },
-  false
-)
 
 const title = document.querySelector("#dialog_title")!
 const text = document.querySelector("#dialog_text")!

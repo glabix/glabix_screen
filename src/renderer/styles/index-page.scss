@@ -1,7 +1,7 @@
-@import "styles.scss";
-@import "_buttons.scss";
-@import "_forms.scss";
-@import "_movable.scss";
+@forward "styles.scss";
+@forward "_buttons.scss";
+@forward "_forms.scss";
+@forward "_movable.scss";
 
 html,
 body {
