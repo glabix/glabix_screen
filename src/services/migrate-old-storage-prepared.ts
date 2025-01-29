@@ -78,7 +78,7 @@ export class MigrateOldStoragePrepared {
           const fileUuid = rec.getDataValue("uuid")
           for (const file of files) {
             if (file.startsWith("chunk-")) {
-              const chunkNumber = file.split("-")[1] + 1
+              const chunkNumber = Number(file.split("-")[1]) + 1
               const sourcePath = path.join(subDirPath, file)
               const stats = await fs.promises.stat(sourcePath)
               const chunkDB = await createChunkDal({

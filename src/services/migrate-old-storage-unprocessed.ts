@@ -132,6 +132,7 @@ export class MigrateOldStorageUnprocessed {
       for (const file of files) {
         const filePath = path.join(dir, file)
         // Асинхронное удаление файла
+        await fs.promises.unlink(filePath)
         console.log(`Deleted: ${file}`)
       }
       console.log("All files deleted successfully.")
