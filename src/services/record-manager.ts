@@ -9,6 +9,7 @@ import { Notification } from "electron"
 import { PreviewManager } from "./preview-manager"
 import { httpErrorPareser } from "../main/helpers/http-error-pareser"
 import { stringify } from "../main/helpers/stringify"
+import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
 
 export class RecordManager {
   static tokenStorage = new TokenStorage()
@@ -174,6 +175,7 @@ export class RecordManager {
         )
         this.currentProcessRecordUuid = uuid
         const updatedRecord = await this.recordServerCreate(record)
+        checkOrganizationLimits()
         if (this.lastRecordUuid === uuid) {
           this.openLibraryPage(updatedRecord, false)
         } else {
@@ -208,7 +210,9 @@ export class RecordManager {
   // форсим загрузку только что записанного файла
   static async newRecord(uuid: string) {
     this.lastRecordUuid = uuid
-    await this.processRecord(uuid, true)
+    try {
+      await this.processRecord(uuid, true)
+    } catch (e) {}
   }
 
   static openLibraryPage(record: Record, manual: boolean) {
