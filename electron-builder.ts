@@ -35,6 +35,7 @@ const options: Configuration = {
   icon: getIconPath(),
   artifactName: "${name}-${os}-${arch}.${ext}",
   executableName: process.env.PRODUCT_NAME,
+  nativeRebuilder: "legacy",
   win: {
     target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
   },
