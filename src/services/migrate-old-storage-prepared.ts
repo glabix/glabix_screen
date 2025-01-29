@@ -36,6 +36,7 @@ export class MigrateOldStoragePrepared {
     } catch (e) {
       return
     }
+    console.log("move")
     await this.moveChunks(this.mainPath, this.newStoragePath)
   }
 
@@ -103,6 +104,7 @@ export class MigrateOldStoragePrepared {
           await updateRecordDal(fileUuid, {
             status: RecordStatus.CREATED_ON_SERVER,
           })
+          await fs.promises.rmdir(subDirPath)
         }
       }
     } catch (error) {

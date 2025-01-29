@@ -173,7 +173,7 @@ const initializeDatabase = async () => {
     const record = Record
     const chunk = Chunk
 
-    const res = await sequelize.sync({ force: false }) // force: false — не пересоздавать таблицы, если они уже есть
+    const res = await sequelize.sync({ force: true }) // force: false — не пересоздавать таблицы, если они уже есть
 
     console.log("Database tables created or verified.", res.models)
   } catch (error) {
