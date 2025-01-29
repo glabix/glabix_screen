@@ -42,6 +42,7 @@ import {
   DialogWindowEvents,
   IDialogWindowData,
   IDialogWindowCallbackData,
+  HotkeysEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -431,7 +432,8 @@ if (!gotTheLock) {
 }
 
 function registerShortCuts() {
-  globalShortcut.register("CommandOrControl+Shift+6", () => {
+  // Fullscreen Screenshot
+  globalShortcut.register("CommandOrControl+Shift+1", () => {
     if (isScreenshotAllowed) {
       const cursorPosition = screen.getCursorScreenPoint()
       activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
@@ -439,7 +441,8 @@ function registerShortCuts() {
     }
   })
 
-  globalShortcut.register("CommandOrControl+Shift+5", () => {
+  // Crop Screenshot
+  globalShortcut.register("CommandOrControl+Shift+2", () => {
     const isRecording = (store.get() as any).recordingState == "recording"
 
     if (isScreenshotAllowed) {
@@ -456,6 +459,7 @@ function registerShortCuts() {
         mainWindow.setBounds(activeDisplay.bounds)
         mainWindow.show()
         mainWindow.focus()
+        mainWindow.focusOnWebView()
       }
 
       mainWindow.webContents.send("dropdown:select.screenshot", data)
@@ -463,10 +467,21 @@ function registerShortCuts() {
     }
   })
 }
+
 function registerShortCutsOnShow() {
   globalShortcut.register("Command+H", () => {
     hideWindows()
   })
+
+  // Stop Recording
+  // globalShortcut.register("CommandOrControl+Shift+l", () => {
+  //   const isRecording = (store.get() as any).recordingState == "recording"
+  //   if (isRecording) {
+  //     mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
+  //   } else {
+  //     mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
+  //   }
+  // })
 }
 
 function unregisterShortCutsOnHide() {

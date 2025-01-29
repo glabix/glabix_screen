@@ -169,3 +169,12 @@ export interface IDialogWindowParams {
   height?: number
   data: IDialogWindowData
 }
+
+export enum HotkeysEvents {
+  START_RECORDING = "hotkeys:recording:start",
+  STOP_RECORDING = "hotkeys:recording:stop",
+  PAUSE_RECORDING = "hotkeys:recording:pause",
+  RESUME_RECORDING = "hotkeys:recording:resume",
+  RESTART_RECORDING = "hotkeys:recording:restart",
+  DRAW = "hotkeys:draw",
+}
