@@ -18,7 +18,7 @@ import {
   clipboard,
 } from "electron"
 import path, { join } from "path"
-import os from "os"
+import os, { platform } from "os"
 import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
@@ -1353,24 +1353,23 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     fileUuid: string
     cropVideoData: ICropVideoData
   }
+
+  const cropData: ICropVideoData =
+    os.platform() == "darwin"
+      ? { ...cropVideoData }
+      : {
+          x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
+          y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
+          out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
+          out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
+        }
+
   logSender.sendLog(
     "record.recording.set_crop.data.received",
-    stringify({ fileUuid, cropVideoData })
+    stringify({ fileUuid, cropData })
   )
 
-  console.log(
-    "!!!!!!activeDisplay.scaleFactor!!!!!!1",
-    activeDisplay.scaleFactor
-  )
-
-  const cropData: ICropVideoData = {
-    x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
-    y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
-    out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
-    out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
-  }
-
-  StorageService.setCropData(fileUuid, cropVideoData)
+  StorageService.setCropData(fileUuid, cropData)
 })
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
