@@ -715,6 +715,10 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
   })
   modalWindow.on("ready-to-show", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
     checkOrganizationLimits()
     loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
