@@ -1,0 +1,10 @@
+.popover {
+  position: absolute;
+  background-color: #fff;
+  border: solid 1px var(--gray-400);
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.5rem;
+  left: calc(100% + 1rem);
+  top: 50%;
+  transform: translateY(-50%);
+}

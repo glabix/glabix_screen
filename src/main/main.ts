@@ -77,6 +77,7 @@ import {
 import { MigrateOldStorageUnprocessed } from "../services/migrate-old-storage-unprocessed"
 import { MigrateOldStoragePrepared } from "../services/migrate-old-storage-prepared"
 import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
+import { GLOBAL_SHORTCUTS_MAP } from "./helpers/hotkeys.map"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -425,19 +426,79 @@ function registerShortCutsOnShow() {
     hideWindows()
   })
 
-  // Stop Recording
-  // globalShortcut.register("CommandOrControl+Shift+l", () => {
-  //   const isRecording = (store.get() as any).recordingState == "recording"
-  //   if (isRecording) {
-  //     mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
-  //   } else {
-  //     mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
-  //   }
-  // })
+  // Stop/Start Recording
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+l"], () => {
+    if (isDialogWindowOpen) {
+      return
+    }
+
+    const isRecording = (store.get() as any).recordingState == "recording"
+    if (isRecording) {
+      mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
+    } else {
+      // mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
+    }
+  })
+
+  // Pause/Resume Recording
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+p"], () => {
+    if (isDialogWindowOpen) {
+      return
+    }
+
+    const state = (store.get() as any).recordingState
+    if (state == "recording") {
+      mainWindow?.webContents.send(HotkeysEvents.PAUSE_RECORDING)
+    }
+    if (state == "paused") {
+      mainWindow?.webContents.send(HotkeysEvents.RESUME_RECORDING)
+    }
+  })
+
+  // Restart Recording
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+r"], () => {
+    if (isDialogWindowOpen) {
+      return
+    }
+
+    const state = (store.get() as any).recordingState
+    if (["recording", "paused"].includes(state)) {
+      mainWindow?.webContents.send(HotkeysEvents.RESTART_RECORDING)
+    }
+  })
+
+  // Delete Recording
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+c"], () => {
+    if (isDialogWindowOpen) {
+      return
+    }
+
+    const state = (store.get() as any).recordingState
+    if (["recording", "paused"].includes(state)) {
+      mainWindow?.webContents.send(HotkeysEvents.DELETE_RECORDING)
+    }
+  })
+
+  // Toggle Draw
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+d"], () => {
+    if (isDialogWindowOpen) {
+      return
+    }
+
+    const state = (store.get() as any).recordingState
+    if (["recording", "paused"].includes(state)) {
+      mainWindow?.webContents.send(HotkeysEvents.DRAW)
+    }
+  })
 }
 
 function unregisterShortCutsOnHide() {
   globalShortcut.unregister("Command+H")
+  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+l"])
+  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+r"])
+  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+d"])
+  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["option+shift+p"])
+  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["option+shift+c"])
 }
 
 function loadAccountData() {

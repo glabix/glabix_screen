@@ -176,5 +176,6 @@ export enum HotkeysEvents {
   PAUSE_RECORDING = "hotkeys:recording:pause",
   RESUME_RECORDING = "hotkeys:recording:resume",
   RESTART_RECORDING = "hotkeys:recording:restart",
+  DELETE_RECORDING = "hotkeys:recording:delete",
   DRAW = "hotkeys:draw",
 }
