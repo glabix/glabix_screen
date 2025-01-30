@@ -1479,7 +1479,7 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
-  if (modalWindow && modalWindow.isAlwaysOnTop() && os.platform() == "darwin") {
+  if (modalWindow && modalWindow.isAlwaysOnTop() && !isDialogWindowOpen) {
     mainWindow.focus()
   }
 })
