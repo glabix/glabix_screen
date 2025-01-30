@@ -3,7 +3,7 @@ import { KonvaPointerEvent } from "konva/lib/PointerEvents"
 import Konva from "konva"
 import Moveable, { MoveableRefTargetType, MoveableRefType } from "moveable"
 import { LoggerEvents } from "@shared/events/logger.events"
-import { DialogWindowEvents } from "@shared/types/types"
+import { DialogWindowEvents, HotkeysEvents } from "@shared/types/types"
 
 const COUNTDOWN_DELAY = 2000
 
@@ -56,6 +56,14 @@ class Draw {
 
     window.electronAPI.ipcRenderer.on(DialogWindowEvents.CREATE, () => {
       this.drawEnd()
+    })
+
+    window.electronAPI.ipcRenderer.on(HotkeysEvents.DRAW, () => {
+      if (this.stage) {
+        this.drawEnd()
+      } else {
+        this.drawStart()
+      }
     })
   }
 

@@ -22,6 +22,14 @@ import { captureVideoFrame } from "./helpers/capture-video-frame"
 import { RecordEvents } from "../../shared/events/record.events"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
+
+const TEXT_MAP = {
+  stop: isWindows ? "Ctrl+Shift+L" : "Cmd+Shift+L",
+  pause: isWindows ? "Alt+Shift+P" : "Option+Shift+P",
+  restart: isWindows ? "Ctrl+Shift+R" : "Cmd+Shift+R",
+  delete: isWindows ? "Alt+Shift+С" : "Option+Shift+С",
+  draw: isWindows ? "Ctrl+Shift+D" : "Cmd+Shift+D",
+}
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
 )!
@@ -99,6 +107,20 @@ function stopRecording() {
   }
 }
 
+function pauseRecording() {
+  if (videoRecorder) {
+    videoRecorder.pause()
+    timer.pause()
+  }
+}
+
+function resumeRecording() {
+  if (videoRecorder) {
+    videoRecorder.resume()
+    timer.start(true)
+  }
+}
+
 function cancelRecording() {
   if (startTimer) {
     clearInterval(startTimer)
@@ -113,6 +135,45 @@ function cancelRecording() {
     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     window.electronAPI.ipcRenderer.send("modal-window:open", {})
   }
+}
+
+function openDeleteRecordingDialog() {
+  const buttons: IDialogWindowButton[] = [
+    { type: "default", text: "Продолжить", action: "cancel" },
+    { type: "danger", text: "Остановить запись", action: "ok" },
+  ]
+  const data: IDialogWindowData = {
+    title: "Хотите остановить запись?",
+    text: "Запись не будет сохранена в библиотеку",
+    buttons: buttons,
+    data: { uuid: currentRecordedUuid },
+  }
+
+  window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
+  isRecordCanceled = true
+  isRecordRestart = false
+  pauseRecording()
+  dialogWindowToggle(true)
+}
+
+function openRestartRecordingDialog() {
+  const buttons: IDialogWindowButton[] = [
+    { type: "default", text: "Продолжить", action: "cancel" },
+    { type: "danger", text: "Начать заново", action: "ok" },
+  ]
+  const data: IDialogWindowData = {
+    title: "Хотите начать запись заново?",
+    text: "Текущая запись не будет сохранена в библиотеку",
+    buttons: buttons,
+    data: { uuid: currentRecordedUuid },
+  }
+
+  window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
+  isRecordRestart = true
+  isRecordCanceled = false
+  dialogWindowToggle(true)
+
+  pauseRecording()
 }
 
 changeCameraOnlySizeBtn.forEach((button) => {
@@ -146,60 +207,40 @@ cancelBtn.addEventListener("click", () => {
 
 resumeBtn.addEventListener("click", () => {
   if (videoRecorder && videoRecorder.state == "paused") {
-    videoRecorder.resume()
-    timer.start(true)
+    resumeRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.resume",
+      body: JSON.stringify({ type: "manual" }),
+    })
   }
 })
 
 pauseBtn.addEventListener("click", () => {
   if (videoRecorder && videoRecorder.state == "recording") {
-    videoRecorder.pause()
-    timer.pause()
+    pauseRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.paused",
+      body: JSON.stringify({ type: "manual" }),
+    })
   }
 })
 
 deleteBtn.addEventListener("click", () => {
   if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
-    const buttons: IDialogWindowButton[] = [
-      { type: "default", text: "Продолжить", action: "cancel" },
-      { type: "danger", text: "Остановить запись", action: "ok" },
-    ]
-    const data: IDialogWindowData = {
-      title: "Хотите остановить запись?",
-      text: "Запись не будет сохранена в библиотеку",
-      buttons: buttons,
-      data: { uuid: currentRecordedUuid },
-    }
-
-    window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
-    isRecordCanceled = true
-    isRecordRestart = false
-    dialogWindowToggle(true)
-
-    videoRecorder.pause()
-    timer.pause()
+    openDeleteRecordingDialog()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.delete",
+      body: JSON.stringify({ type: "manual" }),
+    })
   }
 })
 restartBtn.addEventListener("click", () => {
   if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
-    const buttons: IDialogWindowButton[] = [
-      { type: "default", text: "Продолжить", action: "cancel" },
-      { type: "danger", text: "Начать заново", action: "ok" },
-    ]
-    const data: IDialogWindowData = {
-      title: "Хотите начать запись заново?",
-      text: "Текущая запись не будет сохранена в библиотеку",
-      buttons: buttons,
-      data: { uuid: currentRecordedUuid },
-    }
-
-    window.electronAPI.ipcRenderer.send(DialogWindowEvents.CREATE, data)
-    isRecordRestart = true
-    isRecordCanceled = false
-    dialogWindowToggle(true)
-
-    videoRecorder.pause()
-    timer.pause()
+    openRestartRecordingDialog()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.restart",
+      body: JSON.stringify({ type: "manual" }),
+    })
   }
 })
 
@@ -855,8 +896,7 @@ window.electronAPI.ipcRenderer.on(
   (event, data: IDialogWindowCallbackData) => {
     if (data.action == "cancel") {
       if (videoRecorder?.state == "paused") {
-        videoRecorder.resume()
-        timer.start(true)
+        resumeRecording()
         isRecordCanceled = false
         isRecordRestart = false
       }
@@ -997,6 +1037,46 @@ window.electronAPI.ipcRenderer.on(
     })
   }
 )
+window.electronAPI.ipcRenderer.on(
+  HotkeysEvents.PAUSE_RECORDING,
+  (event, data) => {
+    pauseRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.paused",
+      body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  HotkeysEvents.RESUME_RECORDING,
+  (event, data) => {
+    resumeRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.resume",
+      body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  HotkeysEvents.RESTART_RECORDING,
+  (event, data) => {
+    openRestartRecordingDialog()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.restart",
+      body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  HotkeysEvents.DELETE_RECORDING,
+  (event, data) => {
+    openDeleteRecordingDialog()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.delete",
+      body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
 
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -1017,5 +1097,17 @@ window.addEventListener("unhandledrejection", (event) => {
       stack: event.reason.stack || "No stack trace",
     }),
     error: true,
+  })
+})
+
+window.addEventListener("DOMContentLoaded", (event) => {
+  const textEls = document.querySelectorAll(
+    "[data-text]"
+  ) as NodeListOf<HTMLElement>
+  textEls.forEach((el) => {
+    const text = el.dataset.text
+    if (text) {
+      el.innerHTML = TEXT_MAP[text]
+    }
   })
 })

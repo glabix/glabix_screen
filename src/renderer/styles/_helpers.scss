@@ -75,6 +75,16 @@
   white-space: nowrap;
 }
 
+.tag {
+  font-size: 12px;
+  line-height: 16px;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  background-color: var(--gray-200);
+  color: var(--gray-600);
+  white-space: nowrap;
+}
+
 .visible {
   opacity: 1 !important;
   visibility: visible !important;

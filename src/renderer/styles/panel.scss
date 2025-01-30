@@ -96,6 +96,14 @@ body.is-dialog-open .panel-wrapper {
   }
 }
 
+.panel-btn .popover {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.panel-btn:hover .popover {
+  opacity: 1;
+}
+
 .panel-divider {
   background-color: var(--gray-400);
   width: 100%;

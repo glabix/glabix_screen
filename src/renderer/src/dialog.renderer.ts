@@ -44,3 +44,17 @@ document.addEventListener("click", (event) => {
     })
   }
 })
+
+window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key == "Enter") {
+    window.electronAPI.ipcRenderer.send(DialogWindowEvents.CALLBACK, {
+      action: "ok",
+    })
+  }
+
+  if (e.key == "Escape") {
+    window.electronAPI.ipcRenderer.send(DialogWindowEvents.CALLBACK, {
+      action: "cancel",
+    })
+  }
+})

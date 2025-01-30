@@ -88,14 +88,14 @@ export function createDialogWindow(_params: IDialogWindowParams): void {
     dialogWindow.loadFile(join(import.meta.dirname, "../renderer/dialog.html"))
   }
 
-  dialogWindow.webContents.on("did-finish-load", () => {
+  dialogWindow?.webContents.on("did-finish-load", () => {
     dialogWindow!.webContents.send(DialogWindowEvents.RENDER, params.data)
     dialogWindow!.setBounds(bounds)
     dialogWindow!.setAlwaysOnTop(true, "screen-saver", 999999)
     dialogWindow!.show()
   })
 
-  dialogWindow.on("close", () => {
+  dialogWindow?.on("close", () => {
     const data: IDialogWindowCallbackData = { action: "cancel" }
     ipcMain.emit(DialogWindowEvents.CALLBACK, null, data)
   })
