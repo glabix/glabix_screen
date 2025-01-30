@@ -516,14 +516,15 @@ const createPreview = () => {
   }
 }
 const startRecording = () => {
+  isRecordCanceled = false
+  isRecordRestart = false
+
   if (videoRecorder) {
     videoRecorder.start(5000)
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "videoRecorder.start()",
     })
 
-    isRecordCanceled = false
-    isRecordRestart = false
     timer.start(true)
     updateRecorderState("recording")
 

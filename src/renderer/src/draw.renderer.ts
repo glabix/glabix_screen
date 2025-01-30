@@ -3,6 +3,7 @@ import { KonvaPointerEvent } from "konva/lib/PointerEvents"
 import Konva from "konva"
 import Moveable, { MoveableRefTargetType, MoveableRefType } from "moveable"
 import { LoggerEvents } from "@shared/events/logger.events"
+import { DialogWindowEvents } from "@shared/types/types"
 
 const COUNTDOWN_DELAY = 2000
 
@@ -50,6 +51,10 @@ class Draw {
     this.handleLaserStrokeWidthChange()
 
     window.electronAPI.ipcRenderer.on("stop-recording", () => {
+      this.drawEnd()
+    })
+
+    window.electronAPI.ipcRenderer.on(DialogWindowEvents.CREATE, () => {
       this.drawEnd()
     })
   }

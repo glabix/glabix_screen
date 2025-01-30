@@ -1476,6 +1476,8 @@ ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
     modalWindow.hide()
   }
 
+  mainWindow.webContents.send(DialogWindowEvents.CREATE, data)
+
   createDialogWindow({ data })
   isDialogWindowOpen = true
 })
