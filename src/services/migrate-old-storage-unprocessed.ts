@@ -8,6 +8,9 @@ import { getTitle } from "../shared/helpers/get-title"
 import { getVersion } from "../main/helpers/get-version"
 import { createChunkDal, updateChunkDal } from "../database/dal/Chunk"
 import { ChunkStatus } from "../database/models/Chunk"
+import { stringify } from "../main/helpers/stringify"
+import { LogSender } from "../main/helpers/log-sender"
+import { TokenStorage } from "../main/storages/token-storage"
 
 export class MigrateOldStorageUnprocessed {
   readonly mainPath =
@@ -26,19 +29,27 @@ export class MigrateOldStorageUnprocessed {
           app.getName(),
           "unprocessed_files"
         )
+  tokenStorage = new TokenStorage()
+  logSender = new LogSender(this.tokenStorage)
   chunkSize = 10 * 1024 * 1024 // 10 MB
   newStoragePath = path.join(app.getPath("userData"), "ChunkStorage")
   constructor() {}
 
   async migrate() {
+    this.logSender.sendLog("database.migrate.unprocessed.start", stringify({}))
     try {
       const flag = await fs.promises.access(this.mainPath)
     } catch (e) {
+      this.logSender.sendLog("database.migrate.unprocessed.end", "no directory")
       return
     }
     const groupedFiles = await this.getGroupedFiles(this.mainPath)
-    console.log("groupedFiles", groupedFiles)
+
     if (Object.keys(groupedFiles).length > 0) {
+      this.logSender.sendLog(
+        "database.migrate.unprocessed.process",
+        stringify({ groupedFiles })
+      )
       for (const timestamp in groupedFiles) {
         const files = groupedFiles[timestamp]
         const title = getTitle(+timestamp)
@@ -47,7 +58,6 @@ export class MigrateOldStorageUnprocessed {
           version: getVersion(),
           status: RecordStatus.RECORDING,
         })
-        console.log(`Processing files with timestamp: ${timestamp}`)
         const fileUuid = rec.getDataValue("uuid")
         await this.createChunks(
           groupedFiles[timestamp],
@@ -58,14 +68,20 @@ export class MigrateOldStorageUnprocessed {
         )
         await updateRecordDal(fileUuid, { status: RecordStatus.RECORDED })
         await this.deleteProcessedFiles(files, this.mainPath)
+        this.logSender.sendLog(
+          "database.migrate.unprocessed.end",
+          stringify({ files, mainPath: this.mainPath })
+        )
       }
-      console.log("New chunks created successfully.")
     } else {
-      console.log("No files found matching the pattern.")
+      this.logSender.sendLog(
+        "database.migrate.unprocessed.end",
+        "No files found matching the pattern."
+      )
     }
   }
 
-  async getGroupedFiles(dir) {
+  async getGroupedFiles(dir): Promise<{ [timestamp: string]: string[] }> {
     const files = (await fs.promises.readdir(dir)).filter((file) =>
       /^\d+\.part\d+$/.test(file)
     ) // Фильтр по шаблону: таймштамп.partномер
@@ -133,11 +149,17 @@ export class MigrateOldStorageUnprocessed {
         const filePath = path.join(dir, file)
         // Асинхронное удаление файла
         await fs.promises.unlink(filePath)
-        console.log(`Deleted: ${file}`)
       }
-      console.log("All files deleted successfully.")
+      this.logSender.sendLog(
+        "database.migrate.unprocessed.delete.successfully",
+        stringify({ files })
+      )
     } catch (error) {
-      console.error("Error deleting files:", error)
+      this.logSender.sendLog(
+        "database.migrate.unprocessed.delete.error",
+        stringify({ error }),
+        true
+      )
     }
   }
 }

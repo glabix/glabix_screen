@@ -13,16 +13,14 @@ import {
   systemPreferences,
   Tray,
   dialog,
-  Notification,
   Rectangle,
   clipboard,
 } from "electron"
 import path, { join } from "path"
-import os, { platform } from "os"
+import os from "os"
 import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
-import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -46,18 +44,14 @@ import {
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
-import { ChunkStorageService } from "./chunk/chunk-storage.service"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
-import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
-import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "@shared/events/api.events"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "@shared/helpers/open-external-link"
 import { errorsInterceptor } from "./initializers/interceptor"
 import { loggerInit } from "./initializers/logger.init"
-import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed-files.service"
 import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -70,7 +64,6 @@ import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
 import { getAccountData } from "./commands/account-data.command"
-import { fsErrorParser } from "./helpers/fs-error-parser"
 import Chunk from "../database/models/Chunk"
 import Record from "../database/models/Record"
 import sequelize from "../database/index"
@@ -83,6 +76,7 @@ import {
 } from "./helpers/create-dialog"
 import { MigrateOldStorageUnprocessed } from "../services/migrate-old-storage-unprocessed"
 import { MigrateOldStoragePrepared } from "../services/migrate-old-storage-prepared"
+import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -98,8 +92,6 @@ let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
-let checkUnloadedChunksInterval: NodeJS.Timeout | undefined
-let checkUnprocessedFilesInterval: NodeJS.Timeout | undefined
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -107,12 +99,9 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 
 const logSender = new LogSender(TokenStorage)
-const chunkSize = 10 * 1024 * 1024
 
 const appState = new AppState()
 const store = new SimpleStore()
-let unprocessedFilesService: UnprocessedFilesService
-let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -142,7 +131,6 @@ loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor
 
 const gotTheLock = app.requestSingleInstanceLock()
-let lastCreatedFileName: string | null = null
 
 function clearAllIntervals() {
   if (deviceAccessInterval) {
@@ -154,32 +142,23 @@ function clearAllIntervals() {
     clearInterval(checkForUpdatesInterval)
     checkForUpdatesInterval = undefined
   }
-
-  if (checkUnloadedChunksInterval) {
-    clearInterval(checkUnloadedChunksInterval)
-    checkUnloadedChunksInterval = undefined
-  }
-
-  if (checkUnprocessedFilesInterval) {
-    clearInterval(checkUnprocessedFilesInterval)
-    checkUnprocessedFilesInterval = undefined
-  }
+  RecordManager.clearIntervals()
 }
 
 // Инициализация базы данных
 const initializeDatabase = async () => {
   try {
+    logSender.sendLog("database.connection.start", "")
     await sequelize.authenticate() // Проверка подключения
-    console.log("Database connected successfully.")
+    logSender.sendLog("database.authenticate.success", "")
     // Создание всех таблиц, если они не существуют
     const record = Record
     const chunk = Chunk
 
     const res = await sequelize.sync({ force: false }) // force: false — не пересоздавать таблицы, если они уже есть
-
-    console.log("Database tables created or verified.", res.models)
+    logSender.sendLog("database.sync.success", "")
   } catch (error) {
-    console.error("Database connection failed:", error)
+    logSender.sendLog("database.connection.error", stringify({ error }), true)
   }
 }
 
@@ -234,25 +213,6 @@ function appReload() {
   }
 }
 
-function checkOrganizationLimits(): Promise<any> {
-  return new Promise((resolve) => {
-    if (TokenStorage && TokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        TokenStorage.token!.access_token,
-        TokenStorage.organizationId!
-      )
-        .then(() => {
-          resolve(true)
-        })
-        .catch((e) => {
-          resolve(true)
-        })
-    } else {
-      resolve(true)
-    }
-  })
-}
-
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -287,8 +247,6 @@ if (!gotTheLock) {
       a.migrate()
       b.migrate()
     }) // Инициализация базы данных
-    chunkStorage = new ChunkStorageService()
-    unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdates()
@@ -319,18 +277,6 @@ if (!gotTheLock) {
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
-
-    chunkStorage.initStorages().then(() => {
-      checkUnprocessedChunks(true)
-    })
-    checkUnprocessedFiles(true)
-
-    checkUnloadedChunksInterval = setInterval(() => {
-      checkUnprocessedChunks(true)
-    }, 1000 * 30)
-    checkUnprocessedFilesInterval = setInterval(() => {
-      checkUnprocessedFiles(true)
-    }, 1000 * 60)
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
@@ -572,62 +518,6 @@ if (process.defaultApp) {
   }
 } else {
   app.setAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
-}
-
-function checkUnprocessedFiles(byTimer = false) {
-  //todo
-  if (lastCreatedFileName) {
-    setLog(LogLevel.SILLY, `File is recorded now!`)
-    return
-  }
-  if (unprocessedFilesService.isProcessedNowFileName) {
-    setLog(LogLevel.SILLY, `File is processed now!`)
-    return
-  }
-  unprocessedFilesService
-    .getFirstFileName()
-    .then((firstUnprocessedFileName) => {
-      if (firstUnprocessedFileName) {
-        if (byTimer) {
-          logSender.sendLog(
-            "raw_file.autoloader.fire",
-            JSON.stringify({ file: firstUnprocessedFileName })
-          )
-        }
-        ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, {
-          rawFileName: firstUnprocessedFileName,
-        })
-      }
-    })
-}
-
-function checkUnprocessedChunks(timer = false) {
-  const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
-  if (!chunkStorage._storagesInit) {
-    setLog(LogLevel.SILLY, `Chunk Storage not ready now!`)
-    return
-  }
-  if (chunkCurrentlyLoading) {
-    setLog(
-      LogLevel.SILLY,
-      `chunkCurrentlyLoading ${chunkCurrentlyLoading.fileUuid} #${chunkCurrentlyLoading.index}`
-    )
-    return
-  }
-  if (chunkStorage.hasUnloadedFiles()) {
-    if (timer) {
-      logSender.sendLog("chunks.autoloader.fire")
-    }
-    setLog(LogLevel.SILLY, `chunkStorage has Unloaded Files`)
-    const nextChunk = chunkStorage.getNextChunk()
-    if (nextChunk) {
-      ipcMain.emit(FileUploadEvents.LOAD_FILE_CHUNK, {
-        chunk: nextChunk,
-      })
-    } else {
-      setLog(LogLevel.SILLY, `No next chunk`)
-    }
-  }
 }
 
 function createWindow() {
@@ -1544,22 +1434,6 @@ ipcMain.on(RecordEvents.STOP, (event, data) => {
   StorageService.endRecord(fileUuid)
 })
 
-ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
-  const { filename } = event as { filename: any }
-  if (lastCreatedFileName === filename) {
-  }
-  unprocessedFilesService.isProcessedNowFileName = null
-})
-
-ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event: unknown) => {
-  const { uuid, chunkNumber } = event as { uuid: any; chunkNumber: any }
-  setLog(
-    LogLevel.SILLY,
-    `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`
-  )
-  checkUnprocessedChunks()
-})
-
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   logSender.sendLog("sessions.deleted")
   contextMenu.getMenuItemById("menuLogOutItem")!.visible = false
@@ -1621,3 +1495,12 @@ ipcMain.on(
     isDialogWindowOpen = false
   }
 )
+
+ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
+  dialog.showMessageBox(mainWindow, {
+    type: "error",
+    title: "Ошибка. Не удалось загрузить файл на сервер",
+    message:
+      "Загрузка файла будет повторяться в фоновом процессе, пока он не будет отправлен на сервер. Как только файл будет загружен, вы увидите его в своей библиотеке.",
+  })
+})

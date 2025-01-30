@@ -8,6 +8,9 @@ import { RecordStatus } from "../database/models/Record"
 import { getTitle } from "../shared/helpers/get-title"
 import { createChunkDal, updateChunkDal } from "../database/dal/Chunk"
 import { ChunkStatus } from "../database/models/Chunk"
+import { TokenStorage } from "../main/storages/token-storage"
+import { LogSender } from "../main/helpers/log-sender"
+import { stringify } from "../main/helpers/stringify"
 
 export class MigrateOldStoragePrepared {
   readonly mainPath =
@@ -27,17 +30,29 @@ export class MigrateOldStoragePrepared {
           "chunks_storage"
         )
   newStoragePath = path.join(app.getPath("userData"), "ChunkStorage")
+  tokenStorage = new TokenStorage()
+  logSender = new LogSender(this.tokenStorage)
 
   constructor() {}
 
   async migrate() {
+    this.logSender.sendLog(
+      "database.migrate.prepared.start",
+      stringify({}),
+      true
+    )
     try {
       const flag = await fs.promises.access(this.mainPath)
     } catch (e) {
+      this.logSender.sendLog(
+        "database.migrate.prepared.end",
+        "no directory",
+        true
+      )
       return
     }
-    console.log("move")
     await this.moveChunks(this.mainPath, this.newStoragePath)
+    this.logSender.sendLog("database.migrate.prepared.end", "success", true)
   }
 
   async moveChunks(sourceDir, targetDir) {
@@ -52,6 +67,8 @@ export class MigrateOldStoragePrepared {
         withFileTypes: true,
       })
 
+      let hasChunks = false // Флаг для отслеживания наличия чанков
+
       for (const entry of entries) {
         if (entry.isDirectory()) {
           // Если это директория, читаем её содержимое
@@ -61,7 +78,10 @@ export class MigrateOldStoragePrepared {
           const transferFilePath = path.join(subDirPath, ".transfer")
           try {
             await fs.promises.access(transferFilePath)
-            console.log(`Skipping ${subDirPath} because .transfer file exists.`)
+            this.logSender.sendLog(
+              "database.migrate.prepared.skip",
+              `Skipping ${subDirPath} because .transfer file exists.`
+            )
             continue // Пропускаем эту директорию, если файл .transfer существует
           } catch {
             // Файл .transfer не существует, продолжаем обработку
@@ -78,6 +98,11 @@ export class MigrateOldStoragePrepared {
           const fileUuid = rec.getDataValue("uuid")
           for (const file of files) {
             if (file.startsWith("chunk-")) {
+              this.logSender.sendLog(
+                "database.migrate.prepared.find",
+                stringify({ chunk: file, fileUuid })
+              )
+              hasChunks = true // Устанавливаем флаг в true, если найден хотя бы один чанк
               const chunkNumber = Number(file.split("-")[1]) + 1
               const sourcePath = path.join(subDirPath, file)
               const stats = await fs.promises.stat(sourcePath)
@@ -94,21 +119,43 @@ export class MigrateOldStoragePrepared {
 
               // Переносим файл
               await fs.promises.rename(sourcePath, targetPath)
-              console.log(`Moved: ${sourcePath} -> ${targetPath}`)
               await updateChunkDal(chunkUuid, {
                 status: ChunkStatus.PENDING,
                 source: targetPath,
               })
+              this.logSender.sendLog(
+                "database.migrate.prepared.chunk.success",
+                stringify({ chunk: file, fileUuid, targetPath })
+              )
             }
           }
           await updateRecordDal(fileUuid, {
             status: RecordStatus.CREATED_ON_SERVER,
           })
+          this.logSender.sendLog(
+            "database.migrate.prepared.file.success",
+            stringify({ fileUuid })
+          )
           await fs.promises.rmdir(subDirPath)
+          this.logSender.sendLog(
+            "database.migrate.prepared.delete_dir.successfully",
+            stringify({ subDirPath })
+          )
         }
       }
+      // Если ни одна директория не содержит чанков, логируем это
+      if (!hasChunks) {
+        this.logSender.sendLog(
+          "database.migrate.prepared.no_chunks",
+          `No directories with chunks found in ${sourceDir}.`
+        )
+      }
     } catch (error) {
-      console.error(`Error moving chunks:`, error)
+      this.logSender.sendLog(
+        "database.migrate.prepared.error",
+        stringify({ error }),
+        true
+      )
     }
   }
 }
