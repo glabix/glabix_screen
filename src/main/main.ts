@@ -572,6 +572,9 @@ function createWindow() {
     app.quit()
   })
 
+  mainWindow.on("hide", () => {
+    mainWindow.webContents.send("app:hide")
+  })
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
@@ -605,7 +608,6 @@ function createModal(parentWindow) {
   })
 
   modalWindow.on("hide", () => {
-    mainWindow.webContents.send("app:hide")
     modalWindow.webContents.send("modal-window:hide")
     dropdownWindow.hide()
     checkOrganizationLimits()
