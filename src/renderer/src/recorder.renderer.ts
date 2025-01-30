@@ -159,7 +159,7 @@ pauseBtn.addEventListener("click", () => {
 })
 
 deleteBtn.addEventListener("click", () => {
-  if (videoRecorder?.state == "recording") {
+  if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
     const buttons: IDialogWindowButton[] = [
       { type: "default", text: "Продолжить", action: "cancel" },
       { type: "danger", text: "Остановить запись", action: "ok" },
@@ -181,7 +181,7 @@ deleteBtn.addEventListener("click", () => {
   }
 })
 restartBtn.addEventListener("click", () => {
-  if (videoRecorder?.state == "recording") {
+  if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
     const buttons: IDialogWindowButton[] = [
       { type: "default", text: "Продолжить", action: "cancel" },
       { type: "danger", text: "Начать заново", action: "ok" },
@@ -858,6 +858,7 @@ window.electronAPI.ipcRenderer.on(
         videoRecorder.resume()
         timer.start(true)
         isRecordCanceled = false
+        isRecordRestart = false
       }
     }
 
