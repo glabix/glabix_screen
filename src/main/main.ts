@@ -1375,7 +1375,7 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
-  if (modalWindow && modalWindow.isAlwaysOnTop()) {
+  if (modalWindow && modalWindow.isAlwaysOnTop() && !isDialogWindowOpen) {
     mainWindow.focus()
   }
 })
