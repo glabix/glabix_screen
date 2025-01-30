@@ -1,7 +1,7 @@
-@import "styles.scss";
-@import "_forms.scss";
-@import "_buttons.scss";
-@import "_components.scss";
+@forward "styles.scss";
+@forward "_forms.scss";
+@forward "_buttons.scss";
+@forward "_components.scss";
 
 *,
 *::after,

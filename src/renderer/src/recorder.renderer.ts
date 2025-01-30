@@ -12,6 +12,7 @@ import {
   SimpleStoreEvents,
   StreamSettings,
   IDialogWindowCallbackData,
+  HotkeysEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
@@ -672,8 +673,8 @@ const initView = (settings: StreamSettings, force?: boolean) => {
     canvasVideo.height = screenRect.height
 
     updateCropVideoData({
-      top: screenRect.top || screenRect.y,
-      left: screenRect.left || screenRect.x,
+      top: screenRect.top,
+      left: screenRect.left,
       width: screenRect.width,
       height: screenRect.height,
     })
@@ -904,7 +905,7 @@ window.electronAPI.ipcRenderer.on(
     currentRecordedUuid = file_uuid
     currentRecordChunksCount = 0
 
-    countdownScreen(80).then(() => {
+    countdownScreen().then(() => {
       if (data.action == "cropVideo") {
         const screen = document.querySelector(
           "#crop_video_screen"
@@ -912,6 +913,7 @@ window.electronAPI.ipcRenderer.on(
         screen.classList.add("is-recording")
         const screenMove = cropMoveable!.getControlBoxElement()
         screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
+
         window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
           cropVideoData,
           fileUuid: file_uuid,
@@ -982,6 +984,17 @@ window.electronAPI.ipcRenderer.on("screen:change", (event) => {
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
   videoRecorder?.requestData()
 })
+
+window.electronAPI.ipcRenderer.on(
+  HotkeysEvents.STOP_RECORDING,
+  (event, data) => {
+    stopRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.finished",
+      body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
 
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {

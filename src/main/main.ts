@@ -13,7 +13,6 @@ import {
   systemPreferences,
   Tray,
   dialog,
-  Notification,
   Rectangle,
   clipboard,
 } from "electron"
@@ -22,7 +21,6 @@ import os from "os"
 import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
-import { uploadFileChunkCommand } from "./commands/upload-file-chunk.command"
 import { TokenStorage } from "./storages/token-storage"
 import {
   IAuthData,
@@ -42,21 +40,18 @@ import {
   DialogWindowEvents,
   IDialogWindowData,
   IDialogWindowCallbackData,
+  HotkeysEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
-import { ChunkStorageService } from "./chunk/chunk-storage.service"
 import { getAutoUpdater } from "./helpers/auto-updater-factory"
-import { getTitle } from "@shared/helpers/get-title"
 import { LogLevel, setLog } from "./helpers/set-log"
-import { getOrganizationLimits } from "./commands/organization-limits.query"
 import { APIEvents } from "@shared/events/api.events"
 import { exec } from "child_process"
 import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "@shared/helpers/open-external-link"
 import { errorsInterceptor } from "./initializers/interceptor"
 import { loggerInit } from "./initializers/logger.init"
-import { UnprocessedFilesService } from "./unprocessed-file-resolver/unprocessed-files.service"
 import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -68,7 +63,6 @@ import { RecordEvents } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
-import { fsErrorParser } from "./helpers/fs-error-parser"
 import { getAccountData } from "./commands/account-data.command"
 import Chunk from "../database/models/Chunk"
 import Record from "../database/models/Record"
@@ -80,6 +74,9 @@ import {
   createDialogWindow,
   destroyDialogWindow,
 } from "./helpers/create-dialog"
+import { MigrateOldStorageUnprocessed } from "../services/migrate-old-storage-unprocessed"
+import { MigrateOldStoragePrepared } from "../services/migrate-old-storage-prepared"
+import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -95,8 +92,6 @@ let tray: Tray
 let isAppQuitting = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
-let checkUnloadedChunksInterval: NodeJS.Timeout | undefined
-let checkUnprocessedFilesInterval: NodeJS.Timeout | undefined
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -104,12 +99,9 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 
 const logSender = new LogSender(TokenStorage)
-const chunkSize = 10 * 1024 * 1024
 
 const appState = new AppState()
 const store = new SimpleStore()
-let unprocessedFilesService: UnprocessedFilesService
-let chunkStorage: ChunkStorageService
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -139,7 +131,6 @@ loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor
 
 const gotTheLock = app.requestSingleInstanceLock()
-let lastCreatedFileName: string | null = null
 
 function clearAllIntervals() {
   if (deviceAccessInterval) {
@@ -151,32 +142,23 @@ function clearAllIntervals() {
     clearInterval(checkForUpdatesInterval)
     checkForUpdatesInterval = undefined
   }
-
-  if (checkUnloadedChunksInterval) {
-    clearInterval(checkUnloadedChunksInterval)
-    checkUnloadedChunksInterval = undefined
-  }
-
-  if (checkUnprocessedFilesInterval) {
-    clearInterval(checkUnprocessedFilesInterval)
-    checkUnprocessedFilesInterval = undefined
-  }
+  RecordManager.clearIntervals()
 }
 
 // Инициализация базы данных
 const initializeDatabase = async () => {
   try {
+    logSender.sendLog("database.connection.start", "")
     await sequelize.authenticate() // Проверка подключения
-    console.log("Database connected successfully.")
+    logSender.sendLog("database.authenticate.success", "")
     // Создание всех таблиц, если они не существуют
     const record = Record
     const chunk = Chunk
 
     const res = await sequelize.sync({ force: false }) // force: false — не пересоздавать таблицы, если они уже есть
-
-    console.log("Database tables created or verified.", res.models)
+    logSender.sendLog("database.sync.success", "")
   } catch (error) {
-    console.error("Database connection failed:", error)
+    logSender.sendLog("database.connection.error", stringify({ error }), true)
   }
 }
 
@@ -231,25 +213,6 @@ function appReload() {
   }
 }
 
-function checkOrganizationLimits(): Promise<any> {
-  return new Promise((resolve) => {
-    if (TokenStorage && TokenStorage.dataIsActual()) {
-      getOrganizationLimits(
-        TokenStorage.token!.access_token,
-        TokenStorage.organizationId!
-      )
-        .then(() => {
-          resolve(true)
-        })
-        .catch((e) => {
-          resolve(true)
-        })
-    } else {
-      resolve(true)
-    }
-  })
-}
-
 function checkForUpdates() {
   const downloadNotification = {
     title: "Новое обновление готово к установке",
@@ -279,9 +242,11 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     initializeDatabase().then(() => {
       RecordManager.setTimer()
+      const a = new MigrateOldStorageUnprocessed()
+      const b = new MigrateOldStoragePrepared()
+      a.migrate()
+      b.migrate()
     }) // Инициализация базы данных
-    chunkStorage = new ChunkStorageService()
-    unprocessedFilesService = new UnprocessedFilesService()
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdates()
@@ -312,18 +277,6 @@ if (!gotTheLock) {
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
-
-    chunkStorage.initStorages().then(() => {
-      checkUnprocessedChunks(true)
-    })
-    checkUnprocessedFiles(true)
-
-    checkUnloadedChunksInterval = setInterval(() => {
-      checkUnprocessedChunks(true)
-    }, 1000 * 30)
-    checkUnprocessedFilesInterval = setInterval(() => {
-      checkUnprocessedFiles(true)
-    }, 1000 * 60)
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (request, callback) => {
@@ -431,7 +384,8 @@ if (!gotTheLock) {
 }
 
 function registerShortCuts() {
-  globalShortcut.register("CommandOrControl+Shift+6", () => {
+  // Fullscreen Screenshot
+  globalShortcut.register("CommandOrControl+Shift+1", () => {
     if (isScreenshotAllowed) {
       const cursorPosition = screen.getCursorScreenPoint()
       activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
@@ -439,7 +393,8 @@ function registerShortCuts() {
     }
   })
 
-  globalShortcut.register("CommandOrControl+Shift+5", () => {
+  // Crop Screenshot
+  globalShortcut.register("CommandOrControl+Shift+2", () => {
     const isRecording = (store.get() as any).recordingState == "recording"
 
     if (isScreenshotAllowed) {
@@ -456,6 +411,7 @@ function registerShortCuts() {
         mainWindow.setBounds(activeDisplay.bounds)
         mainWindow.show()
         mainWindow.focus()
+        mainWindow.focusOnWebView()
       }
 
       mainWindow.webContents.send("dropdown:select.screenshot", data)
@@ -463,10 +419,21 @@ function registerShortCuts() {
     }
   })
 }
+
 function registerShortCutsOnShow() {
   globalShortcut.register("Command+H", () => {
     hideWindows()
   })
+
+  // Stop Recording
+  // globalShortcut.register("CommandOrControl+Shift+l", () => {
+  //   const isRecording = (store.get() as any).recordingState == "recording"
+  //   if (isRecording) {
+  //     mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
+  //   } else {
+  //     mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
+  //   }
+  // })
 }
 
 function unregisterShortCutsOnHide() {
@@ -551,62 +518,6 @@ if (process.defaultApp) {
   }
 } else {
   app.setAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
-}
-
-function checkUnprocessedFiles(byTimer = false) {
-  //todo
-  if (lastCreatedFileName) {
-    setLog(LogLevel.SILLY, `File is recorded now!`)
-    return
-  }
-  if (unprocessedFilesService.isProcessedNowFileName) {
-    setLog(LogLevel.SILLY, `File is processed now!`)
-    return
-  }
-  unprocessedFilesService
-    .getFirstFileName()
-    .then((firstUnprocessedFileName) => {
-      if (firstUnprocessedFileName) {
-        if (byTimer) {
-          logSender.sendLog(
-            "raw_file.autoloader.fire",
-            JSON.stringify({ file: firstUnprocessedFileName })
-          )
-        }
-        ipcMain.emit(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, {
-          rawFileName: firstUnprocessedFileName,
-        })
-      }
-    })
-}
-
-function checkUnprocessedChunks(timer = false) {
-  const chunkCurrentlyLoading = chunkStorage.chunkCurrentlyLoading
-  if (!chunkStorage._storagesInit) {
-    setLog(LogLevel.SILLY, `Chunk Storage not ready now!`)
-    return
-  }
-  if (chunkCurrentlyLoading) {
-    setLog(
-      LogLevel.SILLY,
-      `chunkCurrentlyLoading ${chunkCurrentlyLoading.fileUuid} #${chunkCurrentlyLoading.index}`
-    )
-    return
-  }
-  if (chunkStorage.hasUnloadedFiles()) {
-    if (timer) {
-      logSender.sendLog("chunks.autoloader.fire")
-    }
-    setLog(LogLevel.SILLY, `chunkStorage has Unloaded Files`)
-    const nextChunk = chunkStorage.getNextChunk()
-    if (nextChunk) {
-      ipcMain.emit(FileUploadEvents.LOAD_FILE_CHUNK, {
-        chunk: nextChunk,
-      })
-    } else {
-      setLog(LogLevel.SILLY, `No next chunk`)
-    }
-  }
 }
 
 function createWindow() {
@@ -700,6 +611,10 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
   })
   modalWindow.on("ready-to-show", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
     checkOrganizationLimits()
     loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
@@ -1338,11 +1253,23 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     fileUuid: string
     cropVideoData: ICropVideoData
   }
+
+  const cropData: ICropVideoData =
+    os.platform() == "darwin"
+      ? { ...cropVideoData }
+      : {
+          x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
+          y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
+          out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
+          out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
+        }
+
   logSender.sendLog(
     "record.recording.set_crop.data.received",
-    stringify({ fileUuid, cropVideoData })
+    stringify({ fileUuid, cropData })
   )
-  StorageService.setCropData(fileUuid, cropVideoData)
+
+  StorageService.setCropData(fileUuid, cropData)
 })
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
@@ -1507,316 +1434,6 @@ ipcMain.on(RecordEvents.STOP, (event, data) => {
   StorageService.endRecord(fileUuid)
 })
 
-ipcMain.on(FileUploadEvents.TRY_CREATE_FILE_ON_SERVER, (event: unknown) => {
-  // const { rawFileName: timestampRawFileName } = event as { rawFileName: any }
-  // logSender.sendLog(
-  //   "api.uploads.multipart_upload.try_to_create",
-  //   JSON.stringify({ rawFileName: timestampRawFileName })
-  // )
-  //
-  // unprocessedFilesService.isProcessedNowFileName = timestampRawFileName
-  // unprocessedFilesService
-  //   .getTotalChunks(timestampRawFileName, chunkSize)
-  //   .then((data) => {
-  //     if (data) {
-  //       const { totalSize, totalChunks } = data
-  //       const appVersion = getVersion()
-  //       logSender.sendLog("recording.uploads.chunks.stored.prepared")
-  //       const title = getTitle(timestampRawFileName)
-  //       const fileName = title + ".mp4"
-  //       const callback = (err: null | Error, uuid: string | null) => {
-  //         if (!err) {
-  //           const params = { uuid, rawFileName: timestampRawFileName }
-  //           ipcMain.emit(FileUploadEvents.FILE_CREATED_ON_SERVER, params)
-  //         } else {
-  //           logSender.sendLog(
-  //             "api.uploads.multipart_upload.create.error",
-  //             stringify({ err }),
-  //             true
-  //           )
-  //           const params = {
-  //             filename: timestampRawFileName,
-  //           }
-  //           ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
-  //         }
-  //       }
-  //       const lastVideoPreview = store.get()["lastVideoPreview"]
-  //       const preview = lastVideoPreview
-  //         ? dataURLToFile(lastVideoPreview, fileName)
-  //         : undefined
-  //       createFileUploadCommand(
-  //         tokenStorage.token!.access_token,
-  //         tokenStorage.organizationId!,
-  //         fileName,
-  //         totalChunks,
-  //         title,
-  //         totalSize,
-  //         appVersion,
-  //         preview,
-  //         callback
-  //       )
-  //     }
-  //   })
-})
-
-ipcMain.on(FileUploadEvents.FILE_CREATED_ON_SERVER, async (event: unknown) => {
-  const { uuid, chunks, rawFileName } = event as {
-    uuid: string
-    chunks: any[]
-    rawFileName: any
-  }
-  logSender.sendLog(
-    "api.uploads.multipart_upload.create.success",
-    JSON.stringify({ uuid })
-  )
-  const shared =
-    import.meta.env.VITE_AUTH_APP_URL +
-    "recorder/org/" +
-    TokenStorage.organizationId +
-    "/" +
-    "library/" +
-    uuid
-  if (lastCreatedFileName === rawFileName) {
-    openExternalLink(shared)
-    logSender.sendLog("utils.open_library_page", JSON.stringify({ uuid }))
-  } else {
-    const t = getTitle(rawFileName)
-    if (Notification.isSupported()) {
-      const notification = new Notification({
-        body: `Запись экрана ${t} загружается на сервер, и будет доступна для просмотра после обработки. Нажмите на уведомление, чтобы открыть в браузере`,
-      })
-      logSender.sendLog("utils.notification.upload", JSON.stringify({ uuid }))
-      notification.show()
-      notification.on("click", () => {
-        // Открываем ссылку в браузере
-        openExternalLink(shared)
-      })
-      setTimeout(() => {
-        notification.close()
-      }, 5000)
-    }
-  }
-
-  const fileIterator =
-    unprocessedFilesService.restoreFileToBufferIterator(rawFileName)
-  let isSaveError = false
-  try {
-    logSender.sendLog(
-      "recording.uploads.chunks.stored.start",
-      stringify({ uuid })
-    )
-    let i = 0
-    for await (const buffer of fileIterator) {
-      await chunkStorage.addStorage([buffer], uuid)
-      i++
-    }
-    try {
-      chunkStorage.markChunkAsTransferEnd(uuid)
-    } catch (e) {
-      logSender.sendLog(
-        "recording.uploads.chunks.transfer_end.error",
-        stringify({ uuid, e }),
-        true
-      )
-    }
-    logSender.sendLog(
-      "recording.uploads.chunks.stored.end",
-      stringify({ uuid: uuid, buffer_count: i })
-    )
-  } catch (e) {
-    isSaveError = true
-    logSender.sendLog(
-      "recording.uploads.chunks.stored.error",
-      stringify({ uuid, e }),
-      true
-    )
-    fsErrorParser(e, "")
-  }
-
-  if (!isSaveError) {
-    unprocessedFilesService
-      .deleteFile(rawFileName)
-      .then(() => {
-        logSender.sendLog(
-          "record.raw_file.delete.success",
-          JSON.stringify({
-            fileName: unprocessedFilesService.isProcessedNowFileName,
-          })
-        )
-        unprocessedFilesService.isProcessedNowFileName = null
-        checkUnprocessedFiles()
-        checkUnprocessedChunks()
-        checkOrganizationLimits()
-      })
-      .catch((e) => {
-        logSender.sendLog(
-          "record.raw_file.delete.error",
-          stringify({ e }),
-          true
-        )
-      })
-  }
-  if (lastCreatedFileName === rawFileName) {
-    lastCreatedFileName = null
-  }
-})
-
-ipcMain.on(FileUploadEvents.LOAD_FILE_CHUNK, (event: unknown) => {
-  // const { chunk } = event
-  // const typedChunk = chunk
-  // const uuid = typedChunk.fileUuid
-  // const chunkNumber = typedChunk.index + 1
-  // logSender.sendLog(
-  //   "api.uploads.chunks.upload_started",
-  //   JSON.stringify({
-  //     chunk_number: chunkNumber,
-  //     chunk_size: typedChunk.size,
-  //     file_uuid: typedChunk.fileUuid,
-  //   })
-  // )
-  // const callback = (err, data) => {
-  //   typedChunk.cancelProcess()
-  //   if (err?.error?.code === "conflict_request") {
-  //     logSender.sendLog(
-  //       "api.uploads.chunks.upload_conflict_request",
-  //       stringify({
-  //         chunk_number: chunkNumber,
-  //         chunk_size: typedChunk?.size,
-  //         file_uuid: typedChunk?.fileUuid,
-  //         e: err,
-  //       }),
-  //       false
-  //     )
-  //     chunkStorage
-  //       .removeChunk(typedChunk)
-  //       .then(() => {
-  //         logSender.sendLog(
-  //           "chunks.storage.delete.success",
-  //           JSON.stringify({
-  //             chunk_number: chunkNumber,
-  //             chunk_size: typedChunk.size,
-  //             file_uuid: typedChunk.fileUuid,
-  //           })
-  //         )
-  //         ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
-  //           uuid,
-  //           chunkNumber,
-  //         })
-  //       })
-  //       .catch((e) => {
-  //         logSender.sendLog(
-  //           "chunks.storage.delete.error",
-  //           stringify({
-  //             chunk_number: chunkNumber,
-  //             chunk_size: typedChunk.size,
-  //             file_uuid: typedChunk.fileUuid,
-  //             e,
-  //           }),
-  //           true
-  //         )
-  //       })
-  //   } else if (!err) {
-  //     logSender.sendLog(
-  //       "api.uploads.chunks.upload_completed",
-  //       JSON.stringify({
-  //         chunk_number: chunkNumber,
-  //         chunk_size: typedChunk.size,
-  //         file_uuid: typedChunk.fileUuid,
-  //       })
-  //     )
-  //     chunkStorage
-  //       .removeChunk(typedChunk)
-  //       .then(() => {
-  //         logSender.sendLog(
-  //           "chunks.storage.delete.success",
-  //           JSON.stringify({
-  //             chunk_number: chunkNumber,
-  //             chunk_size: typedChunk.size,
-  //             file_uuid: typedChunk.fileUuid,
-  //           })
-  //         )
-  //         ipcMain.emit(FileUploadEvents.FILE_CHUNK_UPLOADED, {
-  //           uuid,
-  //           chunkNumber,
-  //         })
-  //       })
-  //       .catch((e) => {
-  //         logSender.sendLog(
-  //           "chunks.storage.delete.error",
-  //           stringify({
-  //             chunk_number: chunkNumber,
-  //             chunk_size: typedChunk.size,
-  //             file_uuid: typedChunk.fileUuid,
-  //             e,
-  //           }),
-  //           true
-  //         )
-  //       })
-  //   } else {
-  //     logSender.sendLog(
-  //       "api.uploads.chunks.upload_error",
-  //       stringify({
-  //         chunk_number: chunkNumber,
-  //         chunk_size: typedChunk.size,
-  //         file_uuid: typedChunk.fileUuid,
-  //         e: err,
-  //       }),
-  //       true
-  //     )
-  //   }
-  // }
-  // typedChunk
-  //   .getData()
-  //   .then((data) => {
-  //     typedChunk.startProcess()
-  //     uploadFileChunkCommand(
-  //       TokenStorage.token!.access_token,
-  //       TokenStorage.organizationId!,
-  //       uuid,
-  //       data,
-  //       chunkNumber,
-  //       callback
-  //     )
-  //   })
-  //   .catch((e) => {
-  //     typedChunk.cancelProcess()
-  //     logSender.sendLog(
-  //       "chunks.storage.getData.error",
-  //       stringify({
-  //         chunk_number: chunkNumber,
-  //         chunk_size: typedChunk.size,
-  //         file_uuid: typedChunk.fileUuid,
-  //         e,
-  //       }),
-  //       true
-  //     )
-  //   })
-})
-
-ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
-  const { filename } = event as { filename: any }
-  if (lastCreatedFileName === filename) {
-    lastCreatedFileName = null
-    dialog.showMessageBox(mainWindow, {
-      type: "error",
-      title: "Ошибка. Не удалось загрузить файл на сервер",
-      message:
-        "Загрузка файла будет повторяться в фоновом процессе, пока он не будет отправлен на сервер. Как только файл будет загружен, вы увидите его в своей библиотеке.",
-    })
-  }
-
-  unprocessedFilesService.isProcessedNowFileName = null
-})
-
-ipcMain.on(FileUploadEvents.FILE_CHUNK_UPLOADED, (event: unknown) => {
-  const { uuid, chunkNumber } = event as { uuid: any; chunkNumber: any }
-  setLog(
-    LogLevel.SILLY,
-    `FileUploadEvents.FILE_CHUNK_UPLOADED: ${chunkNumber} by file ${uuid} uploaded`
-  )
-  checkUnprocessedChunks()
-})
-
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
   logSender.sendLog("sessions.deleted")
   contextMenu.getMenuItemById("menuLogOutItem")!.visible = false
@@ -1878,3 +1495,12 @@ ipcMain.on(
     isDialogWindowOpen = false
   }
 )
+
+ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
+  dialog.showMessageBox(mainWindow, {
+    type: "error",
+    title: "Ошибка. Не удалось загрузить файл на сервер",
+    message:
+      "Загрузка файла будет повторяться в фоновом процессе, пока он не будет отправлен на сервер. Как только файл будет загружен, вы увидите его в своей библиотеке.",
+  })
+})
