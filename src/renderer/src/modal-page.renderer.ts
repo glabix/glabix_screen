@@ -94,7 +94,7 @@ let screenActionsList: IDropdownItem[] = [
     extraData: {
       isAllowed: true,
       icon: "i-display",
-      smallText: isWindows ? "ctrl+shift+6" : "cmd+shift+6",
+      smallText: isWindows ? "ctrl+shift+1" : "cmd+shift+1",
     },
   },
   {
@@ -104,7 +104,7 @@ let screenActionsList: IDropdownItem[] = [
     extraData: {
       isAllowed: false,
       icon: "i-expand-wide",
-      smallText: isWindows ? "ctrl+shift+5" : "cmd+shift+5",
+      smallText: isWindows ? "ctrl+shift+2" : "cmd+shift+2",
     },
   },
 ]
@@ -184,8 +184,8 @@ function initVisualAudio() {
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
   }
-
   const context = new AudioContext()
+
   if (
     streamSettings.audioDeviceId &&
     streamSettings.audioDeviceId != "no-microphone"
@@ -207,17 +207,75 @@ function initVisualAudio() {
         const source = context.createMediaStreamSource(visualAudioStream)
         const analyzer = context.createAnalyser()
         const fbcArray = new Uint8Array(analyzer.frequencyBinCount)
-        analyzer.fftSize = 256
+        // analyzer.fftSize = 256
+        analyzer.fftSize = 2048
         source.connect(analyzer)
 
+        const canvases = document.querySelectorAll(
+          ".visualizer"
+        )! as NodeListOf<HTMLCanvasElement>
+        const bufferLength = analyzer.frequencyBinCount
+        const dataArray = new Uint8Array(bufferLength)
+
         function updateVisual() {
-          analyzer.getByteFrequencyData(fbcArray)
-          const level =
-            fbcArray.reduce((accum, val) => accum + val, 0) / fbcArray.length
-          const el = audioDeviceContainer.querySelector(
-            "button"
-          ) as HTMLButtonElement
-          el.style.background = `linear-gradient(0deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
+          canvases.forEach((canvas) => {
+            const canvasCtx = canvas.getContext("2d")!
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
+            // analyzer.getByteFrequencyData(fbcArray)
+            // const level =
+            //   fbcArray.reduce((accum, val) => accum + val, 0) / fbcArray.length
+            // const el = audioDeviceContainer.querySelector(
+            //   "button"
+            // ) as HTMLButtonElement
+            // el.style.background = `linear-gradient(0deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
+
+            analyzer.getByteTimeDomainData(dataArray)
+
+            canvasCtx.fillStyle = "rgb(255, 255, 255)"
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
+
+            canvasCtx.lineWidth = 0
+            canvasCtx.strokeStyle = "#b3e0d1"
+            canvasCtx.fillStyle = "#b3e0d1"
+
+            canvasCtx.beginPath()
+
+            const sliceWidth = (canvas.width * 1.0) / bufferLength
+            let x = 0
+            let previousX = 0
+            let previousY = canvas.height / 2
+
+            for (let i = 0; i < bufferLength; i++) {
+              const v = dataArray[i]! / 128
+              const y = (v * canvas.height) / 2 + canvas.height / 4
+
+              if (i === 0) {
+                canvasCtx.moveTo(x, y)
+              } else {
+                const controlX = (previousX + x) / 2
+                const controlY = (previousY + y) / 2
+                canvasCtx.quadraticCurveTo(
+                  previousX,
+                  previousY,
+                  controlX,
+                  controlY
+                )
+              }
+
+              previousX = x
+              previousY = y
+              x += sliceWidth
+            }
+
+            // Завершение фигуры для заливки
+            canvasCtx.lineTo(canvas.width, canvas.height)
+            canvasCtx.lineTo(0, canvas.height)
+            canvasCtx.closePath()
+
+            canvasCtx.stroke()
+            canvasCtx.fill()
+          })
+
           visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
         }
 
@@ -376,6 +434,7 @@ function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
   )! as HTMLInputElement
   const text = clone.querySelector("span")!
   const icon = clone.querySelector("i")!
+  const canvas = clone.querySelector("canvas")!
 
   const btnClass =
     device.kind == "videoinput" ? "js-video-device" : "js-audio-device"
@@ -396,6 +455,10 @@ function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
   iconClass.forEach((iClass) => {
     icon.classList.add(iClass)
   })
+
+  if (device.kind == "audioinput") {
+    canvas.removeAttribute("hidden")
+  }
 
   return clone
 }
@@ -988,6 +1051,7 @@ continueWithoutMicBtn.addEventListener(
   "click",
   () => {
     start()
+    setPageView("modal")
   },
   false
 )

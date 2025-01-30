@@ -18,7 +18,7 @@ import {
   clipboard,
 } from "electron"
 import path, { join } from "path"
-import os from "os"
+import os, { platform } from "os"
 import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
@@ -42,6 +42,7 @@ import {
   DialogWindowEvents,
   IDialogWindowData,
   IDialogWindowCallbackData,
+  HotkeysEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -88,6 +89,7 @@ let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
+let isDialogWindowOpen = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -391,8 +393,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver")
-                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
                     }
                   })
                   .catch((e) => {})
@@ -413,8 +415,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver")
-                      modalWindow.setAlwaysOnTop(true, "screen-saver")
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
                     }
                   })
                   .catch((e) => {})
@@ -436,7 +438,8 @@ if (!gotTheLock) {
 }
 
 function registerShortCuts() {
-  globalShortcut.register("CommandOrControl+Shift+6", () => {
+  // Fullscreen Screenshot
+  globalShortcut.register("CommandOrControl+Shift+1", () => {
     if (isScreenshotAllowed) {
       const cursorPosition = screen.getCursorScreenPoint()
       activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
@@ -444,7 +447,8 @@ function registerShortCuts() {
     }
   })
 
-  globalShortcut.register("CommandOrControl+Shift+5", () => {
+  // Crop Screenshot
+  globalShortcut.register("CommandOrControl+Shift+2", () => {
     const isRecording = (store.get() as any).recordingState == "recording"
 
     if (isScreenshotAllowed) {
@@ -461,6 +465,7 @@ function registerShortCuts() {
         mainWindow.setBounds(activeDisplay.bounds)
         mainWindow.show()
         mainWindow.focus()
+        mainWindow.focusOnWebView()
       }
 
       mainWindow.webContents.send("dropdown:select.screenshot", data)
@@ -468,10 +473,21 @@ function registerShortCuts() {
     }
   })
 }
+
 function registerShortCutsOnShow() {
   globalShortcut.register("Command+H", () => {
     hideWindows()
   })
+
+  // Stop Recording
+  // globalShortcut.register("CommandOrControl+Shift+l", () => {
+  //   const isRecording = (store.get() as any).recordingState == "recording"
+  //   if (isRecording) {
+  //     mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
+  //   } else {
+  //     mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
+  //   }
+  // })
 }
 
 function unregisterShortCutsOnHide() {
@@ -646,8 +662,8 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver")
-  mainWindow.setAlwaysOnTop(true, "screen-saver")
+  // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
   // mainWindow.setFullScreenable(false)
   // mainWindow.setIgnoreMouseEvents(true, { forward: true })
@@ -669,9 +685,6 @@ function createWindow() {
   mainWindow.on("blur", () => {})
   createModal(mainWindow)
   createLoginWindow()
-
-  // SCREENSHOT
-  // createScreenshotWindow(FULL_SCREENSHOT_DATA.url)
 }
 
 function createModal(parentWindow) {
@@ -696,7 +709,7 @@ function createModal(parentWindow) {
     },
   })
   // modalWindow.webContents.openDevTools()
-  modalWindow.setAlwaysOnTop(true, "screen-saver")
+  modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   modalWindow.on("show", () => {
     console.log('modalWindow.on("show")')
   })
@@ -708,6 +721,10 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
   })
   modalWindow.on("ready-to-show", () => {
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
     checkOrganizationLimits()
     loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
@@ -772,7 +789,7 @@ function createDropdownWindow(parentWindow) {
     },
   })
   // dropdownWindow.webContents.openDevTools()
-  dropdownWindow.setAlwaysOnTop(true, "screen-saver")
+  dropdownWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
   }
@@ -942,6 +959,10 @@ function createScreenshotWindow(dataURL: string) {
 }
 
 function showWindows() {
+  if (isDialogWindowOpen) {
+    return
+  }
+
   logSender.sendLog("app.activated")
   registerShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
@@ -1168,8 +1189,8 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "screen-saver")
-          modalWindow.setAlwaysOnTop(true, "screen-saver")
+          mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+          modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
           modalWindow.setAlwaysOnTop(true, "modal-panel")
@@ -1342,11 +1363,23 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     fileUuid: string
     cropVideoData: ICropVideoData
   }
+
+  const cropData: ICropVideoData =
+    os.platform() == "darwin"
+      ? { ...cropVideoData }
+      : {
+          x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
+          y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
+          out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
+          out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
+        }
+
   logSender.sendLog(
     "record.recording.set_crop.data.received",
-    stringify({ fileUuid, cropVideoData })
+    stringify({ fileUuid, cropData })
   )
-  StorageService.setCropData(fileUuid, cropVideoData)
+
+  StorageService.setCropData(fileUuid, cropData)
 })
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
@@ -1568,6 +1601,7 @@ ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
   }
 
   createDialogWindow({ data })
+  isDialogWindowOpen = true
 })
 
 ipcMain.on(
@@ -1584,5 +1618,6 @@ ipcMain.on(
     }
 
     mainWindow.webContents.send(DialogWindowEvents.CALLBACK, data)
+    isDialogWindowOpen = false
   }
 )

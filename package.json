@@ -19,7 +19,6 @@
     "set-package-meta": "cross-replace npm pkg set name=$(grep ^PACKAGE_NAME electron-builder.env | cut -d '=' -f2) description=\"$(grep ^PRODUCT_DESCRIPTION electron-builder.env | cut -d '=' -f2)\"",
     "bundle": "npm run set-package-meta && npm run package",
     "build": "electron-builder --config electron-builder.ts",
-    "postinstall": "electron-builder install-app-deps",
     "dist": "npm run bundle && npm run build -- --mac --windows",
     "dist:win": "npm run bundle && npm run build -- --windows",
     "dist:mac": "npm run bundle && npm run build -- --mac",
@@ -30,7 +29,8 @@
     "pack:mac": "npm run dist:mac -- -c.compression=maximum",
     "pack:mac-intel": "npm run dist:mac-intel -- -c.compression=maximum",
     "pack:mac-m1": "npm run dist:mac-m1 -- -c.compression=maximum",
-    "release": "npm run pack -- -p always"
+    "release": "npm run pack -- -p always",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
@@ -43,7 +43,7 @@
     "modern-normalize": "^3.0.0",
     "moveable": "^0.53.0",
     "sequelize": "^6.37.5",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
@@ -55,7 +55,7 @@
     "@typescript-eslint/parser": "^8.1.0",
     "cross-replace": "^0.2.0",
     "electron": "^31.4.0",
-    "electron-builder": "^25.1.2",
+    "electron-builder": "^26.0.0",
     "electron-vite": "^2.3.0",
     "eslint": "^8.0.1",
     "eslint-config-prettier": "^9.1.0",

@@ -1,7 +1,7 @@
-@import "styles.scss";
-@import "_forms.scss";
-@import "_buttons.scss";
-@import "_windows-toolbar.scss";
+@forward "styles.scss";
+@forward "_forms.scss";
+@forward "_buttons.scss";
+@forward "_windows-toolbar.scss";
 
 body,
 html {
@@ -107,4 +107,20 @@ body {
   width: 100%;
   border-radius: 50%;
   height: 100%;
+}
+
+.visualizer {
+  position: absolute;
+  pointer-events: none;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.25rem;
+  z-index: 1;
+  opacity: 1;
+  transition: opacity 0.15s;
+}
+.btn:hover .visualizer {
+  opacity: 0;
 }
