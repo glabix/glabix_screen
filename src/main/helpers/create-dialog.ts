@@ -1,7 +1,11 @@
-import { BrowserWindow, screen, app } from "electron"
+import { BrowserWindow, screen, app, ipcMain } from "electron"
 import { is } from "@electron-toolkit/utils"
 import path, { join } from "path"
-import { DialogWindowEvents, IDialogWindowParams } from "@shared/types/types"
+import {
+  DialogWindowEvents,
+  IDialogWindowCallbackData,
+  IDialogWindowParams,
+} from "@shared/types/types"
 
 export let dialogWindow: BrowserWindow | null = null
 
@@ -89,5 +93,10 @@ export function createDialogWindow(_params: IDialogWindowParams): void {
     dialogWindow!.setBounds(bounds)
     dialogWindow!.setAlwaysOnTop(true, "screen-saver", 999999)
     dialogWindow!.show()
+  })
+
+  dialogWindow.on("close", () => {
+    const data: IDialogWindowCallbackData = { action: "cancel" }
+    ipcMain.emit(DialogWindowEvents.CALLBACK, null, data)
   })
 }
