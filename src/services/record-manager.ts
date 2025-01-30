@@ -5,10 +5,12 @@ import { getAllRecordDal, getByUuidRecordDal } from "../database/dal/Record"
 import Record, { RecordStatus } from "../database/models/Record"
 import Chunk, { ChunkStatus } from "../database/models/Chunk"
 import { openExternalLink } from "../shared/helpers/open-external-link"
-import { Notification } from "electron"
+import { ipcMain, Notification } from "electron"
 import { PreviewManager } from "./preview-manager"
 import { httpErrorPareser } from "../main/helpers/http-error-pareser"
 import { stringify } from "../main/helpers/stringify"
+import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
+import { FileUploadEvents } from "../shared/events/file-upload.events"
 
 export class RecordManager {
   static tokenStorage = new TokenStorage()
@@ -16,6 +18,7 @@ export class RecordManager {
 
   static currentProcessRecordUuid: string | null = null
   static lastRecordUuid: string | null = null
+  static cronInterval: NodeJS.Timeout | null = null
   static chunksDeleteProcess = false
   static previewsDeleteProcess = false
   static completedAndCanceledRecordsProcess = false
@@ -52,7 +55,7 @@ export class RecordManager {
       }
     }, 30 * 1000)
 
-    const timer2 = setInterval(
+    this.cronInterval = setInterval(
       async () => {
         if (!this.completedAndCanceledRecordsProcess) {
           this.completedAndCanceledRecordsProcess = true
@@ -173,11 +176,22 @@ export class RecordManager {
           stringify({ uuid, past: this.currentProcessRecordUuid })
         )
         this.currentProcessRecordUuid = uuid
-        const updatedRecord = await this.recordServerCreate(record)
-        if (this.lastRecordUuid === uuid) {
-          this.openLibraryPage(updatedRecord, false)
-        } else {
-          this.showLoadedNotification(updatedRecord)
+        try {
+          const updatedRecord = await this.recordServerCreate(record)
+          checkOrganizationLimits()
+          if (this.lastRecordUuid === uuid) {
+            this.openLibraryPage(updatedRecord, false)
+          } else {
+            this.showLoadedNotification(updatedRecord)
+          }
+        } catch (e) {
+          if (force) {
+            const params = {
+              filename: record.getDataValue("title"),
+            }
+            ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
+          }
+          throw e
         }
         await this.loadRecordChunks(uuid)
         await this.resolveRecordComplete(uuid)
@@ -246,6 +260,12 @@ export class RecordManager {
       setTimeout(() => {
         notification.close()
       }, 5000)
+    }
+  }
+
+  static clearIntervals() {
+    if (this.cronInterval) {
+      clearInterval(this.cronInterval)
     }
   }
 }
