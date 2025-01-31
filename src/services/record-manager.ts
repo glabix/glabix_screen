@@ -18,7 +18,8 @@ export class RecordManager {
 
   static currentProcessRecordUuid: string | null = null
   static lastRecordUuid: string | null = null
-  static cronInterval: NodeJS.Timeout | null = null
+  static cronInterval3min: NodeJS.Timeout | null = null
+  static cronInterval30sec: NodeJS.Timeout | null = null
   static chunksDeleteProcess = false
   static previewsDeleteProcess = false
   static completedAndCanceledRecordsProcess = false
@@ -49,13 +50,13 @@ export class RecordManager {
       this.previewsDeleteProcess = false
     }
 
-    const timer = setInterval(() => {
+    this.cronInterval30sec = setInterval(() => {
       if (!this.currentProcessRecordUuid) {
         this.resolveUnprocessedRecords()
       }
     }, 30 * 1000)
 
-    this.cronInterval = setInterval(
+    this.cronInterval3min = setInterval(
       async () => {
         if (!this.completedAndCanceledRecordsProcess) {
           this.completedAndCanceledRecordsProcess = true
@@ -128,7 +129,7 @@ export class RecordManager {
     return StorageService.loadChunk(chunk)
   }
 
-  static async recordServerCreate(record: Record): Promise<Record | null> {
+  static async recordServerCreate(record: Record): Promise<Record> {
     const uuid = record.getDataValue("uuid")
     this.logSender.sendLog("record.manager.server_create", stringify({ uuid }))
     try {
@@ -167,6 +168,7 @@ export class RecordManager {
     )
     try {
       const record = await getByUuidRecordDal(uuid)
+
       const status = record.getDataValue("status")
       if (status === RecordStatus.RECORDING) {
         return
@@ -176,6 +178,18 @@ export class RecordManager {
           stringify({ uuid, past: this.currentProcessRecordUuid })
         )
         this.currentProcessRecordUuid = uuid
+
+        const chunks = record.getDataValue("Chunks")
+        if (!chunks.length) {
+          this.logSender.sendLog(
+            "record.manager.process.recorded.no_chunks",
+            stringify({ uuid, createdAt: record.getDataValue("createdAt") })
+          )
+          await this.resolveRecordComplete(uuid)
+          this.currentProcessRecordUuid = null
+          return
+        }
+
         try {
           const updatedRecord = await this.recordServerCreate(record)
           checkOrganizationLimits()
@@ -264,8 +278,11 @@ export class RecordManager {
   }
 
   static clearIntervals() {
-    if (this.cronInterval) {
-      clearInterval(this.cronInterval)
+    if (this.cronInterval3min) {
+      clearInterval(this.cronInterval3min)
+    }
+    if (this.cronInterval30sec) {
+      clearInterval(this.cronInterval30sec)
     }
   }
 }
