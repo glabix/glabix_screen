@@ -94,7 +94,7 @@ let screenActionsList: IDropdownItem[] = [
     extraData: {
       isAllowed: true,
       icon: "i-display",
-      smallText: isWindows ? "Ctrl+Shift+1" : "Cmd+Shift+1",
+      smallText: isWindows ? "Alt+Shift+6" : "Option+Shift+6",
     },
   },
   {
@@ -104,7 +104,7 @@ let screenActionsList: IDropdownItem[] = [
     extraData: {
       isAllowed: false,
       icon: "i-expand-wide",
-      smallText: isWindows ? "Ctrl+Shift+2" : "Cmd+Shift+2",
+      smallText: isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
     },
   },
 ]
