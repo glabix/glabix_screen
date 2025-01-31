@@ -245,7 +245,7 @@ class StorageService {
     return record
   }
 
-  static async createFileOnServer(fileUuid: string): Promise<Record | null> {
+  static async createFileOnServer(fileUuid: string): Promise<Record> {
     this.logSender.sendLog(
       "record.create_on_server.start",
       stringify({
