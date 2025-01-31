@@ -386,7 +386,8 @@ if (!gotTheLock) {
 
 function registerShortCuts() {
   // Fullscreen Screenshot
-  globalShortcut.register("CommandOrControl+Shift+1", () => {
+
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+6"], () => {
     if (isScreenshotAllowed) {
       const cursorPosition = screen.getCursorScreenPoint()
       activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
@@ -395,7 +396,7 @@ function registerShortCuts() {
   })
 
   // Crop Screenshot
-  globalShortcut.register("CommandOrControl+Shift+2", () => {
+  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+5"], () => {
     const isRecording = (store.get() as any).recordingState == "recording"
 
     if (isScreenshotAllowed) {
