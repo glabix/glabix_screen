@@ -637,7 +637,12 @@ function createWindow() {
   mainWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
   })
-  mainWindow.on("blur", () => {})
+  mainWindow.on("blur", () => {
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  })
+  mainWindow.on("focus", () => {
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  })
   createModal(mainWindow)
   createLoginWindow()
 }
@@ -922,9 +927,11 @@ function showWindows() {
   if (TokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
+      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
     if (modalWindow) {
       modalWindow.show()
+      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
   } else {
     if (loginWindow) loginWindow.show()
