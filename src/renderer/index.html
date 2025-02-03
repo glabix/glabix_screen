@@ -16,9 +16,10 @@
     <div id="draw-container"></div>
 
     <div class="panel-wrapper hover">
-      <div class="panel-drag-handler"></div>
-      <div class="panel-drag-icon">
-        <i class="i i--lg i-grip-horizontal hover-visible"></i>
+      <div class="panel-drag-handler">
+        <div class="panel-drag-icon">
+          <i class="i i--lg i-grip-horizontal hover-visible"></i>
+        </div>
       </div>
       <div class="panel transition-visibility">
         <button id="stopBtn" class="panel-btn relative mb-2 flex-center-10">
@@ -67,53 +68,55 @@
             </div>
           </div>
         </button>
-        <button id="restartBtn" class="panel-btn mb-2 flex-center-10">
-          <span class="i i-rotate-right i--lg"></span>
-          <div class="popover pointer-events-none">
-            <div class="flex gap-1 items-center">
-              <div class="whitespace-nowrap text-gray-600 fw-500 text-xs">
-                Начать заново
-              </div>
-              <div>
-                <div class="tag fw-400" data-text="restart"></div>
-              </div>
-            </div>
-          </div>
-        </button>
-        <button id="deleteBtn" class="panel-btn mb-2 flex-center-10">
-          <span class="i i-trash i--lg"></span>
-          <div class="popover pointer-events-none">
-            <div class="flex gap-1 items-center">
-              <div class="whitespace-nowrap text-gray-600 fw-500 text-xs">
-                Удалить
-              </div>
-              <div>
-                <div class="tag fw-400" data-text="delete"></div>
-              </div>
-            </div>
-          </div>
-        </button>
-        <div class="panel-divider"></div>
-        <div class="relative">
-          <button id="draw-btn" class="panel-btn flex-center-10 clickable">
-            <span class="i i-pencil-mechanical i--lg"></span>
+        <div class="panel-collapse">
+          <button id="restartBtn" class="panel-btn mb-2 flex-center-10">
+            <span class="i i-rotate-right i--lg"></span>
             <div class="popover pointer-events-none">
               <div class="flex gap-1 items-center">
                 <div class="whitespace-nowrap text-gray-600 fw-500 text-xs">
-                  Рисовать
+                  Начать заново
                 </div>
                 <div>
-                  <div class="tag fw-400" data-text="draw"></div>
+                  <div class="tag fw-400" data-text="restart"></div>
                 </div>
               </div>
             </div>
           </button>
-          <button
-            id="draw-settings-btn"
-            class="panel-btn absolute right-0.5 bottom-0.5 flex-center-3 p-0 clickable"
-          >
-            <span class="i i-gear"></span>
+          <button id="deleteBtn" class="panel-btn mb-2 flex-center-10">
+            <span class="i i-trash i--lg"></span>
+            <div class="popover pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-gray-600 fw-500 text-xs">
+                  Удалить
+                </div>
+                <div>
+                  <div class="tag fw-400" data-text="delete"></div>
+                </div>
+              </div>
+            </div>
           </button>
+          <div class="panel-divider"></div>
+          <div class="relative">
+            <button id="draw-btn" class="panel-btn flex-center-10 clickable">
+              <span class="i i-pencil-mechanical i--lg"></span>
+              <div class="popover pointer-events-none">
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap text-gray-600 fw-500 text-xs">
+                    Рисовать
+                  </div>
+                  <div>
+                    <div class="tag fw-400" data-text="draw"></div>
+                  </div>
+                </div>
+              </div>
+            </button>
+            <button
+              id="draw-settings-btn"
+              class="panel-btn absolute right-0.5 bottom-0.5 flex-center-3 p-0 clickable"
+            >
+              <span class="i i-gear"></span>
+            </button>
+          </div>
         </div>
       </div>
 

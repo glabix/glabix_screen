@@ -486,10 +486,7 @@ function registerShortCutsOnShow() {
       return
     }
 
-    const state = (store.get() as any).recordingState
-    if (["recording", "paused"].includes(state)) {
-      mainWindow?.webContents.send(HotkeysEvents.DRAW)
-    }
+    mainWindow?.webContents.send(HotkeysEvents.DRAW)
   })
 }
 

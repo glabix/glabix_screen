@@ -1078,6 +1078,24 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
+const controlBtns = controlPanel.querySelectorAll("button")
+controlBtns.forEach((btn) => {
+  btn.addEventListener(
+    "mouseenter",
+    () => {
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    },
+    false
+  )
+  btn.addEventListener(
+    "mouseleave",
+    () => {
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    },
+    false
+  )
+})
+
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: `recorder.renderer Error`,

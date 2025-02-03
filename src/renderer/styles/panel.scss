@@ -3,8 +3,6 @@
   top: 350px;
   left: 30px;
   z-index: 15;
-  opacity: 0;
-  pointer-events: none;
 }
 
 body.is-dialog-open .panel-wrapper {
@@ -17,6 +15,16 @@ body.is-dialog-open .panel-wrapper {
   &:hover {
     opacity: 1;
   }
+}
+
+.body--is-recording .panel-collapse {
+  overflow: hidden;
+  height: 0;
+}
+
+.body--is-recording .panel-wrapper:hover .panel-collapse {
+  overflow: visible;
+  height: auto;
 }
 
 #draw-container {
