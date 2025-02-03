@@ -671,7 +671,7 @@ function createModal(parentWindow) {
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   modalWindow.on("show", () => {
-    console.log('modalWindow.on("show")')
+    modalWindow.webContents.send("modal-window:show")
   })
 
   modalWindow.on("hide", () => {

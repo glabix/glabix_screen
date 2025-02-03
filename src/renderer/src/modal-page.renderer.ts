@@ -177,13 +177,17 @@ function setLastMediaDevices(
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
 }
 
-function initVisualAudio() {
+function stopVisualAudio() {
   if (visualAudioStream) {
     visualAudioStream.getTracks().forEach((s) => s.stop())
     visualAudioStream = null
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
   }
+}
+
+function initVisualAudio() {
+  stopVisualAudio()
   const context = new AudioContext()
 
   if (
@@ -206,8 +210,6 @@ function initVisualAudio() {
         visualAudioStream = stream
         const source = context.createMediaStreamSource(visualAudioStream)
         const analyzer = context.createAnalyser()
-        const fbcArray = new Uint8Array(analyzer.frequencyBinCount)
-        // analyzer.fftSize = 256
         analyzer.fftSize = 2048
         source.connect(analyzer)
 
@@ -221,14 +223,6 @@ function initVisualAudio() {
           canvases.forEach((canvas) => {
             const canvasCtx = canvas.getContext("2d")!
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-            // analyzer.getByteFrequencyData(fbcArray)
-            // const level =
-            //   fbcArray.reduce((accum, val) => accum + val, 0) / fbcArray.length
-            // const el = audioDeviceContainer.querySelector(
-            //   "button"
-            // ) as HTMLButtonElement
-            // el.style.background = `linear-gradient(0deg, var(--primary-200) ${10 * level}%, transparent ${10 * level}%)`
-
             analyzer.getByteTimeDomainData(dataArray)
 
             canvasCtx.fillStyle = "rgb(255, 255, 255)"
@@ -748,7 +742,11 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
+window.electronAPI.ipcRenderer.on("modal-window:show", (event) => {
+  initVisualAudio()
+})
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
+  stopVisualAudio()
   openedDropdownType = undefined
   isAllowRecords = undefined
 })
