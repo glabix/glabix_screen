@@ -487,11 +487,7 @@ function registerShortCutsOnShow() {
     }
 
     mainWindow?.webContents.send(HotkeysEvents.DRAW)
-    console.log(`
 
-        isDrawActive: ${isDrawActive}
-
-      `)
     if (isDrawActive) {
       mainWindow?.blur()
     }
