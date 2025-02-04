@@ -20,6 +20,7 @@ import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { captureVideoFrame } from "./helpers/capture-video-frame"
 import { RecordEvents } from "../../shared/events/record.events"
+import { Rectangle } from "electron"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 const TEXT_MAP = {
@@ -524,10 +525,11 @@ const updateRecorderState = (state: RecorderState) => {
 
 const createPreview = () => {
   if (stream) {
-    let crop: any = undefined
+    let crop: Rectangle | undefined = undefined
     let screenSize = {
       width: window.innerWidth,
       height: window.innerHeight,
+      scale: isWindows ? window.devicePixelRatio : 1,
     }
 
     if (lastStreamSettings?.action == "cropVideo") {
@@ -537,7 +539,6 @@ const createPreview = () => {
           y: cropVideoData.y,
           width: cropVideoData.out_w,
           height: cropVideoData.out_h,
-          scale: isWindows ? window.devicePixelRatio : 1,
         }
       }
     }
@@ -546,7 +547,11 @@ const createPreview = () => {
       const video = document.querySelector(
         ".webcamera-only-container video"
       ) as HTMLVideoElement
-      screenSize = { width: video.videoWidth, height: video.videoHeight }
+      screenSize = {
+        ...screenSize,
+        width: video.videoWidth,
+        height: video.videoHeight,
+      }
     }
 
     captureVideoFrame(stream, screenSize, crop).then((previewDataURL) => {
