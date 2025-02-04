@@ -595,6 +595,7 @@ function createWindow() {
     roundedCorners: false, // macOS, not working on Windows
     show: false,
     alwaysOnTop: true,
+    hasShadow: false,
     x,
     y,
     width,

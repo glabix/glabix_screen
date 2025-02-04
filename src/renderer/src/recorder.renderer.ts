@@ -20,6 +20,7 @@ import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { captureVideoFrame } from "./helpers/capture-video-frame"
 import { RecordEvents } from "../../shared/events/record.events"
+import { Rectangle } from "electron"
 
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
@@ -525,24 +526,31 @@ const updateRecorderState = (state: RecorderState) => {
 
 const createPreview = () => {
   if (stream) {
-    let size = { width: window.innerWidth, height: window.innerHeight }
+    let crop: Rectangle | undefined = undefined
+    let screenSize = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }
 
     if (lastStreamSettings?.action == "cropVideo") {
-      const canvas = document.querySelector(
-        "#crop_video_screen canvas"
-      ) as HTMLCanvasElement
-      const position = canvas.getBoundingClientRect()
-      size = { width: position.width, height: position.height }
+      if (cropVideoData) {
+        crop = {
+          x: cropVideoData.x,
+          y: cropVideoData.y,
+          width: cropVideoData.out_w,
+          height: cropVideoData.out_h,
+        }
+      }
     }
 
     if (lastStreamSettings?.action == "cameraOnly") {
       const video = document.querySelector(
         ".webcamera-only-container video"
       ) as HTMLVideoElement
-      size = { width: video.videoWidth, height: video.videoHeight }
+      screenSize = { width: video.videoWidth, height: video.videoHeight }
     }
 
-    captureVideoFrame(stream, size).then((previewDataURL) => {
+    captureVideoFrame(stream, screenSize, crop).then((previewDataURL) => {
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "captureVideoFrame",
       })
@@ -1079,6 +1087,7 @@ window.electronAPI.ipcRenderer.on(
 )
 
 const controlBtns = controlPanel.querySelectorAll("button")
+const popovers = document.querySelectorAll(".popover")
 controlBtns.forEach((btn) => {
   btn.addEventListener(
     "mouseenter",
@@ -1089,6 +1098,15 @@ controlBtns.forEach((btn) => {
   )
   btn.addEventListener(
     "mouseleave",
+    () => {
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    },
+    false
+  )
+})
+popovers.forEach((element) => {
+  element.addEventListener(
+    "transitionend",
     () => {
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     },
