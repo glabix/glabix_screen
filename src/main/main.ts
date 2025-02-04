@@ -91,6 +91,7 @@ let loginWindow: BrowserWindow
 let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
+let isDrawActive = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
 let lastDeviceAccessData: IMediaDevicesAccess = {
@@ -386,7 +387,6 @@ if (!gotTheLock) {
 
 function registerShortCuts() {
   // Fullscreen Screenshot
-
   globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+6"], () => {
     if (isScreenshotAllowed) {
       const cursorPosition = screen.getCursorScreenPoint()
@@ -486,9 +486,10 @@ function registerShortCutsOnShow() {
       return
     }
 
-    const state = (store.get() as any).recordingState
-    if (["recording", "paused"].includes(state)) {
-      mainWindow?.webContents.send(HotkeysEvents.DRAW)
+    mainWindow?.webContents.send(HotkeysEvents.DRAW)
+
+    if (isDrawActive) {
+      mainWindow?.blur()
     }
   })
 }
@@ -594,6 +595,7 @@ function createWindow() {
     roundedCorners: false, // macOS, not working on Windows
     show: false,
     alwaysOnTop: true,
+    hasShadow: false,
     x,
     y,
     width,
@@ -637,7 +639,12 @@ function createWindow() {
   mainWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
   })
-  mainWindow.on("blur", () => {})
+  mainWindow.on("blur", () => {
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  })
+  mainWindow.on("focus", () => {
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  })
   createModal(mainWindow)
   createLoginWindow()
 }
@@ -666,7 +673,7 @@ function createModal(parentWindow) {
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   modalWindow.on("show", () => {
-    console.log('modalWindow.on("show")')
+    modalWindow.webContents.send("modal-window:show")
   })
 
   modalWindow.on("hide", () => {
@@ -922,9 +929,11 @@ function showWindows() {
   if (TokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
+      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
     if (modalWindow) {
       modalWindow.show()
+      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
   } else {
     if (loginWindow) loginWindow.show()
@@ -1118,6 +1127,13 @@ ipcMain.on("change-organization", (event, orgId: number) => {
   hideWindows()
   TokenStorage.reset()
   ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
+})
+
+ipcMain.on("draw:start", (event, data) => {
+  isDrawActive = true
+})
+ipcMain.on("draw:end", (event, data) => {
+  isDrawActive = false
 })
 
 ipcMain.on("modal-window:render", (event, data) => {

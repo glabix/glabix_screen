@@ -121,6 +121,7 @@ class Draw {
 
   private drawStart() {
     if (this.stage) return
+    window.electronAPI.ipcRenderer.send("draw:start", {})
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "tools.lazer.enabled",
       body: { color: this.laserColor, width: this.laserStrokeWidth },
@@ -225,6 +226,7 @@ class Draw {
 
   private drawEnd() {
     this.drawToggle.classList.remove("active")
+    window.electronAPI.ipcRenderer.send("draw:end", {})
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "tools.lazer.disabled",
     })
