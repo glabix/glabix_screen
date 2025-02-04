@@ -91,6 +91,7 @@ let loginWindow: BrowserWindow
 let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
+let isDrawActive = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
 let lastDeviceAccessData: IMediaDevicesAccess = {
@@ -386,7 +387,6 @@ if (!gotTheLock) {
 
 function registerShortCuts() {
   // Fullscreen Screenshot
-
   globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+6"], () => {
     if (isScreenshotAllowed) {
       const cursorPosition = screen.getCursorScreenPoint()
@@ -487,6 +487,14 @@ function registerShortCutsOnShow() {
     }
 
     mainWindow?.webContents.send(HotkeysEvents.DRAW)
+    console.log(`
+
+        isDrawActive: ${isDrawActive}
+
+      `)
+    if (isDrawActive) {
+      mainWindow?.blur()
+    }
   })
 }
 
@@ -1122,6 +1130,13 @@ ipcMain.on("change-organization", (event, orgId: number) => {
   hideWindows()
   TokenStorage.reset()
   ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
+})
+
+ipcMain.on("draw:start", (event, data) => {
+  isDrawActive = true
+})
+ipcMain.on("draw:end", (event, data) => {
+  isDrawActive = false
 })
 
 ipcMain.on("modal-window:render", (event, data) => {
