@@ -115,6 +115,7 @@ let hasCamera = false
 let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
+let visualAudioSource: MediaStreamAudioSourceNode | null = null
 let lastDeviceIds: IDeviceIds = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
@@ -181,6 +182,14 @@ function stopVisualAudio() {
   if (visualAudioStream) {
     visualAudioStream.getTracks().forEach((s) => s.stop())
     visualAudioStream = null
+  }
+
+  if (visualAudioSource) {
+    visualAudioSource.disconnect()
+    visualAudioSource = null
+  }
+
+  if (visualAudioAnimationId) {
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
   }
@@ -208,10 +217,10 @@ function initVisualAudio() {
       })
       .then((stream) => {
         visualAudioStream = stream
-        const source = context.createMediaStreamSource(visualAudioStream)
+        visualAudioSource = context.createMediaStreamSource(visualAudioStream)
         const analyzer = context.createAnalyser()
         analyzer.fftSize = 2048
-        source.connect(analyzer)
+        visualAudioSource.connect(analyzer)
 
         const canvases = document.querySelectorAll(
           ".visualizer"
