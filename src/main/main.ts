@@ -638,6 +638,9 @@ function createWindow() {
 
   mainWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
+    if (modalWindow) {
+      modalWindow.webContents.send("app:hide")
+    }
   })
   mainWindow.on("blur", () => {
     mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
