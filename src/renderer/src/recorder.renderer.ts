@@ -134,6 +134,7 @@ function cancelRecording() {
 
     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     window.electronAPI.ipcRenderer.send("modal-window:open", {})
+    stopStreamTracks()
   }
 }
 
@@ -271,9 +272,13 @@ const mergeAudioStreams = (
   return combine.stream.getAudioTracks()
 }
 
-const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
+const stopStreamTracks = () => {
   desktopStream.getTracks().forEach((track) => track.stop())
   voiceStream.getTracks().forEach((track) => track.stop())
+}
+
+const initStream = async (settings: StreamSettings): Promise<MediaStream> => {
+  stopStreamTracks()
 
   let systemAudioSettings: boolean | MediaTrackConstraints = false
 
