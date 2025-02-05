@@ -116,6 +116,8 @@ let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
 let visualAudioSource: MediaStreamAudioSourceNode | null = null
+let visualAudioContext: AudioContext | null = null
+let visualAudioAnalyser: AnalyserNode | null = null
 let lastDeviceIds: IDeviceIds = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
@@ -189,6 +191,17 @@ function stopVisualAudio() {
     visualAudioSource = null
   }
 
+  if (visualAudioAnalyser) {
+    visualAudioAnalyser.disconnect()
+    visualAudioAnalyser = null
+  }
+
+  if (visualAudioContext && visualAudioContext.state !== "closed") {
+    visualAudioContext.close().then(() => {
+      visualAudioContext = null
+    })
+  }
+
   if (visualAudioAnimationId) {
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
@@ -197,7 +210,6 @@ function stopVisualAudio() {
 
 function initVisualAudio() {
   stopVisualAudio()
-  const context = new AudioContext()
 
   if (
     streamSettings.audioDeviceId &&
@@ -217,22 +229,25 @@ function initVisualAudio() {
       })
       .then((stream) => {
         visualAudioStream = stream
-        visualAudioSource = context.createMediaStreamSource(visualAudioStream)
-        const analyzer = context.createAnalyser()
-        analyzer.fftSize = 2048
-        visualAudioSource.connect(analyzer)
+        visualAudioContext = new AudioContext()
+        visualAudioSource =
+          visualAudioContext.createMediaStreamSource(visualAudioStream)
+        visualAudioAnalyser = visualAudioContext.createAnalyser()
+
+        visualAudioAnalyser.fftSize = 2048
+        visualAudioSource.connect(visualAudioAnalyser)
 
         const canvases = document.querySelectorAll(
           ".visualizer"
         )! as NodeListOf<HTMLCanvasElement>
-        const bufferLength = analyzer.frequencyBinCount
+        const bufferLength = visualAudioAnalyser.frequencyBinCount
         const dataArray = new Uint8Array(bufferLength)
 
         function updateVisual() {
           canvases.forEach((canvas) => {
             const canvasCtx = canvas.getContext("2d")!
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-            analyzer.getByteTimeDomainData(dataArray)
+            visualAudioAnalyser!.getByteTimeDomainData(dataArray)
 
             canvasCtx.fillStyle = "rgb(255, 255, 255)"
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
@@ -285,9 +300,6 @@ function initVisualAudio() {
         updateVisual()
       })
       .catch((e) => {})
-  } else {
-    cancelAnimationFrame(visualAudioAnimationId)
-    visualAudioAnimationId = 0
   }
 }
 
@@ -753,9 +765,15 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on("modal-window:show", (event) => {
   initVisualAudio()
+  sendSettings()
 })
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
+  // Отключаем аудио поток в модальном и в главном окнах в скрытом состоянии модалки
   stopVisualAudio()
+  window.electronAPI.ipcRenderer.send("record-settings-change", {
+    ...streamSettings,
+    audioDeviceId: undefined,
+  })
   openedDropdownType = undefined
   isAllowRecords = undefined
 })
