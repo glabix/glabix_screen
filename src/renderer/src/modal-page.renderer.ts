@@ -53,6 +53,7 @@ const systemAudioCheckbox = document.querySelector(
 ) as HTMLInputElement
 
 let isRecording = false
+let isStopAudioStreamOnHide = true
 
 let screenActionsList: IDropdownItem[] = [
   {
@@ -766,14 +767,19 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on("modal-window:show", (event) => {
   initVisualAudio()
   sendSettings()
+  isStopAudioStreamOnHide = true
 })
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
   // Отключаем аудио поток в модальном и в главном окнах в скрытом состоянии модалки
   stopVisualAudio()
-  window.electronAPI.ipcRenderer.send("record-settings-change", {
-    ...streamSettings,
-    audioDeviceId: undefined,
-  })
+
+  if (isStopAudioStreamOnHide) {
+    window.electronAPI.ipcRenderer.send("record-settings-change", {
+      ...streamSettings,
+      audioDeviceId: undefined,
+    })
+  }
+
   openedDropdownType = undefined
   isAllowRecords = undefined
 })
@@ -1069,6 +1075,8 @@ function start() {
     }),
   })
   window.electronAPI.ipcRenderer.send(RecordEvents.START, streamSettings)
+
+  isStopAudioStreamOnHide = false
 }
 
 const continueWithoutMicBtn = document.querySelector("#continueWithoutMicBtn")!
