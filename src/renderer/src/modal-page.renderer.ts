@@ -53,7 +53,6 @@ const systemAudioCheckbox = document.querySelector(
 ) as HTMLInputElement
 
 let isRecording = false
-let isStopAudioStreamOnHide = true
 
 let screenActionsList: IDropdownItem[] = [
   {
@@ -187,22 +186,6 @@ function stopVisualAudio() {
     visualAudioStream = null
   }
 
-  if (visualAudioSource) {
-    visualAudioSource.disconnect()
-    visualAudioSource = null
-  }
-
-  if (visualAudioAnalyser) {
-    visualAudioAnalyser.disconnect()
-    visualAudioAnalyser = null
-  }
-
-  if (visualAudioContext && visualAudioContext.state !== "closed") {
-    visualAudioContext.close().then(() => {
-      visualAudioContext = null
-    })
-  }
-
   if (visualAudioAnimationId) {
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
@@ -230,25 +213,24 @@ function initVisualAudio() {
       })
       .then((stream) => {
         visualAudioStream = stream
-        visualAudioContext = new AudioContext()
-        visualAudioSource =
-          visualAudioContext.createMediaStreamSource(visualAudioStream)
-        visualAudioAnalyser = visualAudioContext.createAnalyser()
+        const context = new AudioContext()
+        const source = context.createMediaStreamSource(visualAudioStream)
+        const analyser = context.createAnalyser()
 
-        visualAudioAnalyser.fftSize = 2048
-        visualAudioSource.connect(visualAudioAnalyser)
+        analyser.fftSize = 2048
+        source.connect(analyser)
 
         const canvases = document.querySelectorAll(
           ".visualizer"
         )! as NodeListOf<HTMLCanvasElement>
-        const bufferLength = visualAudioAnalyser.frequencyBinCount
+        const bufferLength = analyser.frequencyBinCount
         const dataArray = new Uint8Array(bufferLength)
 
         function updateVisual() {
           canvases.forEach((canvas) => {
             const canvasCtx = canvas.getContext("2d")!
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-            visualAudioAnalyser!.getByteTimeDomainData(dataArray)
+            analyser.getByteTimeDomainData(dataArray)
 
             canvasCtx.fillStyle = "rgb(255, 255, 255)"
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
@@ -766,22 +748,13 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on("modal-window:show", (event) => {
   initVisualAudio()
-  sendSettings()
-  isStopAudioStreamOnHide = true
 })
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
-  // Отключаем аудио поток в модальном и в главном окнах в скрытом состоянии модалки
-  stopVisualAudio()
-
-  if (isStopAudioStreamOnHide) {
-    window.electronAPI.ipcRenderer.send("record-settings-change", {
-      ...streamSettings,
-      audioDeviceId: undefined,
-    })
-  }
-
   openedDropdownType = undefined
   isAllowRecords = undefined
+})
+window.electronAPI.ipcRenderer.on("app:hide", (event) => {
+  stopVisualAudio()
 })
 
 window.electronAPI.ipcRenderer.on("dropdown:hide", (event) => {
@@ -1075,8 +1048,6 @@ function start() {
     }),
   })
   window.electronAPI.ipcRenderer.send(RecordEvents.START, streamSettings)
-
-  isStopAudioStreamOnHide = false
 }
 
 const continueWithoutMicBtn = document.querySelector("#continueWithoutMicBtn")!

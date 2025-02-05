@@ -134,7 +134,9 @@ function cancelRecording() {
 
     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     window.electronAPI.ipcRenderer.send("modal-window:open", {})
+
     stopStreamTracks()
+    updateRecorderState(null)
   }
 }
 
@@ -519,10 +521,10 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 }
 
-const updateRecorderState = (state: RecorderState) => {
+const updateRecorderState = (state: RecorderState | null) => {
   const data: ISimpleStoreData = {
     key: "recordingState",
-    value: state,
+    value: state || undefined,
   }
 
   window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
@@ -1038,6 +1040,10 @@ window.electronAPI.ipcRenderer.on("screen:change", (event) => {
     initView(lastStreamSettings, true)
     initRecord(lastStreamSettings)
   }
+})
+
+window.electronAPI.ipcRenderer.on("app:hide", (event) => {
+  stopStreamTracks()
 })
 
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {

@@ -1,4 +1,4 @@
-import { StreamSettings } from "@shared/types/types"
+import { SimpleStoreEvents, StreamSettings } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import { RecordEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
@@ -145,11 +145,8 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-window.electronAPI.ipcRenderer.on(RecordEvents.START, () => {
-  isRecording = true
-})
-window.electronAPI.ipcRenderer.on("stop-recording", () => {
-  isRecording = false
+window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  isRecording = state["recordingState"] == "recording"
 })
 
 window.electronAPI.ipcRenderer.on("dropdown:select.screenshot", () => {
