@@ -140,17 +140,17 @@ let streamSettings: StreamSettings = {
   action: activeScreenAction,
   video: true,
 }
-const recorderLogos = document.querySelectorAll(
-  ".recorder-logo"
-) as NodeListOf<HTMLElement>
-recorderLogos.forEach((logo) => {
-  if (import.meta.env.VITE_MODE === "dev") {
-    logo.style.color = "#d91615"
-  }
-  if (import.meta.env.VITE_MODE === "review") {
-    logo.style.color = "#01a0e3"
-  }
-})
+// const recorderLogos = document.querySelectorAll(
+//   ".recorder-logo"
+// ) as NodeListOf<HTMLElement>
+// recorderLogos.forEach((logo) => {
+//   if (import.meta.env.VITE_MODE === "dev") {
+//     logo.style.color = "#d91615"
+//   }
+//   if (import.meta.env.VITE_MODE === "review") {
+//     logo.style.color = "#01a0e3"
+//   }
+// })
 
 function getLastMediaDevices(): IDeviceIds {
   const lastDeviceIdsStr = localStorage.getItem(LAST_DEVICE_IDS)

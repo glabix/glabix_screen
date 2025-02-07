@@ -997,9 +997,7 @@ function createTrayIcon(): Electron.NativeImage {
         break
       case "production":
       default:
-        iconName = nativeTheme.shouldUseDarkColors
-          ? "tray-macos-light.png"
-          : "tray-macos-dark.png"
+        iconName = "tray-macos-dark.png"
         break
     }
   }
