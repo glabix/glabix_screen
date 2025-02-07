@@ -616,7 +616,6 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
   // mainWindow.setFullScreenable(false)
@@ -998,9 +997,7 @@ function createTrayIcon(): Electron.NativeImage {
         break
       case "production":
       default:
-        iconName = nativeTheme.shouldUseDarkColors
-          ? "tray-macos-light.png"
-          : "tray-macos-dark.png"
+        iconName = "tray-macos-dark.png"
         break
     }
   }

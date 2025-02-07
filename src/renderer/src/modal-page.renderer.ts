@@ -140,17 +140,17 @@ let streamSettings: StreamSettings = {
   action: activeScreenAction,
   video: true,
 }
-const recorderLogos = document.querySelectorAll(
-  ".recorder-logo"
-) as NodeListOf<HTMLElement>
-recorderLogos.forEach((logo) => {
-  if (import.meta.env.VITE_MODE === "dev") {
-    logo.style.color = "#d91615"
-  }
-  if (import.meta.env.VITE_MODE === "review") {
-    logo.style.color = "#01a0e3"
-  }
-})
+// const recorderLogos = document.querySelectorAll(
+//   ".recorder-logo"
+// ) as NodeListOf<HTMLElement>
+// recorderLogos.forEach((logo) => {
+//   if (import.meta.env.VITE_MODE === "dev") {
+//     logo.style.color = "#d91615"
+//   }
+//   if (import.meta.env.VITE_MODE === "review") {
+//     logo.style.color = "#01a0e3"
+//   }
+// })
 
 function getLastMediaDevices(): IDeviceIds {
   const lastDeviceIdsStr = localStorage.getItem(LAST_DEVICE_IDS)
@@ -186,22 +186,6 @@ function stopVisualAudio() {
     visualAudioStream = null
   }
 
-  if (visualAudioSource) {
-    visualAudioSource.disconnect()
-    visualAudioSource = null
-  }
-
-  if (visualAudioAnalyser) {
-    visualAudioAnalyser.disconnect()
-    visualAudioAnalyser = null
-  }
-
-  if (visualAudioContext && visualAudioContext.state !== "closed") {
-    visualAudioContext.close().then(() => {
-      visualAudioContext = null
-    })
-  }
-
   if (visualAudioAnimationId) {
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
@@ -229,25 +213,24 @@ function initVisualAudio() {
       })
       .then((stream) => {
         visualAudioStream = stream
-        visualAudioContext = new AudioContext()
-        visualAudioSource =
-          visualAudioContext.createMediaStreamSource(visualAudioStream)
-        visualAudioAnalyser = visualAudioContext.createAnalyser()
+        const context = new AudioContext()
+        const source = context.createMediaStreamSource(visualAudioStream)
+        const analyser = context.createAnalyser()
 
-        visualAudioAnalyser.fftSize = 2048
-        visualAudioSource.connect(visualAudioAnalyser)
+        analyser.fftSize = 2048
+        source.connect(analyser)
 
         const canvases = document.querySelectorAll(
           ".visualizer"
         )! as NodeListOf<HTMLCanvasElement>
-        const bufferLength = visualAudioAnalyser.frequencyBinCount
+        const bufferLength = analyser.frequencyBinCount
         const dataArray = new Uint8Array(bufferLength)
 
         function updateVisual() {
           canvases.forEach((canvas) => {
             const canvasCtx = canvas.getContext("2d")!
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-            visualAudioAnalyser!.getByteTimeDomainData(dataArray)
+            analyser.getByteTimeDomainData(dataArray)
 
             canvasCtx.fillStyle = "rgb(255, 255, 255)"
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
@@ -765,17 +748,13 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on("modal-window:show", (event) => {
   initVisualAudio()
-  sendSettings()
 })
 window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
-  // Отключаем аудио поток в модальном и в главном окнах в скрытом состоянии модалки
-  stopVisualAudio()
-  window.electronAPI.ipcRenderer.send("record-settings-change", {
-    ...streamSettings,
-    audioDeviceId: undefined,
-  })
   openedDropdownType = undefined
   isAllowRecords = undefined
+})
+window.electronAPI.ipcRenderer.on("app:hide", (event) => {
+  stopVisualAudio()
 })
 
 window.electronAPI.ipcRenderer.on("dropdown:hide", (event) => {
