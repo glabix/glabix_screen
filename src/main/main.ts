@@ -488,7 +488,7 @@ function registerShortCutsOnShow() {
 
     mainWindow?.webContents.send(HotkeysEvents.DRAW)
 
-    if (isDrawActive) {
+    if (isDrawActive && os.platform() == "win32") {
       mainWindow?.blur()
     }
   })

@@ -5,12 +5,18 @@ const isReview = process.env.MODE === "review"
 const getIconPath = (): string => {
   switch (process.env.MODE) {
     case "dev":
-      return "resources/icons/logo-square-dev.png"
+      return process.platform == "darwin"
+        ? "resources/icons/mac-logo-square-dev.png"
+        : "resources/icons/logo-square-dev.png"
     case "review":
-      return "resources/icons/logo-square-review.png"
+      return process.platform == "darwin"
+        ? "resources/icons/mac-logo-square-review.png"
+        : "resources/icons/logo-square-review.png"
     case "production":
     default:
-      return "resources/icons/logo-square.png"
+      return process.platform == "darwin"
+        ? "resources/icons/mac-logo-square.png"
+        : "resources/icons/logo-square.png"
   }
 }
 
