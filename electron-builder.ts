@@ -2,19 +2,19 @@ import { Configuration } from "app-builder-lib"
 
 const isReview = process.env.MODE === "review"
 
-const getIconPath = (): string => {
+const getIconPath = (os: "win32" | "darwin"): string => {
   switch (process.env.MODE) {
     case "dev":
-      return process.platform == "darwin"
+      return os == "darwin"
         ? "resources/icons/mac-logo-square-dev.png"
         : "resources/icons/logo-square-dev.png"
     case "review":
-      return process.platform == "darwin"
+      return os == "darwin"
         ? "resources/icons/mac-logo-square-review.png"
         : "resources/icons/logo-square-review.png"
     case "production":
     default:
-      return process.platform == "darwin"
+      return os == "darwin"
         ? "resources/icons/mac-logo-square.png"
         : "resources/icons/logo-square.png"
   }
@@ -38,15 +38,16 @@ const options: Configuration = {
     "!{.env,.env.*,electron-builder.env,electron-builder.env.*,.npmrc,pnpmlock.yaml}",
     "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}",
   ],
-  icon: getIconPath(),
   artifactName: "${name}-${os}-${arch}.${ext}",
   executableName: process.env.PRODUCT_NAME,
   nativeRebuilder: "legacy",
   win: {
     target: [{ target: "nsis-web", arch: ["x64", "ia32"] }],
+    icon: getIconPath("win32"),
   },
   mac: {
     target: [{ target: "default", arch: ["arm64", "x64"] }],
+    icon: getIconPath("darwin"),
     category: "public.app-category.productivity",
     hardenedRuntime: true,
     gatekeeperAssess: true,
