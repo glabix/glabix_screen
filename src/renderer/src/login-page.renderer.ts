@@ -5,9 +5,11 @@ import { LoggerEvents } from "../../shared/events/logger.events"
 document.addEventListener("DOMContentLoaded", () => {
   const authLink = `${import.meta.env.VITE_AUTH_APP_URL}recorder/auth?protocol_scheme=${import.meta.env.VITE_PROTOCOL_SCHEME}`
   const registrationLink = `${import.meta.env.VITE_AUTH_APP_URL}recorder/registration?protocol_scheme=${import.meta.env.VITE_PROTOCOL_SCHEME}`
-  const authBtn = document.getElementById("auth-btn")
-  const registrationBtn = document.getElementById("registration-btn")
-  // const recorderLogo = document.getElementById("recorder-logo")
+  const authBtn = document.getElementById("auth-btn")!
+  const registrationBtn = document.getElementById("registration-btn")!
+  const recorderLogo = document.getElementById(
+    "recorder-logo"
+  )! as HTMLImageElement
   authBtn.addEventListener("click", (event) => {
     event.preventDefault()
     window.api.openLinkInBrowser(authLink)
@@ -16,12 +18,12 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault()
     window.api.openLinkInBrowser(registrationLink)
   })
-  // if (import.meta.env.VITE_MODE === "dev") {
-  //   recorderLogo.style.color = "#d91615"
-  // }
-  // if (import.meta.env.VITE_MODE === "review") {
-  //   recorderLogo.style.color = "#01a0e3"
-  // }
+  if (import.meta.env.VITE_MODE === "dev") {
+    recorderLogo.src = "assets/recorder-logo-dev.svg"
+  }
+  if (import.meta.env.VITE_MODE === "review") {
+    recorderLogo.src = "assets/recorder-logo-review.svg"
+  }
 })
 
 // document.getElementById('loginForm').addEventListener('submit', (event) => {
