@@ -275,6 +275,10 @@ const mergeAudioStreams = (
 }
 
 const stopStreamTracks = () => {
+  if (isRecording) {
+    return
+  }
+
   desktopStream.getTracks().forEach((track) => track.stop())
   voiceStream.getTracks().forEach((track) => track.stop())
 }

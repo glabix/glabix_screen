@@ -1536,6 +1536,9 @@ ipcMain.on(APIEvents.GET_ORGANIZATION_LIMITS, (data: unknown) => {
   }
 })
 
+ipcMain.on("systemDialog:show", (evt, data) => {
+  hideWindows()
+})
 ipcMain.on("log", (evt, data) => {
   setLog(LogLevel.DEBUG, data)
 })
