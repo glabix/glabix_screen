@@ -1,4 +1,10 @@
-import { SimpleStoreEvents, StreamSettings } from "@shared/types/types"
+import {
+  IModalWindowTabData,
+  ModalWindowEvents,
+  ScreenshotActionEvents,
+  SimpleStoreEvents,
+  StreamSettings,
+} from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import { RecordEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
@@ -149,13 +155,13 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
   isRecording = state["recordingState"] == "recording"
 })
 
-window.electronAPI.ipcRenderer.on("dropdown:select.screenshot", () => {
-  if (isRecording) {
-    return
-  }
+// window.electronAPI.ipcRenderer.on("dropdown:select.screenshot", () => {
+//   if (isRecording) {
+//     return
+//   }
 
-  isScreenshotMode = true
-})
+//   isScreenshotMode = true
+// })
 
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   if (!isRecording) {
@@ -163,8 +169,27 @@ window.electronAPI.ipcRenderer.on("app:hide", () => {
   }
 })
 
+window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
+  stopStream()
+})
+
+window.electronAPI.ipcRenderer.on(
+  ModalWindowEvents.TAB,
+  (event, data: IModalWindowTabData) => {
+    if (data.activeTab == "screenshot") {
+      stopStream()
+      isScreenshotMode = true
+    }
+
+    if (data.activeTab == "video") {
+      checkStream(lastStreamSettings!)
+      isScreenshotMode = false
+    }
+  }
+)
+
 window.electronAPI.ipcRenderer.on("app:show", () => {
-  if (!isRecording) {
+  if (!isRecording && !isScreenshotMode) {
     checkStream(lastStreamSettings!)
   }
 })

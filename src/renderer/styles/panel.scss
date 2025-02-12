@@ -5,6 +5,11 @@
   z-index: 15;
 }
 
+body.is-panel-hidden .panel-wrapper {
+  pointer-events: none !important;
+  opacity: 0;
+}
+
 body.is-dialog-open .panel-wrapper {
   pointer-events: none !important;
 }

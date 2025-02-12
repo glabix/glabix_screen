@@ -23,8 +23,11 @@ export interface StreamSettings {
 }
 
 export enum ModalWindowHeight {
-  WIN = 480,
-  MAC = 395,
+  // MODAL_WIN = 480,
+  // MODAL_MAC = 395,
+  MODAL_WIN = 545,
+  MODAL_MAC = 460,
+  SCREENSHOT_TAB = 335,
   PROFILE = 500,
 }
 
@@ -137,6 +140,27 @@ export interface IAvatarData {
   bg_color_number: number
   currentOrganization: IOrganization
   organizations: IOrganization[]
+}
+
+export enum ScreenshotActionEvents {
+  FULL = "full",
+  CROP = "crop",
+}
+export enum ScreenshotWindowEvents {
+  CREATE = "screenshot-window:create",
+  RENDER_IMAGE = "screenshot-window:renderImage",
+  COPY_IMAGE = "screenshot-window:copyImage",
+}
+export enum ModalWindowEvents {
+  OPEN = "modal-window:open",
+  SHOW = "modal-window:show",
+  HIDE = "modal-window:hide",
+  RESIZE = "modal-window:resize",
+  RENDER = "modal-window:render",
+  TAB = "modal-window:tab",
+}
+export interface IModalWindowTabData {
+  activeTab: "video" | "screenshot"
 }
 
 export enum DialogWindowEvents {

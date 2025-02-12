@@ -96,6 +96,16 @@
   pointer-events: none !important;
 }
 
+.hover-wrapper .hover-target {
+  opacity: 0;
+  display: none;
+  transition: opacity 0.15s;
+}
+.hover-wrapper:hover .hover-target {
+  opacity: 1;
+  display: block;
+}
+
 [hidden] {
   display: none !important;
 }
