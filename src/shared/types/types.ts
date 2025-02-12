@@ -25,7 +25,7 @@ export interface StreamSettings {
 export enum ModalWindowHeight {
   // MODAL_WIN = 480,
   // MODAL_MAC = 395,
-  MODAL_WIN = 545,
+  MODAL_WIN = 535,
   MODAL_MAC = 460,
   SCREENSHOT_TAB = 335,
   PROFILE = 500,
