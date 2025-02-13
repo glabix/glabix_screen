@@ -5,7 +5,7 @@
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' *;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;"
     />
     <title></title>
   </head>
@@ -29,9 +29,7 @@
     </div>
 
     <div class="limits-content" hidden>
-      <div
-        class="mb-6 pl-2 pr-2 pt-6 profile-container js-profile-toggle-btn"
-      ></div>
+      <div class="mb-6 pl-2 pr-2 profile-container js-profile-toggle-btn"></div>
       <div class="text-center font-weight-600 mb-6 text-lg">
         Вы израсходовали лимиты
       </div>
@@ -43,43 +41,46 @@
       </button>
     </div>
 
-    <div class="no-microphone-content" hidden>
-      <div class="mb-6 pt-0 flex justify-center">
-        <img src="assets/no-microphone.svg" alt="no-microphone" />
-      </div>
-      <div class="text-center font-weight-600 mb-5 text-lg">
-        Ваш микрофон выключен
-      </div>
-      <div class="mb-6 text-center">
-        Чтобы в вашем видео был звук, вам нужно включить звук микрофона.
-      </div>
-      <div class="flex justify-between">
+    <div class="no-microphone-content h-full" hidden>
+      <div class="flex h-full flex-col justify-center items-center">
         <div>
-          <button type="button" class="btn btn--sm btn--primary" id="unmuteBtn">
-            Включить звук
-          </button>
-        </div>
+          <div class="mb-6 pt-0 flex justify-center">
+            <img src="assets/no-microphone.svg" alt="no-microphone" />
+          </div>
+          <div class="text-center font-weight-600 mb-5 text-lg">
+            Ваш микрофон выключен
+          </div>
+          <div class="mb-6 text-center">
+            Чтобы в вашем видео был звук, вам нужно включить звук микрофона.
+          </div>
+          <div class="flex justify-between">
+            <div>
+              <button
+                type="button"
+                class="btn btn--sm btn--primary"
+                id="unmuteBtn"
+              >
+                Включить звук
+              </button>
+            </div>
 
-        <div>
-          <button
-            type="button"
-            class="btn btn--sm btn--default"
-            id="continueWithoutMicBtn"
-          >
-            Начать запись
-          </button>
+            <div>
+              <button
+                type="button"
+                class="btn btn--sm btn--default"
+                id="continueWithoutMicBtn"
+              >
+                Начать запись
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="permissions-content" hidden>
       <div class="mb-6 flex justify-center">
-        <img
-          src="assets/recorder-logo.svg"
-          width="270px"
-          height="32px"
-          alt="Glabix.Screen Logo"
-        />
+        <div id="recorder-logo" class="glabix-screen-logo"></div>
       </div>
       <div class="text-center font-weight-600 mb-2 text-lg">
         Добро пожаловать в Глабикс Экран
@@ -184,36 +185,147 @@
     </div>
 
     <div class="modal-content" hidden>
-      <div class="mb-6 profile-container js-profile-toggle-btn"></div>
+      <div class="mb-4 profile-container js-profile-toggle-btn"></div>
 
-      <div class="mb-5">
-        <div id="screen_settings_container"></div>
-      </div>
-      <div id="video_device_container"></div>
-      <div id="audio_device_container"></div>
-      <div class="mb-5 mt-6 system-audio-container" hidden>
-        <label class="flex items-center">
+      <!-- Tabs buttons -->
+      <div class="tab-btns-container">
+        <div class="flex items-center">
           <div class="flex-grow-1">
-            <div class="font-weight-600 text-md">
-              Использовать системное аудио
-            </div>
-            <div class="text-xs text-gray-600">
-              Записывайте аудио из других приложений на вашем устройстве
-            </div>
+            <button
+              class="btn btn-tab btn-tab-first btn--light selected justify-center items-center relative selected"
+              data-record-button="video"
+            >
+              <div
+                class="flex-center-5 min-w-5 mr-3 pointer-events-none relative"
+                style="margin-left: 10px"
+              >
+                <i class="i i-display relative i--lg">
+                  <i class="icon-dot i-br"></i>
+                </i>
+              </div>
+              <span
+                class="text-overflow text-left flex-grow-1 pointer-events-none"
+                >Видео</span
+              >
+            </button>
           </div>
-          <div class="form-toggle ml-2">
-            <input
-              class="form-toggle-input system-audio-checkbox"
-              type="checkbox"
-            />
-            <span class="form-toggle-label"></span>
+          <div class="flex-grow-1">
+            <button
+              class="btn btn-tab btn-tab-last btn--light justify-center items-center relative"
+              data-record-button="screenshot"
+            >
+              <div
+                class="flex-center-5 min-w-5 ml-1 mr-3 pointer-events-none"
+                style="margin-left: 10px"
+              >
+                <i class="i i--lg i-camera"></i>
+              </div>
+              <span
+                class="text-overflow text-left flex-grow-1 pointer-events-none"
+                >Снимок</span
+              >
+            </button>
           </div>
-        </label>
+        </div>
       </div>
-      <div>
-        <button type="button" id="startBtn" class="btn btn--primary">
-          Начать запись
-        </button>
+
+      <!-- Video tab -->
+      <div data-record-container="video">
+        <div class="tabs-container pt-3 pb-4 mb-4">
+          <div class="mb-3">
+            <div id="screen_settings_container"></div>
+          </div>
+          <div class="mb-3">
+            <div id="video_device_container"></div>
+          </div>
+          <div id="audio_device_container"></div>
+          <div class="mt-6 system-audio-container" hidden>
+            <label class="flex items-center">
+              <div class="flex-grow-1">
+                <div class="font-weight-600 text-md">
+                  Использовать системное аудио
+                </div>
+                <div class="text-xs text-gray-600">
+                  Записывайте аудио из других приложений на вашем устройстве
+                </div>
+              </div>
+              <div class="form-toggle ml-2">
+                <input
+                  class="form-toggle-input system-audio-checkbox"
+                  type="checkbox"
+                />
+                <span class="form-toggle-label"></span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div>
+          <button type="button" id="startBtn" class="btn btn--primary">
+            Начать запись
+          </button>
+        </div>
+      </div>
+
+      <!-- Screenshot tab -->
+      <div data-record-container="screenshot" hidden>
+        <div class="tabs-container pt-3 pb-4 mb-4">
+          <div class="mb-3">
+            <button
+              type="button"
+              class="btn btn--light hover-wrapper justify-start text-overflow pr-2"
+              data-screenshot-button="full"
+            >
+              <div
+                class="icon-wrapper flex-center-5 min-w-5 mr-3 pointer-events-none"
+              >
+                <i class="i relative i-display i--lg"></i>
+              </div>
+              <div
+                class="flex-grow-1 text-overflow text-left pointer-events-none"
+              >
+                <div class="text-overflow">Снимок всего экрана</div>
+                <div
+                  class="js-text-small fw-300 text-gray-600 text-xs text-overflow"
+                  data-text="screenshot-full"
+                ></div>
+              </div>
+              <div
+                class="ml-auto js-screenshot-not-allowed pointer-events-none hover-target fw-300 text-gray-600 text-xs text-overflow"
+                hidden
+              >
+                <span class="btn btn--sm btn--primary">Тарифы</span>
+              </div>
+            </button>
+          </div>
+          <div class="mb-0">
+            <button
+              type="button"
+              class="btn btn--light hover-wrapper justify-start text-overflow pr-2"
+              data-screenshot-button="crop"
+            >
+              <div
+                class="icon-wrapper flex-center-5 min-w-5 mr-3 pointer-events-none"
+              >
+                <i class="i relative i-expand-wide i--lg"></i>
+              </div>
+              <div
+                class="flex-grow-1 text-overflow text-left pointer-events-none"
+              >
+                <div class="text-overflow">Снимок области</div>
+                <div
+                  class="js-text-small fw-300 text-gray-600 text-xs text-overflow"
+                  data-text="screenshot-crop"
+                ></div>
+              </div>
+              <div
+                class="ml-auto js-screenshot-not-allowed pointer-events-none hover-target fw-300 text-gray-600 text-xs text-overflow"
+                hidden
+              >
+                <span class="btn btn--sm btn--primary">Тарифы</span>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -249,7 +361,7 @@
     <template id="screen_settings_tpl">
       <button
         type="button"
-        class="btn js-btn-action-type justify-start text-overflow"
+        class="btn btn--light js-btn-action-type justify-start text-overflow"
       >
         <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
           <i class="i relative i--lg"></i>
@@ -291,26 +403,26 @@
     </template>
 
     <template id="media_device_tpl">
-      <div class="mb-3">
-        <button class="btn justify-start text-overflow items-center relative">
-          <div
-            class="flex-center-5 pointer-events-none min-w-5 mr-3 relative z-10"
-          >
-            <i class="i i--lg"></i>
-          </div>
-          <span
-            class="text-overflow text-left flex-grow-1 pointer-events-none relative z-10"
-          ></span>
-          <label class="form-toggle relative z-10 ml-1" hidden>
-            <input
-              class="form-toggle-input media-device-checkbox"
-              type="checkbox"
-            />
-            <span class="form-toggle-label relative z-10"></span>
-          </label>
-          <canvas class="visualizer" hidden></canvas>
-        </button>
-      </div>
+      <button
+        class="btn btn--light justify-start text-overflow items-center relative"
+      >
+        <div
+          class="flex-center-5 pointer-events-none min-w-5 mr-3 relative z-10"
+        >
+          <i class="i i--lg"></i>
+        </div>
+        <span
+          class="text-overflow text-left flex-grow-1 pointer-events-none relative z-10"
+        ></span>
+        <label class="form-toggle relative z-10 ml-1" hidden>
+          <input
+            class="form-toggle-input media-device-checkbox"
+            type="checkbox"
+          />
+          <span class="form-toggle-label relative z-10"></span>
+        </label>
+        <canvas class="visualizer" hidden></canvas>
+      </button>
     </template>
     <script type="module" src="./src/modal-page.renderer.ts"></script>
   </body>

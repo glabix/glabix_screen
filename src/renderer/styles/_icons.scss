@@ -104,11 +104,14 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+.i-camera:before {
+  content: "\ea54";
+}
+.i-camera-viewfinder:before {
+  content: "\ea53";
+}
 .i-droplet:before {
   content: "\ea4e";
-}
-.i-rectangle-wide:before {
-  content: "\ea4f";
 }
 .i-ellipse:before {
   content: "\ea50";

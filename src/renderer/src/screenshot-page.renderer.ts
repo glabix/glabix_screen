@@ -3,7 +3,10 @@ import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { dataURLtoBlob } from "@shared/helpers/data-url-to-blob"
 import { getTitle } from "@shared/helpers/get-title"
-import { IScreenshotImageData } from "@shared/types/types"
+import {
+  IScreenshotImageData,
+  ScreenshotWindowEvents,
+} from "@shared/types/types"
 import Konva from "konva"
 import { Arrow } from "konva/lib/shapes/Arrow"
 import { Circle, CircleConfig } from "konva/lib/shapes/Circle"
@@ -242,7 +245,7 @@ const init = () => {
 init()
 
 window.electronAPI?.ipcRenderer?.on(
-  "screenshot:getImage",
+  ScreenshotWindowEvents.RENDER_IMAGE,
   (event, data: IScreenshotImageData) => {
     window.electronAPI?.ipcRenderer?.send(LoggerEvents.SEND_LOG, {
       title: "screenshot.getImage",
@@ -700,7 +703,10 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
   }
 
   if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
-    window.electronAPI.ipcRenderer.send("screenshot:copy", copyTrimStage())
+    window.electronAPI.ipcRenderer.send(
+      ScreenshotWindowEvents.COPY_IMAGE,
+      copyTrimStage()
+    )
   }
 
   switch (e.keyCode) {
@@ -831,7 +837,10 @@ const copyTrimStage = (): string => {
 copyBtn.addEventListener(
   "click",
   () => {
-    window.electronAPI.ipcRenderer.send("screenshot:copy", copyTrimStage())
+    window.electronAPI.ipcRenderer.send(
+      ScreenshotWindowEvents.COPY_IMAGE,
+      copyTrimStage()
+    )
   },
   false
 )

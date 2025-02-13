@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' *;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
     />
     <title>Авторизация</title>
   </head>
@@ -13,13 +13,7 @@
     <div class="wrapper">
       <div class="flex flex-col justify-between mt-10">
         <div class="mb-6 flex justify-center">
-          <img
-            id="recorder-logo"
-            src="assets/recorder-logo.svg"
-            width="270px"
-            height="32px"
-            alt="Glabix.Screen Logo"
-          />
+          <div id="recorder-logo" class="glabix-screen-logo"></div>
         </div>
         <div class="mb-10 flex flex-col items-center justify-center">
           <h2 class="text-lg font-weight-500 mb-3">Войдите в аккаунт</h2>
