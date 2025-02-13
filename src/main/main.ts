@@ -1272,8 +1272,10 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
 
 ipcMain.on(ScreenshotActionEvents.FULL, (event, data) => {
   hideWindows()
-  createScreenshot()
   mainWindow?.webContents.send(ScreenshotActionEvents.FULL, data)
+  setTimeout(() => {
+    createScreenshot()
+  }, 50)
 })
 
 ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {

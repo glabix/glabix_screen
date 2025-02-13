@@ -5,9 +5,11 @@
   z-index: 15;
 }
 
-body.is-panel-hidden .panel-wrapper {
+body.is-panel-hidden .panel-wrapper,
+body.is-panel-hidden .crop-screen-container,
+body.is-panel-hidden .moveable-container {
   pointer-events: none !important;
-  opacity: 0;
+  opacity: 0 !important;
 }
 
 body.is-dialog-open .panel-wrapper {

@@ -7,9 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const registrationLink = `${import.meta.env.VITE_AUTH_APP_URL}recorder/registration?protocol_scheme=${import.meta.env.VITE_PROTOCOL_SCHEME}`
   const authBtn = document.getElementById("auth-btn")!
   const registrationBtn = document.getElementById("registration-btn")!
-  const recorderLogo = document.getElementById(
-    "recorder-logo"
-  )! as HTMLImageElement
+  const recorderLogo = document.getElementById("recorder-logo")!
+  recorderLogo.classList.add(import.meta.env.VITE_MODE)
   authBtn.addEventListener("click", (event) => {
     event.preventDefault()
     window.api.openLinkInBrowser(authLink)
@@ -18,12 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault()
     window.api.openLinkInBrowser(registrationLink)
   })
-  if (import.meta.env.VITE_MODE === "dev") {
-    recorderLogo.src = "assets/recorder-logo-dev.svg"
-  }
-  if (import.meta.env.VITE_MODE === "review") {
-    recorderLogo.src = "assets/recorder-logo-review.svg"
-  }
 })
 
 // document.getElementById('loginForm').addEventListener('submit', (event) => {

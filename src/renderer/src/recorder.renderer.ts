@@ -973,7 +973,7 @@ window.electronAPI.ipcRenderer.on(
   (event, data: StreamSettings, file_uuid: string) => {
     currentRecordedUuid = file_uuid
     currentRecordChunksCount = 0
-
+    isRecording = true
     showCountdownScreen().then(() => {
       if (data.action == "cropVideo") {
         const screen = document.querySelector(

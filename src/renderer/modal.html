@@ -5,7 +5,7 @@
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' *;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;"
     />
     <title></title>
   </head>
@@ -80,12 +80,7 @@
 
     <div class="permissions-content" hidden>
       <div class="mb-6 flex justify-center">
-        <img
-          src="assets/recorder-logo.svg"
-          width="270px"
-          height="32px"
-          alt="Glabix.Screen Logo"
-        />
+        <div id="recorder-logo" class="glabix-screen-logo"></div>
       </div>
       <div class="text-center font-weight-600 mb-2 text-lg">
         Добро пожаловать в Глабикс Экран
@@ -201,10 +196,12 @@
               data-record-button="video"
             >
               <div
-                class="flex-center-5 min-w-5 mr-3 pointer-events-none"
+                class="flex-center-5 min-w-5 mr-3 pointer-events-none relative"
                 style="margin-left: 10px"
               >
-                <i class="i i-display i--lg"></i>
+                <i class="i i-display relative i--lg">
+                  <i class="icon-dot i-br"></i>
+                </i>
               </div>
               <span
                 class="text-overflow text-left flex-grow-1 pointer-events-none"
