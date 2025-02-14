@@ -27,6 +27,7 @@ let currentStream: MediaStream | undefined = undefined
 let moveable: Moveable | undefined = undefined
 let lastStreamSettings: StreamSettings | undefined = undefined
 let isRecording = false
+let isCountdown = false
 let isScreenshotMode = false
 
 function initMovable() {
@@ -153,18 +154,23 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
   isRecording = state["recordingState"] == "recording"
+  isCountdown = state["recordingState"] == "countdown"
 })
 
 window.electronAPI.ipcRenderer.on("app:hide", () => {
-  if (!isRecording) {
-    stopStream()
+  if (isRecording || isCountdown) {
+    return
   }
+
+  stopStream()
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
-  if (!isRecording) {
-    stopStream()
+  if (isRecording || isCountdown) {
+    return
   }
+
+  stopStream()
 })
 
 window.electronAPI.ipcRenderer.on(

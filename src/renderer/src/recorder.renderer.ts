@@ -530,7 +530,7 @@ const createVideo = (_stream, _canvas, _video) => {
   }
 }
 
-const updateRecorderState = (state: RecorderState | null) => {
+const updateRecorderState = (state: RecorderState | null | "countdown") => {
   const data: ISimpleStoreData = {
     key: "recordingState",
     value: state || undefined,
@@ -975,6 +975,7 @@ window.electronAPI.ipcRenderer.on(
     currentRecordedUuid = file_uuid
     currentRecordChunksCount = 0
     isRecording = true
+    updateRecorderState("countdown")
     showCountdownScreen().then(() => {
       if (data.action == "cropVideo") {
         const screen = document.querySelector(
@@ -995,7 +996,14 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  const isCountdown = state["recordingState"] == "countdown"
+
+  if (isCountdown) {
+    return
+  }
+
   isRecording = state["recordingState"] == "recording"
+
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "simpleStore.recordingState",
     body: JSON.stringify({ state: state["recordingState"] }),
