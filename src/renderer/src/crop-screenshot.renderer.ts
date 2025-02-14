@@ -106,20 +106,6 @@ canvas.addEventListener("mousemove", handleMouseMove, false)
 canvas.addEventListener("mouseup", handleMouseUp, false)
 // canvas.addEventListener('mouseout', handleMouseUp, false)
 
-// window.electronAPI.ipcRenderer.on(
-//   "dropdown:select.screenshot",
-//   (event, data: StreamSettings) => {
-//     if (data.action == "cropScreenshot") {
-//       canvas.width = window.innerWidth
-//       canvas.height = window.innerHeight
-//       initView()
-//       canvasContainer.removeAttribute("hidden")
-//     } else {
-//       canvasContainer.setAttribute("hidden", "")
-//     }
-//   }
-// )
-
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   canvas.width = window.innerWidth
   canvas.height = window.innerHeight
@@ -133,13 +119,6 @@ window.electronAPI.ipcRenderer.on(
     canvasContainer.setAttribute("hidden", "")
   }
 )
-
-// window.electronAPI.ipcRenderer.on(
-//   "dropdown:select.video",
-//   (event, data: StreamSettings) => {
-//     canvasContainer.setAttribute("hidden", "")
-//   }
-// )
 
 window.electronAPI.ipcRenderer.on(
   "screen:change",

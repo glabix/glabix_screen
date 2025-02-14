@@ -126,6 +126,7 @@ function resumeRecording() {
 }
 
 function cancelRecording() {
+  isRecording = false
   if (startTimer) {
     clearInterval(startTimer)
     currentRecordedUuid = null
@@ -1068,6 +1069,10 @@ window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
+  if (isRecording) {
+    return
+  }
+
   stopStreamTracks()
   document.body.classList.add("is-panel-hidden")
 })
