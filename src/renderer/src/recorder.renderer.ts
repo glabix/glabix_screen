@@ -13,6 +13,9 @@ import {
   StreamSettings,
   IDialogWindowCallbackData,
   HotkeysEvents,
+  ModalWindowEvents,
+  IModalWindowTabData,
+  ScreenshotActionEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
@@ -63,6 +66,7 @@ let currentRecordedUuid: string | null = null
 let currentRecordChunksCount = 0
 let cropVideoData: ICropVideoData | undefined = undefined
 let isDialogWindowOpen = false
+let isScreenshotMode = false
 let isRecording = false
 let isRecordCanceled = false
 let isRecordRestart = false
@@ -122,6 +126,7 @@ function resumeRecording() {
 }
 
 function cancelRecording() {
+  isRecording = false
   if (startTimer) {
     clearInterval(startTimer)
     currentRecordedUuid = null
@@ -133,7 +138,7 @@ function cancelRecording() {
     }
 
     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-    window.electronAPI.ipcRenderer.send("modal-window:open", {})
+    window.electronAPI.ipcRenderer.send(ModalWindowEvents.OPEN, {})
 
     stopStreamTracks()
     updateRecorderState(null)
@@ -887,20 +892,20 @@ function initRecord(data: StreamSettings) {
   }
 }
 
-window.electronAPI.ipcRenderer.on(
-  "dropdown:select.screenshot",
-  (event, data: StreamSettings) => {
-    if (isRecording) {
-      return
-    }
+// window.electronAPI.ipcRenderer.on(
+//   "dropdown:select.screenshot",
+//   (event, data: StreamSettings) => {
+//     if (isRecording) {
+//       return
+//     }
 
-    const settings: StreamSettings = lastStreamSettings
-      ? { ...lastStreamSettings, action: "fullScreenVideo" }
-      : { action: "fullScreenVideo" }
-    initRecord(settings)
-    lastStreamSettings = settings
-  }
-)
+//     const settings: StreamSettings = lastStreamSettings
+//       ? { ...lastStreamSettings, action: "fullScreenVideo" }
+//       : { action: "fullScreenVideo" }
+//     initRecord(settings)
+//     lastStreamSettings = settings
+//   }
+// )
 
 window.electronAPI.ipcRenderer.on(
   "record-settings-change",
@@ -969,7 +974,7 @@ window.electronAPI.ipcRenderer.on(
   (event, data: StreamSettings, file_uuid: string) => {
     currentRecordedUuid = file_uuid
     currentRecordChunksCount = 0
-
+    isRecording = true
     showCountdownScreen().then(() => {
       if (data.action == "cropVideo") {
         const screen = document.querySelector(
@@ -1027,7 +1032,10 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     initRecord(settings)
 
     lastStreamSettings = settings
-    window.electronAPI.ipcRenderer.send("modal-window:render", settings.action)
+    window.electronAPI.ipcRenderer.send(
+      ModalWindowEvents.RENDER,
+      settings.action
+    )
   }
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -1050,9 +1058,44 @@ window.electronAPI.ipcRenderer.on("app:hide", (event) => {
   stopStreamTracks()
 })
 
+window.electronAPI.ipcRenderer.on("app:show", () => {
+  if (!isScreenshotMode) {
+    document.body.classList.remove("is-panel-hidden")
+  }
+})
+
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
   videoRecorder?.requestData()
 })
+
+window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
+  if (isRecording) {
+    return
+  }
+
+  stopStreamTracks()
+  document.body.classList.add("is-panel-hidden")
+})
+
+window.electronAPI.ipcRenderer.on(
+  ModalWindowEvents.TAB,
+  (event, data: IModalWindowTabData) => {
+    if (data.activeTab == "screenshot") {
+      document.body.classList.add("is-panel-hidden")
+      stopStreamTracks()
+      clearView()
+      isScreenshotMode = true
+    }
+    if (data.activeTab == "video") {
+      document.body.classList.remove("is-panel-hidden")
+      isScreenshotMode = false
+      if (lastStreamSettings) {
+        initView(lastStreamSettings, true)
+        initRecord(lastStreamSettings)
+      }
+    }
+  }
+)
 
 window.electronAPI.ipcRenderer.on(
   HotkeysEvents.STOP_RECORDING,

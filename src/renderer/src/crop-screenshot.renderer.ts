@@ -1,5 +1,11 @@
 import { LoggerEvents } from "@shared/events/logger.events"
-import { StreamSettings } from "@shared/types/types"
+import {
+  IModalWindowTabData,
+  ModalWindowEvents,
+  ScreenshotActionEvents,
+  ScreenshotWindowEvents,
+  StreamSettings,
+} from "@shared/types/types"
 import { Display, Rectangle } from "electron"
 
 let canvasContainer = document.querySelector(
@@ -52,7 +58,7 @@ function handleMouseUp(e: MouseEvent) {
 
   setTimeout(() => {
     const crop = cropRect.width && cropRect.height ? cropRect : undefined
-    window.electronAPI.ipcRenderer.send("screenshot:create", crop)
+    window.electronAPI.ipcRenderer.send(ScreenshotWindowEvents.CREATE, crop)
     initView()
   }, 100)
 }
@@ -100,22 +106,16 @@ canvas.addEventListener("mousemove", handleMouseMove, false)
 canvas.addEventListener("mouseup", handleMouseUp, false)
 // canvas.addEventListener('mouseout', handleMouseUp, false)
 
+window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+  initView()
+  canvasContainer.removeAttribute("hidden")
+})
+
 window.electronAPI.ipcRenderer.on(
-  "dropdown:select.screenshot",
-  (event, data: StreamSettings) => {
-    if (data.action == "cropScreenshot") {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-      initView()
-      canvasContainer.removeAttribute("hidden")
-    } else {
-      canvasContainer.setAttribute("hidden", "")
-    }
-  }
-)
-window.electronAPI.ipcRenderer.on(
-  "dropdown:select.video",
-  (event, data: StreamSettings) => {
+  ModalWindowEvents.TAB,
+  (event, data: IModalWindowTabData) => {
     canvasContainer.setAttribute("hidden", "")
   }
 )

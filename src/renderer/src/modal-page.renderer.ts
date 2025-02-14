@@ -12,6 +12,9 @@ import {
   ModalWindowHeight,
   IAvatarData,
   SimpleStoreEvents,
+  ModalWindowEvents,
+  IModalWindowTabData,
+  ScreenshotActionEvents,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -79,35 +82,36 @@ let screenActionsList: IDropdownItem[] = [
       icon: "i-video",
     },
   },
-  {
-    id: "mode",
-    label: "Ещё",
-    isSelected: false,
-    extraData: {
-      btnClass: "dropdown-item-title",
-    },
-  },
-  {
-    id: "fullScreenshot",
-    label: "Снимок всего экрана",
-    isSelected: false,
-    extraData: {
-      isAllowed: true,
-      icon: "i-display",
-      smallText: isWindows ? "Alt+Shift+6" : "Option+Shift+6",
-    },
-  },
-  {
-    id: "cropScreenshot",
-    label: "Снимок области",
-    isSelected: false,
-    extraData: {
-      isAllowed: false,
-      icon: "i-expand-wide",
-      smallText: isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
-    },
-  },
+  // {
+  //   id: "mode",
+  //   label: "Ещё",
+  //   isSelected: false,
+  //   extraData: {
+  //     btnClass: "dropdown-item-title",
+  //   },
+  // },
+  // {
+  //   id: "fullScreenshot",
+  //   label: "Снимок всего экрана",
+  //   isSelected: false,
+  //   extraData: {
+  //     isAllowed: true,
+  //     icon: "i-display",
+  //     smallText: isWindows ? "Alt+Shift+6" : "Option+Shift+6",
+  //   },
+  // },
+  // {
+  //   id: "cropScreenshot",
+  //   label: "Снимок области",
+  //   isSelected: false,
+  //   extraData: {
+  //     isAllowed: false,
+  //     icon: "i-expand-wide",
+  //     smallText: isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
+  //   },
+  // },
 ]
+
 let activeScreenActionItem: IDropdownItem | undefined = screenActionsList[0]!
 let audioDevicesList: MediaDeviceInfo[] = []
 let activeAudioDevice: MediaDeviceInfo
@@ -115,9 +119,6 @@ let hasCamera = false
 let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
-let visualAudioSource: MediaStreamAudioSourceNode | null = null
-let visualAudioContext: AudioContext | null = null
-let visualAudioAnalyser: AnalyserNode | null = null
 let lastDeviceIds: IDeviceIds = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
@@ -140,6 +141,7 @@ let streamSettings: StreamSettings = {
   action: activeScreenAction,
   video: true,
 }
+let isScreenshotTab = false
 // const recorderLogos = document.querySelectorAll(
 //   ".recorder-logo"
 // ) as NodeListOf<HTMLElement>
@@ -151,6 +153,113 @@ let streamSettings: StreamSettings = {
 //     logo.style.color = "#01a0e3"
 //   }
 // })
+const TEXT_MAP = {
+  "screenshot-full": isWindows ? "Alt+Shift+6" : "Option+Shift+6",
+  "screenshot-crop": isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
+}
+
+const textEls = document.querySelectorAll(
+  "[data-text]"
+) as NodeListOf<HTMLElement>
+textEls.forEach((el) => {
+  const text = el.dataset.text
+  if (text) {
+    el.innerHTML = TEXT_MAP[text]
+  }
+})
+
+const tabButtons = document.querySelectorAll(
+  "[data-record-button]"
+) as NodeListOf<HTMLElement>
+const tabContainers = document.querySelectorAll(
+  "[data-record-container]"
+) as NodeListOf<HTMLElement>
+tabButtons.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as HTMLElement
+      const targetType = target.dataset.recordButton
+      const data = { activeTab: targetType } as IModalWindowTabData
+
+      if (
+        (isScreenshotTab && data.activeTab == "screenshot") ||
+        (!isScreenshotTab && data.activeTab == "video")
+      ) {
+        return
+      }
+
+      tabButtons.forEach((b) => {
+        b.classList.remove("selected")
+      })
+      tabContainers.forEach((c) => c.setAttribute("hidden", ""))
+      document
+        .querySelector(`[data-record-container="${targetType}"]`)
+        ?.removeAttribute("hidden")
+      target.classList.add("selected")
+
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "modal-window.tab.change",
+        body: targetType,
+      })
+
+      if (data.activeTab == "screenshot") {
+        stopVisualAudio()
+        isScreenshotTab = true
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+          alwaysOnTop: true,
+          width: 300,
+          height: ModalWindowHeight.SCREENSHOT_TAB,
+        })
+      }
+
+      if (data.activeTab == "video") {
+        initVisualAudio()
+        isScreenshotTab = false
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+          alwaysOnTop: true,
+          width: 300,
+          height: isWindows
+            ? ModalWindowHeight.MODAL_WIN
+            : ModalWindowHeight.MODAL_MAC,
+        })
+      }
+
+      window.electronAPI.ipcRenderer.send(ModalWindowEvents.TAB, data)
+    },
+    false
+  )
+})
+
+const screenshotButtons = document.querySelectorAll(
+  "[data-screenshot-button]"
+) as NodeListOf<HTMLButtonElement>
+screenshotButtons.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as HTMLButtonElement
+      const targetData = target.dataset.screenshotButton
+
+      if (!isAllowScreenshots) {
+        window.electronAPI.ipcRenderer.send(
+          "redirect:app",
+          "org/%orgId%/settings/payments"
+        )
+        return
+      }
+
+      if (targetData == "full") {
+        window.electronAPI.ipcRenderer.send(ScreenshotActionEvents.FULL)
+      }
+
+      if (targetData == "crop") {
+        window.electronAPI.ipcRenderer.send(ScreenshotActionEvents.CROP)
+      }
+    },
+    false
+  )
+})
 
 function getLastMediaDevices(): IDeviceIds {
   const lastDeviceIdsStr = localStorage.getItem(LAST_DEVICE_IDS)
@@ -639,17 +748,22 @@ window.electronAPI.ipcRenderer.on(
       })
 
       if (noCameraAccess || noMicrophoneAccess || noScreenAccess) {
-        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: false,
           width: 430,
           height: 500,
         })
         setPageView("permissions")
       } else {
-        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+        const height = isScreenshotTab
+          ? ModalWindowHeight.SCREENSHOT_TAB
+          : isWindows
+            ? ModalWindowHeight.MODAL_WIN
+            : ModalWindowHeight.MODAL_MAC
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
           width: 300,
-          height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
+          height: height,
         })
 
         setPageView("modal")
@@ -728,28 +842,28 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-window.electronAPI.ipcRenderer.on(
-  "dropdown:select.screenshot",
-  (event, data: IDropdownPageSelectData) => {
-    if (isRecording) {
-      return
-    }
+// window.electronAPI.ipcRenderer.on(
+//   "dropdown:select.screenshot",
+//   (event, data: IDropdownPageSelectData) => {
+//     if (isRecording) {
+//       return
+//     }
 
-    activeScreenActionItem = screenActionsList[0]!
-    streamSettings = {
-      ...streamSettings,
-      action: "fullScreenVideo",
-      ...activeScreenActionItem,
-    }
-    renderScreenSettings(activeScreenActionItem)
-    sendSettings()
-  }
-)
+//     activeScreenActionItem = screenActionsList[0]!
+//     streamSettings = {
+//       ...streamSettings,
+//       action: "fullScreenVideo",
+//       ...activeScreenActionItem,
+//     }
+//     renderScreenSettings(activeScreenActionItem)
+//     sendSettings()
+//   }
+// )
 
-window.electronAPI.ipcRenderer.on("modal-window:show", (event) => {
+window.electronAPI.ipcRenderer.on(ModalWindowEvents.SHOW, (event) => {
   initVisualAudio()
 })
-window.electronAPI.ipcRenderer.on("modal-window:hide", (event) => {
+window.electronAPI.ipcRenderer.on(ModalWindowEvents.HIDE, (event) => {
   openedDropdownType = undefined
   isAllowRecords = undefined
 })
@@ -761,7 +875,7 @@ window.electronAPI.ipcRenderer.on("dropdown:hide", (event) => {
   openedDropdownType = undefined
 })
 
-window.electronAPI.ipcRenderer.on("modal-window:render", (event, action) => {
+window.electronAPI.ipcRenderer.on(ModalWindowEvents.RENDER, (event, action) => {
   const item = screenActionsList.find((i) => i.id == action)
   activeScreenAction = action
   activeScreenActionItem = item
@@ -774,17 +888,14 @@ window.electronAPI.ipcRenderer.on(
   (event, limits: IOrganizationLimits) => {
     isAllowRecords = limits.upload_allowed
     isAllowScreenshots = limits.allow_screenshots
-
-    screenActionsList = screenActionsList.map((item) => {
-      const notAllowed =
-        ["fullScreenshot", "cropScreenshot"].includes(item.id) &&
-        !isAllowScreenshots
-      return {
-        ...item,
-        extraData: {
-          ...item.extraData,
-          isAllowed: !notAllowed,
-        },
+    screenshotButtons.forEach((btn) => {
+      const b = btn.querySelector(".js-screenshot-not-allowed")
+      if (isAllowScreenshots) {
+        btn.classList.remove("disabled")
+        b?.setAttribute("hidden", "")
+      } else {
+        btn.classList.add("disabled")
+        b?.removeAttribute("hidden")
       }
     })
 
@@ -1113,17 +1224,22 @@ profileToggleBtn.forEach((btn) => {
     () => {
       if (["modal", "limits"].includes(activePageView)) {
         setPageView("profile")
-        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
           width: 300,
           height: ModalWindowHeight.PROFILE,
         })
       } else {
         setPageView("modal")
-        window.electronAPI.ipcRenderer.send("modal-window:resize", {
+        const height = isScreenshotTab
+          ? ModalWindowHeight.SCREENSHOT_TAB
+          : isWindows
+            ? ModalWindowHeight.MODAL_WIN
+            : ModalWindowHeight.MODAL_MAC
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
           width: 300,
-          height: isWindows ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
+          height: height,
         })
       }
     },

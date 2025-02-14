@@ -41,6 +41,10 @@ import {
   IDialogWindowData,
   IDialogWindowCallbackData,
   HotkeysEvents,
+  ModalWindowEvents,
+  IModalWindowTabData,
+  ScreenshotWindowEvents,
+  ScreenshotActionEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -400,15 +404,10 @@ function registerShortCuts() {
     const isRecording = (store.get() as any).recordingState == "recording"
 
     if (isScreenshotAllowed) {
-      const data = {
-        action: "cropScreenshot",
-      }
-
       if (!isRecording) {
         const cursorPosition = screen.getCursorScreenPoint()
         activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
         mainWindow.webContents.send("screen:change", activeDisplay)
-
         modalWindow.hide()
         mainWindow.setBounds(activeDisplay.bounds)
         mainWindow.show()
@@ -416,8 +415,7 @@ function registerShortCuts() {
         mainWindow.focusOnWebView()
       }
 
-      mainWindow.webContents.send("dropdown:select.screenshot", data)
-      modalWindow.webContents.send("dropdown:select.screenshot", data)
+      mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
     }
   })
 }
@@ -660,7 +658,9 @@ function createModal(parentWindow) {
     resizable: false,
     width: 300,
     height:
-      os.platform() == "win32" ? ModalWindowHeight.WIN : ModalWindowHeight.MAC,
+      os.platform() == "win32"
+        ? ModalWindowHeight.MODAL_WIN
+        : ModalWindowHeight.MODAL_MAC,
     show: false,
     alwaysOnTop: true,
     parent: parentWindow,
@@ -676,11 +676,11 @@ function createModal(parentWindow) {
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   modalWindow.on("show", () => {
-    modalWindow.webContents.send("modal-window:show")
+    modalWindow.webContents.send(ModalWindowEvents.SHOW)
   })
 
   modalWindow.on("hide", () => {
-    modalWindow.webContents.send("modal-window:hide")
+    modalWindow.webContents.send(ModalWindowEvents.HIDE)
     dropdownWindow.hide()
     checkOrganizationLimits()
   })
@@ -915,7 +915,10 @@ function createScreenshotWindow(dataURL: string) {
   }
 
   screenshotWindow.webContents.on("did-finish-load", () => {
-    screenshotWindow.webContents.send("screenshot:getImage", imageData)
+    screenshotWindow.webContents.send(
+      ScreenshotWindowEvents.RENDER_IMAGE,
+      imageData
+    )
     screenshotWindow.setBounds(bounds)
     screenshotWindow.show()
     screenshotWindow.moveTop()
@@ -1139,19 +1142,31 @@ ipcMain.on("draw:end", (event, data) => {
   isDrawActive = false
 })
 
-ipcMain.on("modal-window:render", (event, data) => {
+ipcMain.on(ModalWindowEvents.RENDER, (event, data) => {
   if (modalWindow) {
-    modalWindow.webContents.send("modal-window:render", data)
+    modalWindow.webContents.send(ModalWindowEvents.RENDER, data)
   }
 })
-ipcMain.on("modal-window:open", (event, data) => {
+ipcMain.on(ModalWindowEvents.TAB, (event, data: IModalWindowTabData) => {
+  if (mainWindow) {
+    mainWindow.webContents.send(ModalWindowEvents.TAB, data)
+    if (data.activeTab == "video") {
+      mainWindow.focus()
+    }
+  }
+
+  if (dropdownWindow) {
+    dropdownWindow.hide()
+  }
+})
+ipcMain.on(ModalWindowEvents.OPEN, (event, data) => {
   if (modalWindow) {
     modalWindow.show()
   }
 })
 
 ipcMain.on(
-  "modal-window:resize",
+  ModalWindowEvents.RESIZE,
   (event, data: { width: number; height: number; alwaysOnTop: boolean }) => {
     if (modalWindow) {
       modalWindow.setBounds({ width: data.width, height: data.height })
@@ -1199,19 +1214,19 @@ ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   dropdownWindow.hide()
 
   // Screenshot actions
-  if (data.action == "cropScreenshot") {
-    modalWindow.hide()
-    mainWindow.focus()
-    mainWindow.webContents.send("dropdown:select.screenshot", data)
-    modalWindow.webContents.send("dropdown:select.screenshot", data)
-  } else if (data.action == "fullScreenshot") {
-    hideWindows()
-    createScreenshot()
-    mainWindow.webContents.send("dropdown:select.screenshot", data)
-    modalWindow.webContents.send("dropdown:select.screenshot", data)
-  } else {
-    modalWindow.webContents.send("dropdown:select.video", data)
-  }
+  // if (data.action == "cropScreenshot") {
+  //   modalWindow.hide()
+  //   mainWindow.focus()
+  //   mainWindow.webContents.send("dropdown:select.screenshot", data)
+  //   modalWindow.webContents.send("dropdown:select.screenshot", data)
+  // } else if (data.action == "fullScreenshot") {
+  //   hideWindows()
+  //   createScreenshot()
+  //   mainWindow.webContents.send("dropdown:select.screenshot", data)
+  //   modalWindow.webContents.send("dropdown:select.screenshot", data)
+  // } else {
+  // }
+  modalWindow.webContents.send("dropdown:select.video", data)
 })
 
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
@@ -1255,13 +1270,30 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   }
 })
 
-ipcMain.on("screenshot:copy", (event, imgDataUrl: string) => {
+ipcMain.on(ScreenshotActionEvents.FULL, (event, data) => {
+  hideWindows()
+  mainWindow?.webContents.send(ScreenshotActionEvents.FULL, data)
+  setTimeout(() => {
+    createScreenshot()
+  }, 50)
+})
+
+ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {
+  modalWindow?.hide()
+  mainWindow?.focus()
+  mainWindow?.webContents.send(ScreenshotActionEvents.CROP, data)
+})
+
+ipcMain.on(ScreenshotWindowEvents.COPY_IMAGE, (event, imgDataUrl: string) => {
   const image = nativeImage.createFromDataURL(imgDataUrl)
   clipboard.writeImage(image)
 })
-ipcMain.on("screenshot:create", (event, crop: Rectangle | undefined) => {
-  createScreenshot(crop)
-})
+ipcMain.on(
+  ScreenshotWindowEvents.CREATE,
+  (event, crop: Rectangle | undefined) => {
+    createScreenshot(crop)
+  }
+)
 ipcMain.on(APIEvents.UPLOAD_SCREENSHOT, (event, data) => {
   const file = dataURLToFile(data.dataURL, data.fileName)
   uploadScreenshotCommand(

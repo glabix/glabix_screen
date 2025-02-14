@@ -3,7 +3,12 @@ import { KonvaPointerEvent } from "konva/lib/PointerEvents"
 import Konva from "konva"
 import Moveable, { MoveableRefTargetType, MoveableRefType } from "moveable"
 import { LoggerEvents } from "@shared/events/logger.events"
-import { DialogWindowEvents, HotkeysEvents } from "@shared/types/types"
+import {
+  DialogWindowEvents,
+  HotkeysEvents,
+  IModalWindowTabData,
+  ModalWindowEvents,
+} from "@shared/types/types"
 
 const COUNTDOWN_DELAY = 2000
 
@@ -16,6 +21,7 @@ class Draw {
   laserStrokeWidth = 5
   panelDraw = document.querySelector("#panel-draw")
   drawToggle = document.querySelector("#draw-btn")
+  isScreenshotMode = false
 
   constructor() {
     this.setListeners()
@@ -58,7 +64,25 @@ class Draw {
       this.drawEnd()
     })
 
+    window.electronAPI.ipcRenderer.on(
+      ModalWindowEvents.TAB,
+      (event, data: IModalWindowTabData) => {
+        this.drawEnd()
+
+        if (data.activeTab == "screenshot") {
+          this.isScreenshotMode = true
+        }
+        if (data.activeTab == "video") {
+          this.isScreenshotMode = false
+        }
+      }
+    )
+
     window.electronAPI.ipcRenderer.on(HotkeysEvents.DRAW, () => {
+      if (this.isScreenshotMode) {
+        return
+      }
+
       if (this.stage) {
         this.drawEnd()
       } else {
