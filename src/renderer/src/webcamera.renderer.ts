@@ -155,14 +155,6 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
   isRecording = state["recordingState"] == "recording"
 })
 
-// window.electronAPI.ipcRenderer.on("dropdown:select.screenshot", () => {
-//   if (isRecording) {
-//     return
-//   }
-
-//   isScreenshotMode = true
-// })
-
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   if (!isRecording) {
     stopStream()
@@ -170,7 +162,9 @@ window.electronAPI.ipcRenderer.on("app:hide", () => {
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
-  stopStream()
+  if (!isRecording) {
+    stopStream()
+  }
 })
 
 window.electronAPI.ipcRenderer.on(
