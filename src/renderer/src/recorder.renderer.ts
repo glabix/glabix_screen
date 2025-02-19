@@ -24,14 +24,18 @@ import { LoggerEvents } from "@shared/events/logger.events"
 import { captureVideoFrame } from "./helpers/capture-video-frame"
 import { RecordEvents } from "../../shared/events/record.events"
 import { Rectangle } from "electron"
+import {
+  IUserSettingsShortcut,
+  UserSettingsEvents,
+} from "@shared/types/user-settings.types"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
-const TEXT_MAP = {
-  stop: isWindows ? "Ctrl+Shift+L" : "Cmd+Shift+L",
-  pause: isWindows ? "Alt+Shift+P" : "Option+Shift+P",
-  restart: isWindows ? "Ctrl+Shift+R" : "Cmd+Shift+R",
-  delete: isWindows ? "Alt+Shift+С" : "Option+Shift+С",
-  draw: isWindows ? "Ctrl+Shift+D" : "Cmd+Shift+D",
+let SHORTCUTS_TEXT_MAP = {
+  // [HotkeysEvents.STOP_RECORDING]: isWindows ? "Ctrl+Shift+L" : "Cmd+Shift+L",
+  // pause: isWindows ? "Alt+Shift+P" : "Option+Shift+P",
+  // restart: isWindows ? "Ctrl+Shift+R" : "Cmd+Shift+R",
+  // delete: isWindows ? "Alt+Shift+С" : "Option+Shift+С",
+  // draw: isWindows ? "Ctrl+Shift+D" : "Cmd+Shift+D",
 }
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
@@ -1155,6 +1159,23 @@ window.electronAPI.ipcRenderer.on(
     })
   }
 )
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.SHORTCUTS_GET,
+  (event, data: IUserSettingsShortcut[]) => {
+    data.forEach((s) => {
+      SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
+    })
+
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `
+      !!!!!!!!!!!!!!!!!!${UserSettingsEvents.SHORTCUTS_GET}
+    `,
+      body: JSON.stringify(SHORTCUTS_TEXT_MAP),
+    })
+
+    updateHotkeysTexts()
+  }
+)
 
 const controlBtns = controlPanel.querySelectorAll("button")
 const popovers = document.querySelectorAll(".popover")
@@ -1206,14 +1227,19 @@ window.addEventListener("unhandledrejection", (event) => {
   })
 })
 
-window.addEventListener("DOMContentLoaded", (event) => {
+function updateHotkeysTexts() {
   const textEls = document.querySelectorAll(
     "[data-text]"
   ) as NodeListOf<HTMLElement>
   textEls.forEach((el) => {
     const text = el.dataset.text
     if (text) {
-      el.innerHTML = TEXT_MAP[text]
+      if (SHORTCUTS_TEXT_MAP[text]) {
+        el.removeAttribute("hidden")
+        el.innerHTML = SHORTCUTS_TEXT_MAP[text]
+      } else {
+        el.setAttribute("hidden", "")
+      }
     }
   })
-})
+}

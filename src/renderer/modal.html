@@ -28,6 +28,105 @@
       </button>
     </div>
 
+    <!-- SETTINGS -->
+    <div class="settings-content h-full" hidden>
+      <!-- Root -->
+      <div class="h-full" data-settings-container="root">
+        <div class="flex flex-col no-drag h-full">
+          <div class="mb-4">
+            <div class="flex gap-2 items-center">
+              <div
+                class="flex-center-5 min-w-5 cursor-pointer js-to-modal-page"
+              >
+                <i class="i i--lg i-chevron-left pointer-events-none"></i>
+              </div>
+              <div class="flex-grow-1 text-center text-overflow fw-500 text-lg">
+                Настройки
+              </div>
+              <div class="flex-center-5"></div>
+            </div>
+          </div>
+          <div class="flex-grow-1">
+            <button
+              type="button"
+              class="settings-tab"
+              data-settings-tab="shortCuts"
+            >
+              <div class="flex items-center pointer-events-none">
+                <div class="flex-center-5 mr-4 min-w-5">
+                  <i class="i i--lg i-keyboard"></i>
+                </div>
+                <div class="flex-grow-1 text-overflow fw-500">
+                  Горячие клавиши
+                </div>
+                <div class="flex-center-5">
+                  <i class="i i--lg i-chevron-right"></i>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ShortCuts -->
+      <template id="shortcut_settings_tpl">
+        <div class="settings-section">
+          <div class="flex gap-1 items-center">
+            <div class="flex-grow-1 fw-500"><span></span></div>
+            <div>
+              <div class="settings-shortcut-input-wrapper">
+                <input
+                  class="settings-shortcut-input"
+                  type="text"
+                  value=""
+                  readonly
+                  data-shortcut-input=""
+                  data-shortcut-name=""
+                />
+                <input
+                  class="settings-shortcut-checkbox"
+                  type="checkbox"
+                  data-shortcut-name=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <div class="h-full" data-settings-container="shortCuts" hidden>
+        <div class="flex flex-col no-drag h-full">
+          <div class="mb-4">
+            <div class="flex gap-2 items-center">
+              <div
+                class="flex-center-5 min-w-5 cursor-pointer"
+                data-settings-tab="root"
+              >
+                <i class="i i--lg i-chevron-left pointer-events-none"></i>
+              </div>
+              <div class="flex-grow-1 text-center text-overflow fw-500 text-lg">
+                Горячие клавиши
+              </div>
+              <div class="flex-center-5"></div>
+            </div>
+          </div>
+          <div class="flex-grow-1" id="shortcut_settings_container">
+            <!-- <div class="settings-section">
+              <div class="flex gap-1 items-center">
+                <div class="flex-grow-1 fw-500">Скриншот выбранной области</div>
+                <div>
+                  <div class="settings-shortcut-input-wrapper">
+                    <input class="settings-shortcut-input" type="text" value="Option+Shift+0" readonly data-shortcut-input="Option+Shift+0">
+                    <input type="checkbox">
+                  </div>
+                </div>
+              </div>
+            </div> -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIMITS -->
     <div class="limits-content" hidden>
       <div class="mb-6 pl-2 pr-2 profile-container js-profile-toggle-btn"></div>
       <div class="text-center font-weight-600 mb-6 text-lg">
@@ -337,10 +436,21 @@
       <div class="log-out">
         <button
           type="button"
+          class="btn js-settings-btn justify-start text-overflow bg-transparent border-transparent"
+        >
+          <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
+            <i class="i i-gear"></i>
+          </div>
+          <span class="text-overflow text-left pointer-events-none flex-grow-1"
+            >Настройки</span
+          >
+        </button>
+        <button
+          type="button"
           class="btn js-logout-btn justify-start text-overflow bg-transparent border-transparent"
         >
           <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
-            <i class="i i i-arrow-right-from-bracket"></i>
+            <i class="i i-arrow-right-from-bracket"></i>
           </div>
           <span class="text-overflow text-left pointer-events-none flex-grow-1"
             >Выйти из аккаунта</span
