@@ -212,6 +212,14 @@ body {
   padding: 0.75rem 0;
   border-bottom: solid 1px var(--gray-300);
 }
+.settings-section.is-disabled {
+  color: var(--gray-600);
+}
+
+.settings-scrollbox {
+  max-height: calc(100% - 30px);
+  overflow-y: auto;
+}
 
 .settings-shortcut-input-wrapper {
   border: solid 1px var(--gray-300);
@@ -220,7 +228,7 @@ body {
   position: relative;
   display: inline-block;
 
-  input[type="checkbox"] {
+  .form-check {
     position: absolute;
     top: 0.25rem;
     right: 0.5rem;
@@ -229,7 +237,11 @@ body {
   input[type="text"] {
     outline: none !important;
     font-size: 12px;
-    width: 80px;
-    text-align: center;
+    width: 85px;
+
+    .settings-section.is-disabled & {
+      color: var(--gray-600);
+      pointer-events: none;
+    }
   }
 }

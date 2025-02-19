@@ -33,6 +33,7 @@ export enum ModalWindowHeight {
   MODAL_MAC = 460,
   SCREENSHOT_TAB = 335,
   PROFILE = 500,
+  SETTINGS = 500,
 }
 
 export interface IAppState {
@@ -199,6 +200,7 @@ export interface IDialogWindowParams {
 }
 
 export enum HotkeysEvents {
+  // Recorder Panel
   START_RECORDING = "hotkeys:recording:start",
   STOP_RECORDING = "hotkeys:recording:stop",
   PAUSE_RECORDING = "hotkeys:recording:pause",
@@ -206,4 +208,8 @@ export enum HotkeysEvents {
   RESTART_RECORDING = "hotkeys:recording:restart",
   DELETE_RECORDING = "hotkeys:recording:delete",
   DRAW = "hotkeys:draw",
+
+  // Screenshots
+  FULL_SCREENSHOT = "hotkeys:screenshot:full",
+  CROP_SCREENSHOT = "hotkeys:screenshot:crop",
 }

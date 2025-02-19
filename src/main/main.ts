@@ -82,10 +82,7 @@ import {
 import { MigrateOldStorageUnprocessed } from "../services/migrate-old-storage-unprocessed"
 import { MigrateOldStoragePrepared } from "../services/migrate-old-storage-prepared"
 import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
-import {
-  getUserShortcutsSettings,
-  GLOBAL_SHORTCUTS_MAP,
-} from "./helpers/hotkeys.map"
+import { getUserShortcutsSettings } from "./helpers/hotkeys.map"
 import eStore from "./helpers/electron-store.helper"
 import {
   IUserSettingsShortcut,
@@ -394,37 +391,58 @@ if (!gotTheLock) {
       }
     )
 
-    registerShortCuts()
+    registerUserShortCuts()
   })
 }
 
-function registerShortCuts() {
-  // Fullscreen Screenshot
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+6"], () => {
-    if (isScreenshotAllowed) {
-      const cursorPosition = screen.getCursorScreenPoint()
-      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-      createScreenshot()
-    }
+function unregisterUserShortCuts() {
+  const userShortcuts = getUserShortcutsSettings(
+    eStore.get(UserSettingsKeys.SHORT_CUTS)
+  ).filter((s) => s.actionState == "app:run")
+  userShortcuts.forEach((us) => {
+    globalShortcut.unregister(us.keyCodes)
   })
+}
 
-  // Crop Screenshot
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+5"], () => {
-    const isRecording = (store.get() as any).recordingState == "recording"
+function registerUserShortCuts() {
+  const userShortcuts = getUserShortcutsSettings(
+    eStore.get(UserSettingsKeys.SHORT_CUTS)
+  ).filter((s) => s.actionState == "app:run")
 
-    if (isScreenshotAllowed) {
-      if (!isRecording) {
-        const cursorPosition = screen.getCursorScreenPoint()
-        activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-        mainWindow.webContents.send("screen:change", activeDisplay)
-        modalWindow.hide()
-        mainWindow.setBounds(activeDisplay.bounds)
-        mainWindow.show()
-        mainWindow.focus()
-        mainWindow.focusOnWebView()
+  userShortcuts.forEach((us) => {
+    if (!us.disabled) {
+      // Fullscreen Screenshot
+      if (us.name == HotkeysEvents.FULL_SCREENSHOT) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isScreenshotAllowed) {
+            const cursorPosition = screen.getCursorScreenPoint()
+            activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+            createScreenshot()
+          }
+        })
       }
 
-      mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
+      // Crop Screenshot
+      if (us.name == HotkeysEvents.CROP_SCREENSHOT) {
+        globalShortcut.register(us.keyCodes, () => {
+          const isRecording = (store.get() as any).recordingState == "recording"
+
+          if (isScreenshotAllowed) {
+            if (!isRecording) {
+              const cursorPosition = screen.getCursorScreenPoint()
+              activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+              mainWindow.webContents.send("screen:change", activeDisplay)
+              modalWindow.hide()
+              mainWindow.setBounds(activeDisplay.bounds)
+              mainWindow.show()
+              mainWindow.focus()
+              mainWindow.focusOnWebView()
+            }
+
+            mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
+          }
+        })
+      }
     }
   })
 }
@@ -432,23 +450,82 @@ function registerShortCuts() {
 function unregisterUserShortCutsOnShow() {
   const userShortcuts = getUserShortcutsSettings(
     eStore.get(UserSettingsKeys.SHORT_CUTS)
-  )
+  ).filter((s) => s.actionState == "app:visible")
+
   userShortcuts.forEach((us) => {
     globalShortcut.unregister(us.keyCodes)
   })
-  // globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+r"])
-  // globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+d"])
-  // globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["option+shift+p"])
-  // globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["option+shift+c"])
 }
+
 function registerUserShortCutsOnShow() {
   const userShortcuts = getUserShortcutsSettings(
     eStore.get(UserSettingsKeys.SHORT_CUTS)
-  )
+  ).filter((s) => s.actionState == "app:visible")
   userShortcuts.forEach((us) => {
     if (!us.disabled) {
+      // Stop/Start Recording
+      if (us.name == HotkeysEvents.STOP_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen) {
+            return
+          }
+
+          const isRecording = (store.get() as any).recordingState == "recording"
+          if (isRecording) {
+            mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
+          } else {
+            // mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
+          }
+        })
+      }
+
+      // Pause/Resume Recording
+      if (us.name == HotkeysEvents.PAUSE_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen) {
+            return
+          }
+
+          const state = (store.get() as any).recordingState
+          if (state == "recording") {
+            mainWindow?.webContents.send(HotkeysEvents.PAUSE_RECORDING)
+          }
+          if (state == "paused") {
+            mainWindow?.webContents.send(HotkeysEvents.RESUME_RECORDING)
+          }
+        })
+      }
+
+      // Restart Recording
+      if (us.name == HotkeysEvents.RESTART_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen) {
+            return
+          }
+
+          const state = (store.get() as any).recordingState
+          if (["recording", "paused"].includes(state)) {
+            mainWindow?.webContents.send(HotkeysEvents.RESTART_RECORDING)
+          }
+        })
+      }
+
+      // Delete Recording
+      if (us.name == HotkeysEvents.DELETE_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen) {
+            return
+          }
+
+          const state = (store.get() as any).recordingState
+          if (["recording", "paused"].includes(state)) {
+            mainWindow?.webContents.send(HotkeysEvents.DELETE_RECORDING)
+          }
+        })
+      }
+
+      // Toggle Draw
       if (us.name == HotkeysEvents.DRAW) {
-        // Toggle Draw
         globalShortcut.register(us.keyCodes, () => {
           if (isDialogWindowOpen) {
             return
@@ -463,58 +540,6 @@ function registerUserShortCutsOnShow() {
       }
     }
   })
-  // // Stop/Start Recording
-  // globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+l"], () => {
-  //   if (isDialogWindowOpen) {
-  //     return
-  //   }
-
-  //   const isRecording = (store.get() as any).recordingState == "recording"
-  //   if (isRecording) {
-  //     mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
-  //   } else {
-  //     // mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
-  //   }
-  // })
-
-  // // Pause/Resume Recording
-  // globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+p"], () => {
-  //   if (isDialogWindowOpen) {
-  //     return
-  //   }
-
-  //   const state = (store.get() as any).recordingState
-  //   if (state == "recording") {
-  //     mainWindow?.webContents.send(HotkeysEvents.PAUSE_RECORDING)
-  //   }
-  //   if (state == "paused") {
-  //     mainWindow?.webContents.send(HotkeysEvents.RESUME_RECORDING)
-  //   }
-  // })
-
-  // // Restart Recording
-  // globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+r"], () => {
-  //   if (isDialogWindowOpen) {
-  //     return
-  //   }
-
-  //   const state = (store.get() as any).recordingState
-  //   if (["recording", "paused"].includes(state)) {
-  //     mainWindow?.webContents.send(HotkeysEvents.RESTART_RECORDING)
-  //   }
-  // })
-
-  // // Delete Recording
-  // globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+c"], () => {
-  //   if (isDialogWindowOpen) {
-  //     return
-  //   }
-
-  //   const state = (store.get() as any).recordingState
-  //   if (["recording", "paused"].includes(state)) {
-  //     mainWindow?.webContents.send(HotkeysEvents.DELETE_RECORDING)
-  //   }
-  // })
 }
 
 function registerShortCutsOnShow() {
@@ -1189,6 +1214,10 @@ ipcMain.on(
     logSender.sendLog("settings.shortcuts.update", stringify({ data }))
     unregisterUserShortCutsOnShow()
     registerUserShortCutsOnShow()
+
+    unregisterUserShortCuts()
+    registerUserShortCuts()
+
     modalWindow?.webContents.send(
       UserSettingsEvents.SHORTCUTS_GET,
       getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
@@ -1277,20 +1306,6 @@ ipcMain.on("dropdown:close", (event, data) => {
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   dropdownWindow.hide()
-
-  // Screenshot actions
-  // if (data.action == "cropScreenshot") {
-  //   modalWindow.hide()
-  //   mainWindow.focus()
-  //   mainWindow.webContents.send("dropdown:select.screenshot", data)
-  //   modalWindow.webContents.send("dropdown:select.screenshot", data)
-  // } else if (data.action == "fullScreenshot") {
-  //   hideWindows()
-  //   createScreenshot()
-  //   mainWindow.webContents.send("dropdown:select.screenshot", data)
-  //   modalWindow.webContents.send("dropdown:select.screenshot", data)
-  // } else {
-  // }
   modalWindow.webContents.send("dropdown:select.video", data)
 })
 

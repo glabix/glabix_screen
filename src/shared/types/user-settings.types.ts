@@ -2,6 +2,7 @@ export interface IUserSettingsShortcut {
   disabled: boolean
   name: string
   keyCodes: string
+  actionState: "app:run" | "app:visible"
 }
 
 export enum UserSettingsEvents {
@@ -10,7 +11,7 @@ export enum UserSettingsEvents {
 }
 
 export enum UserSettingsKeys {
-  SHORT_CUTS = "shortCuts",
+  SHORT_CUTS = "shortcuts",
 }
 
 export interface IUserSettings {

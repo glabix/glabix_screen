@@ -30,13 +30,7 @@ import {
 } from "@shared/types/user-settings.types"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
-let SHORTCUTS_TEXT_MAP = {
-  // [HotkeysEvents.STOP_RECORDING]: isWindows ? "Ctrl+Shift+L" : "Cmd+Shift+L",
-  // pause: isWindows ? "Alt+Shift+P" : "Option+Shift+P",
-  // restart: isWindows ? "Ctrl+Shift+R" : "Cmd+Shift+R",
-  // delete: isWindows ? "Alt+Shift+С" : "Option+Shift+С",
-  // draw: isWindows ? "Ctrl+Shift+D" : "Cmd+Shift+D",
-}
+let SHORTCUTS_TEXT_MAP = {}
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
 )!
@@ -1165,14 +1159,6 @@ window.electronAPI.ipcRenderer.on(
     data.forEach((s) => {
       SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
     })
-
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: `
-      !!!!!!!!!!!!!!!!!!${UserSettingsEvents.SHORTCUTS_GET}
-    `,
-      body: JSON.stringify(SHORTCUTS_TEXT_MAP),
-    })
-
     updateHotkeysTexts()
   }
 )

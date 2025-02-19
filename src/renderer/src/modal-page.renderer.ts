@@ -40,7 +40,16 @@ interface IDeviceIds {
   audioId?: string
   systemAudio?: boolean
 }
-
+const SETTINGS_SHORT_CUTS_LOCALES = {
+  [HotkeysEvents.FULL_SCREENSHOT]: "Скриншот всего экрана",
+  [HotkeysEvents.CROP_SCREENSHOT]: "Скриншот выбранной области",
+  [HotkeysEvents.STOP_RECORDING]: "Остановка видео",
+  [HotkeysEvents.PAUSE_RECORDING]: "Пауза/отмена паузы видео",
+  [HotkeysEvents.RESTART_RECORDING]: "Перезапуск записи",
+  [HotkeysEvents.DELETE_RECORDING]: "Отмена записи",
+  [HotkeysEvents.DRAW]: "Вкл./выкл. лазерной указки",
+}
+let SHORTCUTS_TEXT_MAP = {}
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
 const ACCOUNT_DATA = "ACCOUNT_DATA"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
@@ -125,20 +134,6 @@ let streamSettings: StreamSettings = {
   video: true,
 }
 let isScreenshotTab = false
-const TEXT_MAP = {
-  "screenshot-full": isWindows ? "Alt+Shift+6" : "Option+Shift+6",
-  "screenshot-crop": isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
-}
-
-const textEls = document.querySelectorAll(
-  "[data-text]"
-) as NodeListOf<HTMLElement>
-textEls.forEach((el) => {
-  const text = el.dataset.text
-  if (text) {
-    el.innerHTML = TEXT_MAP[text]
-  }
-})
 
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
@@ -1199,13 +1194,10 @@ settingsBtn.addEventListener(
   () => {
     setPageView("settings")
     showSettingsTab("root")
-    const height = isWindows
-      ? ModalWindowHeight.MODAL_WIN
-      : ModalWindowHeight.MODAL_MAC
     window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
       alwaysOnTop: true,
       width: ModalWindowWidth.SETTINGS,
-      height: height,
+      height: ModalWindowHeight.SETTINGS,
     })
   },
   false
@@ -1271,10 +1263,6 @@ organizationContainer.addEventListener(
   },
   false
 )
-
-const SETTINGS_SHORT_CUTS_LOCALES = {
-  [HotkeysEvents.DRAW]: "Вкл./выкл. лазерной указки",
-}
 
 function renderShortcutSettings(shortcut: IUserSettingsShortcut): HTMLElement {
   const template = document.querySelector(
@@ -1370,6 +1358,33 @@ window.electronAPI.ipcRenderer.on(
     })
   }
 )
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.SHORTCUTS_GET,
+  (event, data: IUserSettingsShortcut[]) => {
+    data.forEach((s) => {
+      SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
+    })
+    updateHotkeysTexts()
+  }
+)
+
+function updateHotkeysTexts() {
+  const textEls = document.querySelectorAll(
+    "[data-text]"
+  ) as NodeListOf<HTMLElement>
+  textEls.forEach((el) => {
+    const text = el.dataset.text
+    if (text) {
+      if (SHORTCUTS_TEXT_MAP[text]) {
+        el.removeAttribute("hidden")
+        el.innerHTML = SHORTCUTS_TEXT_MAP[text]
+      } else {
+        el.setAttribute("hidden", "")
+      }
+    }
+  })
+}
 
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {

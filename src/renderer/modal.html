@@ -47,23 +47,25 @@
             </div>
           </div>
           <div class="flex-grow-1">
-            <button
-              type="button"
-              class="settings-tab"
-              data-settings-tab="shortCuts"
-            >
-              <div class="flex items-center pointer-events-none">
-                <div class="flex-center-5 mr-4 min-w-5">
-                  <i class="i i--lg i-keyboard"></i>
+            <div class="settings-scrollbox">
+              <button
+                type="button"
+                class="settings-tab"
+                data-settings-tab="shortCuts"
+              >
+                <div class="flex items-center pointer-events-none">
+                  <div class="flex-center-5 mr-3 min-w-5">
+                    <i class="i i-keyboard"></i>
+                  </div>
+                  <div class="flex-grow-1 text-overflow fw-500">
+                    Горячие клавиши
+                  </div>
+                  <div class="flex-center-5">
+                    <i class="i i--lg i-chevron-right"></i>
+                  </div>
                 </div>
-                <div class="flex-grow-1 text-overflow fw-500">
-                  Горячие клавиши
-                </div>
-                <div class="flex-center-5">
-                  <i class="i i--lg i-chevron-right"></i>
-                </div>
-              </div>
-            </button>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -83,11 +85,14 @@
                   data-shortcut-input=""
                   data-shortcut-name=""
                 />
-                <input
-                  class="settings-shortcut-checkbox"
-                  type="checkbox"
-                  data-shortcut-name=""
-                />
+                <div class="form-check cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="settings-shortcut-checkbox"
+                    data-shortcut-name=""
+                  />
+                  <div class="form-check-text"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -109,7 +114,11 @@
               <div class="flex-center-5"></div>
             </div>
           </div>
-          <div class="flex-grow-1" id="shortcut_settings_container">
+          <div class="flex-grow-1">
+            <div
+              class="settings-scrollbox"
+              id="shortcut_settings_container"
+            ></div>
             <!-- <div class="settings-section">
               <div class="flex gap-1 items-center">
                 <div class="flex-grow-1 fw-500">Скриншот выбранной области</div>
@@ -385,7 +394,7 @@
                 <div class="text-overflow">Снимок всего экрана</div>
                 <div
                   class="js-text-small fw-300 text-gray-600 text-xs text-overflow"
-                  data-text="screenshot-full"
+                  data-text="hotkeys:screenshot:full"
                 ></div>
               </div>
               <div
@@ -413,7 +422,7 @@
                 <div class="text-overflow">Снимок области</div>
                 <div
                   class="js-text-small fw-300 text-gray-600 text-xs text-overflow"
-                  data-text="screenshot-crop"
+                  data-text="hotkeys:screenshot:crop"
                 ></div>
               </div>
               <div

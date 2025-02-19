@@ -59,3 +59,68 @@ label,
     transform: translateX(-100%);
   }
 }
+
+.form-check {
+  // - Common styles
+  & {
+    display: flex;
+    position: relative;
+    width: fit-content;
+    cursor: pointer;
+  }
+
+  input {
+    appearance: button;
+    opacity: 0;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    cursor: pointer;
+  }
+  // input:disabled {
+  //   cursor: default;
+  // }
+
+  &-text {
+    display: flex;
+    gap: 0.75rem;
+    cursor: pointer;
+  }
+
+  input:disabled + &-text {
+    color: var(--gray-400);
+  }
+
+  input:focus-visible + &-text {
+    outline: 1px dotted currentColor;
+    outline-offset: 1px;
+  }
+
+  &-text:before {
+    font-family: "glabix-iconset" !important;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    padding: 0 1px;
+  }
+
+  // - Radio styles
+  input[type="radio"] + &-text:before {
+    content: "\e98b"; // .i-circle
+  }
+
+  input[type="radio"]:checked + &-text:before {
+    content: "\e984"; // .i-dot-circle
+    color: var(--primary);
+  }
+
+  // - Checkbox styles
+  input[type="checkbox"] + &-text:before {
+    content: "\e9d2"; // .i-square
+  }
+
+  input[type="checkbox"]:checked + &-text:before {
+    content: "\e9d0"; // .i-check-square
+  }
+}
