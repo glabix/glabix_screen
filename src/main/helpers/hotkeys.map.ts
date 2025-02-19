@@ -19,7 +19,7 @@ export const DEFAULT_SHORTCUTS: IUserSettingsShortcut[] = [
   {
     name: HotkeysEvents.DRAW,
     keyCodes: os.platform() == "darwin" ? "Cmd+Shift+D" : "Ctrl+Shift+D",
-    disabled: true,
+    disabled: false,
   },
 ]
 
