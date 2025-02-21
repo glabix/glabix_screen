@@ -45,6 +45,7 @@ import {
   IModalWindowTabData,
   ScreenshotWindowEvents,
   ScreenshotActionEvents,
+  ModalWindowWidth,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -81,7 +82,13 @@ import {
 import { MigrateOldStorageUnprocessed } from "../services/migrate-old-storage-unprocessed"
 import { MigrateOldStoragePrepared } from "../services/migrate-old-storage-prepared"
 import { checkOrganizationLimits } from "../shared/helpers/check-organization-limits"
-import { GLOBAL_SHORTCUTS_MAP } from "./helpers/hotkeys.map"
+import { getUserShortcutsSettings } from "./helpers/hotkeys.map"
+import eStore from "./helpers/electron-store.helper"
+import {
+  IUserSettingsShortcut,
+  UserSettingsEvents,
+  UserSettingsKeys,
+} from "@shared/types/user-settings.types"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -89,6 +96,7 @@ let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
 let isDialogWindowOpen = false
+let isHotkeysLocked = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -105,7 +113,6 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 
 const logSender = new LogSender(TokenStorage)
-
 const appState = new AppState()
 const store = new SimpleStore()
 
@@ -385,121 +392,175 @@ if (!gotTheLock) {
       }
     )
 
-    registerShortCuts()
+    registerUserShortCuts()
   })
 }
 
-function registerShortCuts() {
-  // Fullscreen Screenshot
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+6"], () => {
-    if (isScreenshotAllowed) {
-      const cursorPosition = screen.getCursorScreenPoint()
-      activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-      createScreenshot()
-    }
+function unregisterUserShortCuts() {
+  const userShortcuts = getUserShortcutsSettings(
+    eStore.get(UserSettingsKeys.SHORT_CUTS)
+  ).filter((s) => s.actionState == "app:run")
+  userShortcuts.forEach((us) => {
+    globalShortcut.unregister(us.keyCodes)
   })
+}
 
-  // Crop Screenshot
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+5"], () => {
-    const isRecording = (store.get() as any).recordingState == "recording"
+function registerUserShortCuts() {
+  const userShortcuts = getUserShortcutsSettings(
+    eStore.get(UserSettingsKeys.SHORT_CUTS)
+  ).filter((s) => s.actionState == "app:run")
 
-    if (isScreenshotAllowed) {
-      if (!isRecording) {
-        const cursorPosition = screen.getCursorScreenPoint()
-        activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-        mainWindow.webContents.send("screen:change", activeDisplay)
-        modalWindow.hide()
-        mainWindow.setBounds(activeDisplay.bounds)
-        mainWindow.show()
-        mainWindow.focus()
-        mainWindow.focusOnWebView()
+  userShortcuts.forEach((us) => {
+    if (!us.disabled) {
+      // Fullscreen Screenshot
+      if (us.name == HotkeysEvents.FULL_SCREENSHOT) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isHotkeysLocked) {
+            return
+          }
+
+          if (isScreenshotAllowed) {
+            const cursorPosition = screen.getCursorScreenPoint()
+            activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+            createScreenshot()
+          }
+        })
       }
 
-      mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
+      // Crop Screenshot
+      if (us.name == HotkeysEvents.CROP_SCREENSHOT) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isHotkeysLocked) {
+            return
+          }
+
+          const isRecording = (store.get() as any).recordingState == "recording"
+
+          if (isScreenshotAllowed) {
+            if (!isRecording) {
+              const cursorPosition = screen.getCursorScreenPoint()
+              activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+              mainWindow.webContents.send("screen:change", activeDisplay)
+              modalWindow.hide()
+              mainWindow.setBounds(activeDisplay.bounds)
+              mainWindow.show()
+              mainWindow.focus()
+              mainWindow.focusOnWebView()
+            }
+
+            mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
+          }
+        })
+      }
+    }
+  })
+}
+
+function unregisterUserShortCutsOnShow() {
+  const userShortcuts = getUserShortcutsSettings(
+    eStore.get(UserSettingsKeys.SHORT_CUTS)
+  ).filter((s) => s.actionState == "app:visible")
+
+  userShortcuts.forEach((us) => {
+    globalShortcut.unregister(us.keyCodes)
+  })
+}
+
+function registerUserShortCutsOnShow() {
+  const userShortcuts = getUserShortcutsSettings(
+    eStore.get(UserSettingsKeys.SHORT_CUTS)
+  ).filter((s) => s.actionState == "app:visible")
+  userShortcuts.forEach((us) => {
+    if (!us.disabled) {
+      // Stop/Start Recording
+      if (us.name == HotkeysEvents.STOP_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen || isHotkeysLocked) {
+            return
+          }
+
+          const isRecording = (store.get() as any).recordingState == "recording"
+          if (isRecording) {
+            mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
+          } else {
+            // mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
+          }
+        })
+      }
+
+      // Pause/Resume Recording
+      if (us.name == HotkeysEvents.PAUSE_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen || isHotkeysLocked) {
+            return
+          }
+
+          const state = (store.get() as any).recordingState
+          if (state == "recording") {
+            mainWindow?.webContents.send(HotkeysEvents.PAUSE_RECORDING)
+          }
+          if (state == "paused") {
+            mainWindow?.webContents.send(HotkeysEvents.RESUME_RECORDING)
+          }
+        })
+      }
+
+      // Restart Recording
+      if (us.name == HotkeysEvents.RESTART_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen || isHotkeysLocked) {
+            return
+          }
+
+          const state = (store.get() as any).recordingState
+          if (["recording", "paused"].includes(state)) {
+            mainWindow?.webContents.send(HotkeysEvents.RESTART_RECORDING)
+          }
+        })
+      }
+
+      // Delete Recording
+      if (us.name == HotkeysEvents.DELETE_RECORDING) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen || isHotkeysLocked) {
+            return
+          }
+
+          const state = (store.get() as any).recordingState
+          if (["recording", "paused"].includes(state)) {
+            mainWindow?.webContents.send(HotkeysEvents.DELETE_RECORDING)
+          }
+        })
+      }
+
+      // Toggle Draw
+      if (us.name == HotkeysEvents.DRAW) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isDialogWindowOpen || isHotkeysLocked) {
+            return
+          }
+
+          mainWindow?.webContents.send(HotkeysEvents.DRAW)
+
+          if (isDrawActive && os.platform() == "win32") {
+            mainWindow?.blur()
+          }
+        })
+      }
     }
   })
 }
 
 function registerShortCutsOnShow() {
-  globalShortcut.register("Command+H", () => {
+  globalShortcut.register("Cmd+H", () => {
     hideWindows()
-  })
-
-  // Stop/Start Recording
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+l"], () => {
-    if (isDialogWindowOpen) {
-      return
-    }
-
-    const isRecording = (store.get() as any).recordingState == "recording"
-    if (isRecording) {
-      mainWindow?.webContents.send(HotkeysEvents.STOP_RECORDING)
-    } else {
-      // mainWindow?.webContents.send(HotkeysEvents.START_RECORDING)
-    }
-  })
-
-  // Pause/Resume Recording
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+p"], () => {
-    if (isDialogWindowOpen) {
-      return
-    }
-
-    const state = (store.get() as any).recordingState
-    if (state == "recording") {
-      mainWindow?.webContents.send(HotkeysEvents.PAUSE_RECORDING)
-    }
-    if (state == "paused") {
-      mainWindow?.webContents.send(HotkeysEvents.RESUME_RECORDING)
-    }
-  })
-
-  // Restart Recording
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+r"], () => {
-    if (isDialogWindowOpen) {
-      return
-    }
-
-    const state = (store.get() as any).recordingState
-    if (["recording", "paused"].includes(state)) {
-      mainWindow?.webContents.send(HotkeysEvents.RESTART_RECORDING)
-    }
-  })
-
-  // Delete Recording
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["option+shift+c"], () => {
-    if (isDialogWindowOpen) {
-      return
-    }
-
-    const state = (store.get() as any).recordingState
-    if (["recording", "paused"].includes(state)) {
-      mainWindow?.webContents.send(HotkeysEvents.DELETE_RECORDING)
-    }
-  })
-
-  // Toggle Draw
-  globalShortcut.register(GLOBAL_SHORTCUTS_MAP["cmd+shift+d"], () => {
-    if (isDialogWindowOpen) {
-      return
-    }
-
-    mainWindow?.webContents.send(HotkeysEvents.DRAW)
-
-    if (isDrawActive && os.platform() == "win32") {
-      mainWindow?.blur()
-    }
   })
 }
 
 function unregisterShortCutsOnHide() {
-  globalShortcut.unregister("Command+H")
-  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+l"])
-  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+r"])
-  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["cmd+shift+d"])
-  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["option+shift+p"])
-  globalShortcut.unregister(GLOBAL_SHORTCUTS_MAP["option+shift+c"])
+  globalShortcut.unregister("Cmd+H")
 }
+HotkeysEvents.GLOBAL_PAUSE
 
 function loadAccountData() {
   if (!TokenStorage.token || !TokenStorage.organizationId) {
@@ -656,7 +717,7 @@ function createModal(parentWindow) {
     fullscreenable: false,
     maximizable: false,
     resizable: false,
-    width: 300,
+    width: ModalWindowWidth.MODAL,
     height:
       os.platform() == "win32"
         ? ModalWindowHeight.MODAL_WIN
@@ -675,14 +736,15 @@ function createModal(parentWindow) {
   })
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-  modalWindow.on("show", () => {
-    modalWindow.webContents.send(ModalWindowEvents.SHOW)
-  })
 
   modalWindow.on("hide", () => {
     modalWindow.webContents.send(ModalWindowEvents.HIDE)
     dropdownWindow.hide()
     checkOrganizationLimits()
+    modalWindow.webContents.send(
+      "mediaDevicesAccess:get",
+      getMediaDevicesAccess()
+    )
   })
   modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send(
@@ -692,9 +754,18 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
     loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
+    modalWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+    mainWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
   })
 
   modalWindow.on("show", () => {
+    modalWindow.webContents.send(ModalWindowEvents.SHOW)
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
@@ -703,6 +774,14 @@ function createModal(parentWindow) {
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
     loadAccountData()
+    modalWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+    mainWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
   })
 
   modalWindow.on("blur", () => {})
@@ -724,6 +803,7 @@ function createModal(parentWindow) {
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
+    loadAccountData()
   })
 
   createDropdownWindow(modalWindow)
@@ -932,6 +1012,7 @@ function showWindows() {
 
   logSender.sendLog("app.activated")
   registerShortCutsOnShow()
+  registerUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
     if (mainWindow) {
       mainWindow.show()
@@ -949,6 +1030,7 @@ function showWindows() {
 function hideWindows() {
   logSender.sendLog("app.disactivated")
   unregisterShortCutsOnHide()
+  unregisterUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
     if (mainWindow) mainWindow.hide()
     if (modalWindow) modalWindow.hide()
@@ -1135,6 +1217,44 @@ ipcMain.on("change-organization", (event, orgId: number) => {
   ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
 })
 
+ipcMain.on(
+  UserSettingsEvents.SHORTCUTS_SET,
+  (event, data: IUserSettingsShortcut[]) => {
+    eStore.set(UserSettingsKeys.SHORT_CUTS, data)
+    logSender.sendLog("settings.shortcuts.update", stringify({ data }))
+    unregisterUserShortCutsOnShow()
+    registerUserShortCutsOnShow()
+
+    unregisterUserShortCuts()
+    registerUserShortCuts()
+
+    modalWindow?.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+    mainWindow?.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+  }
+)
+
+ipcMain.on(
+  UserSettingsEvents.SHORTCUTS_UNREGISTER,
+  (event, shortcut: string) => {
+    if (globalShortcut.isRegistered(shortcut)) {
+      globalShortcut.unregister(shortcut)
+    }
+  }
+)
+
+ipcMain.on(HotkeysEvents.GLOBAL_PAUSE, (event, data) => {
+  isHotkeysLocked = true
+})
+ipcMain.on(HotkeysEvents.GLOBAL_RESUME, (event, data) => {
+  isHotkeysLocked = false
+})
+
 ipcMain.on("draw:start", (event, data) => {
   isDrawActive = true
 })
@@ -1212,20 +1332,6 @@ ipcMain.on("dropdown:close", (event, data) => {
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   dropdownWindow.hide()
-
-  // Screenshot actions
-  // if (data.action == "cropScreenshot") {
-  //   modalWindow.hide()
-  //   mainWindow.focus()
-  //   mainWindow.webContents.send("dropdown:select.screenshot", data)
-  //   modalWindow.webContents.send("dropdown:select.screenshot", data)
-  // } else if (data.action == "fullScreenshot") {
-  //   hideWindows()
-  //   createScreenshot()
-  //   mainWindow.webContents.send("dropdown:select.screenshot", data)
-  //   modalWindow.webContents.send("dropdown:select.screenshot", data)
-  // } else {
-  // }
   modalWindow.webContents.send("dropdown:select.video", data)
 })
 

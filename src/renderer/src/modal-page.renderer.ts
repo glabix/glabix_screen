@@ -15,33 +15,54 @@ import {
   ModalWindowEvents,
   IModalWindowTabData,
   ScreenshotActionEvents,
+  ModalWindowWidth,
+  HotkeysEvents,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { RecordEvents } from "../../shared/events/record.events"
 import { Palette } from "@shared/helpers/palette"
 import { debounce } from "@shared/helpers/debounce"
+import {
+  IUserSettingsShortcut,
+  UserSettingsEvents,
+} from "@shared/types/user-settings.types"
+import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
+type SettingsTabType = "root" | "shortCuts"
 type PageViewType =
   | "modal"
   | "permissions"
   | "limits"
   | "no-microphone"
   | "profile"
+  | "settings"
 interface IDeviceIds {
   videoId?: string
   audioId?: string
   systemAudio?: boolean
 }
-
+const SETTINGS_SHORT_CUTS_LOCALES = {
+  [HotkeysEvents.FULL_SCREENSHOT]: "Скриншот всего экрана",
+  [HotkeysEvents.CROP_SCREENSHOT]: "Скриншот выбранной области",
+  [HotkeysEvents.STOP_RECORDING]: "Остановка видео",
+  [HotkeysEvents.PAUSE_RECORDING]: "Пауза/отмена паузы видео",
+  [HotkeysEvents.RESTART_RECORDING]: "Перезапуск записи",
+  [HotkeysEvents.DELETE_RECORDING]: "Отмена записи",
+  [HotkeysEvents.DRAW]: "Вкл./выкл. лазерной указки",
+}
+let SHORTCUTS_TEXT_MAP = {}
+const shortcutsUpdater = new ShortcutsUpdater()
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
 const ACCOUNT_DATA = "ACCOUNT_DATA"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
 let isAllowScreenshots: boolean | undefined = undefined
 let activePageView: PageViewType
+let activeSettingTab: SettingsTabType = "root"
 let openedDropdownType: DropdownListType | undefined = undefined
 const modalContent = document.querySelector(".modal-content")!
 const profileContent = document.querySelector(".profile-content")!
+const settingsContent = document.querySelector(".settings-content")!
 const permissionsContent = document.querySelector(".permissions-content")!
 const limitsContent = document.querySelector(".limits-content")!
 const noMicrophoneContent = document.querySelector(".no-microphone-content")!
@@ -82,34 +103,6 @@ let screenActionsList: IDropdownItem[] = [
       icon: "i-video",
     },
   },
-  // {
-  //   id: "mode",
-  //   label: "Ещё",
-  //   isSelected: false,
-  //   extraData: {
-  //     btnClass: "dropdown-item-title",
-  //   },
-  // },
-  // {
-  //   id: "fullScreenshot",
-  //   label: "Снимок всего экрана",
-  //   isSelected: false,
-  //   extraData: {
-  //     isAllowed: true,
-  //     icon: "i-display",
-  //     smallText: isWindows ? "Alt+Shift+6" : "Option+Shift+6",
-  //   },
-  // },
-  // {
-  //   id: "cropScreenshot",
-  //   label: "Снимок области",
-  //   isSelected: false,
-  //   extraData: {
-  //     isAllowed: false,
-  //     icon: "i-expand-wide",
-  //     smallText: isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
-  //   },
-  // },
 ]
 
 let activeScreenActionItem: IDropdownItem | undefined = screenActionsList[0]!
@@ -142,31 +135,6 @@ let streamSettings: StreamSettings = {
   video: true,
 }
 let isScreenshotTab = false
-// const recorderLogos = document.querySelectorAll(
-//   ".recorder-logo"
-// ) as NodeListOf<HTMLElement>
-// recorderLogos.forEach((logo) => {
-//   if (import.meta.env.VITE_MODE === "dev") {
-//     logo.style.color = "#d91615"
-//   }
-//   if (import.meta.env.VITE_MODE === "review") {
-//     logo.style.color = "#01a0e3"
-//   }
-// })
-const TEXT_MAP = {
-  "screenshot-full": isWindows ? "Alt+Shift+6" : "Option+Shift+6",
-  "screenshot-crop": isWindows ? "Ctrl+Shift+5" : "Cmd+Shift+5",
-}
-
-const textEls = document.querySelectorAll(
-  "[data-text]"
-) as NodeListOf<HTMLElement>
-textEls.forEach((el) => {
-  const text = el.dataset.text
-  if (text) {
-    el.innerHTML = TEXT_MAP[text]
-  }
-})
 
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
@@ -208,7 +176,7 @@ tabButtons.forEach((btn) => {
         isScreenshotTab = true
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
-          width: 300,
+          width: ModalWindowWidth.MODAL,
           height: ModalWindowHeight.SCREENSHOT_TAB,
         })
       }
@@ -218,7 +186,7 @@ tabButtons.forEach((btn) => {
         isScreenshotTab = false
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
-          width: 300,
+          width: ModalWindowWidth.MODAL,
           height: isWindows
             ? ModalWindowHeight.MODAL_WIN
             : ModalWindowHeight.MODAL_MAC,
@@ -682,6 +650,7 @@ function setPageView(view: PageViewType) {
     permissionsContent,
     limitsContent,
     noMicrophoneContent,
+    settingsContent,
   ]
   const footer = document.querySelector("#footer")!
   sections.forEach((s) => s.setAttribute("hidden", ""))
@@ -709,6 +678,9 @@ function setPageView(view: PageViewType) {
       break
     case "profile":
       profileContent.removeAttribute("hidden")
+      break
+    case "settings":
+      settingsContent.removeAttribute("hidden")
       break
   }
 }
@@ -762,11 +734,18 @@ window.electronAPI.ipcRenderer.on(
             : ModalWindowHeight.MODAL_MAC
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
-          width: 300,
+          width: ModalWindowWidth.MODAL,
           height: height,
         })
 
         setPageView("modal")
+        // setPageView("settings")
+        // showSettingsTab("shortCuts")
+        // window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+        //   alwaysOnTop: true,
+        //   width: ModalWindowWidth.SETTINGS,
+        //   height: ModalWindowHeight.SETTINGS,
+        // })
         // setPageView("no-microphone")
       }
     })
@@ -1216,6 +1195,38 @@ logoutBtn.addEventListener(
   },
   false
 )
+const settingsBtn = document.querySelector(".js-settings-btn")!
+settingsBtn.addEventListener(
+  "click",
+  () => {
+    setPageView("settings")
+    showSettingsTab("root")
+    window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+      alwaysOnTop: true,
+      width: ModalWindowWidth.SETTINGS,
+      height: ModalWindowHeight.SETTINGS,
+    })
+  },
+  false
+)
+const toModalPageBtn = document.querySelector(".js-to-modal-page")!
+toModalPageBtn.addEventListener(
+  "click",
+  () => {
+    setPageView("modal")
+    const height = isScreenshotTab
+      ? ModalWindowHeight.SCREENSHOT_TAB
+      : isWindows
+        ? ModalWindowHeight.MODAL_WIN
+        : ModalWindowHeight.MODAL_MAC
+    window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+      alwaysOnTop: true,
+      width: ModalWindowWidth.MODAL,
+      height: height,
+    })
+  },
+  false
+)
 
 const profileToggleBtn = document.querySelectorAll(".js-profile-toggle-btn")
 profileToggleBtn.forEach((btn) => {
@@ -1226,7 +1237,7 @@ profileToggleBtn.forEach((btn) => {
         setPageView("profile")
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
-          width: 300,
+          width: ModalWindowWidth.MODAL,
           height: ModalWindowHeight.PROFILE,
         })
       } else {
@@ -1238,7 +1249,7 @@ profileToggleBtn.forEach((btn) => {
             : ModalWindowHeight.MODAL_MAC
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
-          width: 300,
+          width: ModalWindowWidth.MODAL,
           height: height,
         })
       }
@@ -1259,6 +1270,104 @@ organizationContainer.addEventListener(
   },
   false
 )
+
+// Shortcuts
+function renderShortcutSettings(shortcut: IUserSettingsShortcut): HTMLElement {
+  const template = document.querySelector(
+    "#shortcut_settings_tpl"
+  )! as HTMLTemplateElement
+  const clone = template.content.cloneNode(true) as HTMLElement
+  const section = clone.querySelector(".settings-section")!
+  const title = clone.querySelector("span")!
+  const checkbox = clone.querySelector(
+    "input[type='checkbox']"
+  )! as HTMLInputElement
+  const input = clone.querySelector("input[type='text']")! as HTMLInputElement
+
+  title.innerHTML = SETTINGS_SHORT_CUTS_LOCALES[shortcut.name]
+  checkbox.checked = !shortcut.disabled
+  input.value = shortcut.keyCodes
+
+  input.dataset.shortcutValue = shortcut.keyCodes
+  input.dataset.shortcutName = shortcut.name
+  checkbox.dataset.shortcutName = shortcut.name
+
+  section.classList.toggle("is-disabled", shortcut.disabled)
+
+  return clone
+}
+
+function showSettingsTab(tab: SettingsTabType) {
+  const settingsTabContainers = document.querySelectorAll(
+    "[data-settings-container]"
+  )
+  const activeTabContainer = document.querySelector(
+    `[data-settings-container="${tab}"]`
+  )
+  activeSettingTab = tab
+  settingsTabContainers.forEach((c) => c.setAttribute("hidden", ""))
+  activeTabContainer?.removeAttribute("hidden")
+}
+const settingsTabBtn = document.querySelectorAll("[data-settings-tab]")
+settingsTabBtn.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as HTMLButtonElement
+      const tab = target.dataset.settingsTab as SettingsTabType
+      showSettingsTab(tab)
+    },
+    false
+  )
+})
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.SHORTCUTS_GET,
+  (event, data: IUserSettingsShortcut[]) => {
+    const shortCutsContainer = document.querySelector(
+      "#shortcut_settings_container"
+    )! as HTMLElement
+    shortCutsContainer.innerHTML = ""
+    data.forEach((s) => {
+      shortCutsContainer.appendChild(renderShortcutSettings(s))
+    })
+
+    const inputs = document.querySelectorAll(
+      ".settings-shortcut-input"
+    ) as NodeListOf<HTMLInputElement>
+    const checkboxes = document.querySelectorAll(
+      ".settings-shortcut-checkbox"
+    ) as NodeListOf<HTMLInputElement>
+    shortcutsUpdater.bindEvents(inputs, checkboxes, data)
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.SHORTCUTS_GET,
+  (event, data: IUserSettingsShortcut[]) => {
+    data.forEach((s) => {
+      SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
+    })
+    updateHotkeysTexts()
+  }
+)
+
+function updateHotkeysTexts() {
+  const textEls = document.querySelectorAll(
+    "[data-text]"
+  ) as NodeListOf<HTMLElement>
+  textEls.forEach((el) => {
+    const text = el.dataset.text
+    if (text) {
+      if (SHORTCUTS_TEXT_MAP[text]) {
+        el.removeAttribute("hidden")
+        el.innerHTML = SHORTCUTS_TEXT_MAP[text]
+      } else {
+        el.setAttribute("hidden", "")
+      }
+    }
+  })
+}
 
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
