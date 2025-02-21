@@ -212,4 +212,8 @@ export enum HotkeysEvents {
   // Screenshots
   FULL_SCREENSHOT = "hotkeys:screenshot:full",
   CROP_SCREENSHOT = "hotkeys:screenshot:crop",
+
+  // Pause/Resume hotkeys
+  GLOBAL_PAUSE = "hotkeys:global:pause",
+  GLOBAL_RESUME = "hotkeys:global:resume",
 }

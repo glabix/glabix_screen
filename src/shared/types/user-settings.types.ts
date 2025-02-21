@@ -8,6 +8,7 @@ export interface IUserSettingsShortcut {
 export enum UserSettingsEvents {
   SHORTCUTS_GET = "settings:shortcuts:get",
   SHORTCUTS_SET = "settings:shortcuts:set",
+  SHORTCUTS_UNREGISTER = "settings:shortcuts:unregister",
 }
 
 export enum UserSettingsKeys {

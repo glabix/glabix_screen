@@ -96,6 +96,7 @@ let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
 let isDialogWindowOpen = false
+let isHotkeysLocked = false
 let mainWindow: BrowserWindow
 let modalWindow: BrowserWindow
 let loginWindow: BrowserWindow
@@ -414,6 +415,10 @@ function registerUserShortCuts() {
       // Fullscreen Screenshot
       if (us.name == HotkeysEvents.FULL_SCREENSHOT) {
         globalShortcut.register(us.keyCodes, () => {
+          if (isHotkeysLocked) {
+            return
+          }
+
           if (isScreenshotAllowed) {
             const cursorPosition = screen.getCursorScreenPoint()
             activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
@@ -425,6 +430,10 @@ function registerUserShortCuts() {
       // Crop Screenshot
       if (us.name == HotkeysEvents.CROP_SCREENSHOT) {
         globalShortcut.register(us.keyCodes, () => {
+          if (isHotkeysLocked) {
+            return
+          }
+
           const isRecording = (store.get() as any).recordingState == "recording"
 
           if (isScreenshotAllowed) {
@@ -466,7 +475,7 @@ function registerUserShortCutsOnShow() {
       // Stop/Start Recording
       if (us.name == HotkeysEvents.STOP_RECORDING) {
         globalShortcut.register(us.keyCodes, () => {
-          if (isDialogWindowOpen) {
+          if (isDialogWindowOpen || isHotkeysLocked) {
             return
           }
 
@@ -482,7 +491,7 @@ function registerUserShortCutsOnShow() {
       // Pause/Resume Recording
       if (us.name == HotkeysEvents.PAUSE_RECORDING) {
         globalShortcut.register(us.keyCodes, () => {
-          if (isDialogWindowOpen) {
+          if (isDialogWindowOpen || isHotkeysLocked) {
             return
           }
 
@@ -499,7 +508,7 @@ function registerUserShortCutsOnShow() {
       // Restart Recording
       if (us.name == HotkeysEvents.RESTART_RECORDING) {
         globalShortcut.register(us.keyCodes, () => {
-          if (isDialogWindowOpen) {
+          if (isDialogWindowOpen || isHotkeysLocked) {
             return
           }
 
@@ -513,7 +522,7 @@ function registerUserShortCutsOnShow() {
       // Delete Recording
       if (us.name == HotkeysEvents.DELETE_RECORDING) {
         globalShortcut.register(us.keyCodes, () => {
-          if (isDialogWindowOpen) {
+          if (isDialogWindowOpen || isHotkeysLocked) {
             return
           }
 
@@ -527,7 +536,7 @@ function registerUserShortCutsOnShow() {
       // Toggle Draw
       if (us.name == HotkeysEvents.DRAW) {
         globalShortcut.register(us.keyCodes, () => {
-          if (isDialogWindowOpen) {
+          if (isDialogWindowOpen || isHotkeysLocked) {
             return
           }
 
@@ -551,6 +560,7 @@ function registerShortCutsOnShow() {
 function unregisterShortCutsOnHide() {
   globalShortcut.unregister("Cmd+H")
 }
+HotkeysEvents.GLOBAL_PAUSE
 
 function loadAccountData() {
   if (!TokenStorage.token || !TokenStorage.organizationId) {
@@ -706,7 +716,7 @@ function createModal(parentWindow) {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
-    // resizable: false,
+    resizable: false,
     width: ModalWindowWidth.MODAL,
     height:
       os.platform() == "win32"
@@ -1228,6 +1238,22 @@ ipcMain.on(
     )
   }
 )
+
+ipcMain.on(
+  UserSettingsEvents.SHORTCUTS_UNREGISTER,
+  (event, shortcut: string) => {
+    if (globalShortcut.isRegistered(shortcut)) {
+      globalShortcut.unregister(shortcut)
+    }
+  }
+)
+
+ipcMain.on(HotkeysEvents.GLOBAL_PAUSE, (event, data) => {
+  isHotkeysLocked = true
+})
+ipcMain.on(HotkeysEvents.GLOBAL_RESUME, (event, data) => {
+  isHotkeysLocked = false
+})
 
 ipcMain.on("draw:start", (event, data) => {
   isDrawActive = true

@@ -27,6 +27,7 @@ import {
   IUserSettingsShortcut,
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
+import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 type SettingsTabType = "root" | "shortCuts"
 type PageViewType =
   | "modal"
@@ -50,12 +51,12 @@ const SETTINGS_SHORT_CUTS_LOCALES = {
   [HotkeysEvents.DRAW]: "Вкл./выкл. лазерной указки",
 }
 let SHORTCUTS_TEXT_MAP = {}
+const shortcutsUpdater = new ShortcutsUpdater()
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
 const ACCOUNT_DATA = "ACCOUNT_DATA"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 let isAllowRecords: boolean | undefined = undefined
 let isAllowScreenshots: boolean | undefined = undefined
-let shortcutSettings: IUserSettingsShortcut[] = []
 let activePageView: PageViewType
 let activeSettingTab: SettingsTabType = "root"
 let openedDropdownType: DropdownListType | undefined = undefined
@@ -739,6 +740,12 @@ window.electronAPI.ipcRenderer.on(
 
         setPageView("modal")
         // setPageView("settings")
+        // showSettingsTab("shortCuts")
+        // window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+        //   alwaysOnTop: true,
+        //   width: ModalWindowWidth.SETTINGS,
+        //   height: ModalWindowHeight.SETTINGS,
+        // })
         // setPageView("no-microphone")
       }
     })
@@ -1264,6 +1271,7 @@ organizationContainer.addEventListener(
   false
 )
 
+// Shortcuts
 function renderShortcutSettings(shortcut: IUserSettingsShortcut): HTMLElement {
   const template = document.querySelector(
     "#shortcut_settings_tpl"
@@ -1280,6 +1288,7 @@ function renderShortcutSettings(shortcut: IUserSettingsShortcut): HTMLElement {
   checkbox.checked = !shortcut.disabled
   input.value = shortcut.keyCodes
 
+  input.dataset.shortcutValue = shortcut.keyCodes
   input.dataset.shortcutName = shortcut.name
   checkbox.dataset.shortcutName = shortcut.name
 
@@ -1311,44 +1320,10 @@ settingsTabBtn.forEach((btn) => {
     false
   )
 })
-settingsContent.addEventListener(
-  "click",
-  (event) => {
-    const target = event.target as HTMLElement
-    if (
-      target.classList.contains("settings-shortcut-input") &&
-      target.nodeName.toLocaleLowerCase() == "input"
-    ) {
-      // target.focus()
-      // target.addEventListener('keydown', (e: KeyboardEvent) => {
-      //   console.log('keydown', e.key, e.keyCode, String.fromCodePoint(e.keyCode))
-      // }, false)
-    }
-    if (
-      target.classList.contains("settings-shortcut-checkbox") &&
-      target.nodeName.toLocaleLowerCase() == "input"
-    ) {
-      const checbox = target as HTMLInputElement
-      const shortcutName = checbox.dataset.shortcutName
-      const newSettings = shortcutSettings.map((s) => {
-        return s.name == shortcutName
-          ? { ...s, disabled: Boolean(!checbox.checked) }
-          : s
-      })
-
-      window.electronAPI.ipcRenderer.send(
-        UserSettingsEvents.SHORTCUTS_SET,
-        newSettings
-      )
-    }
-  },
-  false
-)
 
 window.electronAPI.ipcRenderer.on(
   UserSettingsEvents.SHORTCUTS_GET,
   (event, data: IUserSettingsShortcut[]) => {
-    shortcutSettings = data
     const shortCutsContainer = document.querySelector(
       "#shortcut_settings_container"
     )! as HTMLElement
@@ -1356,6 +1331,14 @@ window.electronAPI.ipcRenderer.on(
     data.forEach((s) => {
       shortCutsContainer.appendChild(renderShortcutSettings(s))
     })
+
+    const inputs = document.querySelectorAll(
+      ".settings-shortcut-input"
+    ) as NodeListOf<HTMLInputElement>
+    const checkboxes = document.querySelectorAll(
+      ".settings-shortcut-checkbox"
+    ) as NodeListOf<HTMLInputElement>
+    shortcutsUpdater.bindEvents(inputs, checkboxes, data)
   }
 )
 
