@@ -1369,15 +1369,12 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     cropVideoData: ICropVideoData
   }
 
-  const cropData: ICropVideoData =
-    os.platform() == "darwin"
-      ? { ...cropVideoData }
-      : {
-          x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
-          y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
-          out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
-          out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
-        }
+  const cropData: ICropVideoData = {
+    x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
+    y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
+    out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
+    out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
+  }
 
   logSender.sendLog(
     "record.recording.set_crop.data.received",
