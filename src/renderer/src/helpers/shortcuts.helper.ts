@@ -258,6 +258,7 @@ export class ShortcutsUpdater {
   private handleShortcutKeydown(e: KeyboardEvent) {
     e.preventDefault()
     e.stopPropagation()
+
     const input = this.getInput(e)
     const code = e.keyCode || e.which
     const key = this.getKey(code)
@@ -268,7 +269,12 @@ export class ShortcutsUpdater {
     })
 
     if (key) {
-      this._downKeyCodes.push(code)
+      this._downKeyCodes = this._downKeyCodes
+        .concat(code)
+        .filter((item, pos, self) => {
+          return self.indexOf(item) === pos
+        })
+      input.value = this.getShortcut()
       this.setInputWidth(input)
     }
 
