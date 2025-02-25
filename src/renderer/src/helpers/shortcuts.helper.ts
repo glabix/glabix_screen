@@ -259,7 +259,7 @@ export class ShortcutsUpdater {
     this.validate(input)
   }
 
-  private handleShortcutClick = (e: MouseEvent) => {
+  private handleShortcutClick(e: MouseEvent) {
     const input = this.getInput(e)
     input.readOnly = false
     input.value = ""
@@ -277,6 +277,7 @@ export class ShortcutsUpdater {
     input.readOnly = true
     input.value = input.dataset.shortcutValue!
     this._downKeyCodes.length = 0
+    this.setInputWidth(input)
     window.electronAPI.ipcRenderer.send(HotkeysEvents.GLOBAL_RESUME, {})
   }
 
