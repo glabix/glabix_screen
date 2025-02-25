@@ -178,7 +178,7 @@ export class ShortcutsUpdater {
   private validate(input: HTMLInputElement): void {
     const codes = this._downKeyCodes.slice()
 
-    if (!codes.length || codes.length > 3) {
+    if (codes.length > 3) {
       input.blur()
     }
 
@@ -189,12 +189,14 @@ export class ShortcutsUpdater {
     if (codes.length == 2 && !this.isModifier(codes[1])) {
       this.updateSettings(input.dataset.shortcutName!)
       input.dataset.shortcutValue = this.getShortcut()
+      input.value = this.getShortcut()
       input.blur()
     }
 
     if (codes.length == 3 && !this.isModifier(codes[2])) {
       this.updateSettings(input.dataset.shortcutName!)
       input.dataset.shortcutValue = this.getShortcut()
+      input.value = this.getShortcut()
       input.blur()
     }
   }
@@ -252,7 +254,6 @@ export class ShortcutsUpdater {
 
     if (key) {
       this._downKeyCodes.push(code)
-      input.value = this.getShortcut()
       this.setInputWidth(input)
     }
 
