@@ -1,3 +1,4 @@
+import { LoggerEvents } from "@shared/events/logger.events"
 import { HotkeysEvents } from "@shared/types/types"
 import {
   IUserSettingsShortcut,
@@ -178,7 +179,12 @@ export class ShortcutsUpdater {
   private validate(input: HTMLInputElement): void {
     const codes = this._downKeyCodes.slice()
 
-    if (!codes.length || codes.length > 3) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `shortcut.validate`,
+      body: this.getShortcut(),
+    })
+
+    if (codes.length > 3) {
       input.blur()
     }
 
@@ -200,12 +206,18 @@ export class ShortcutsUpdater {
   }
 
   private updateSettings(shortcutName: string) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `shortcut.updateSettings`,
+      body: this.getShortcut(),
+    })
+
     const newSettings = this._currentSettings.map((s) => {
       return s.name == shortcutName ? { ...s, keyCodes: this.getShortcut() } : s
     })
 
     const oldShortcut =
       this._currentSettings.find((s) => s.name == shortcutName)?.keyCodes || ""
+
     window.electronAPI.ipcRenderer.send(
       UserSettingsEvents.SHORTCUTS_UNREGISTER,
       oldShortcut
@@ -250,16 +262,23 @@ export class ShortcutsUpdater {
     const code = e.keyCode || e.which
     const key = this.getKey(code)
 
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `shortcut.input.keydown`,
+      body: key,
+    })
+
     if (key) {
       this._downKeyCodes.push(code)
-      input.value = this.getShortcut()
       this.setInputWidth(input)
     }
 
     this.validate(input)
   }
 
-  private handleShortcutClick = (e: MouseEvent) => {
+  private handleShortcutClick(e: MouseEvent) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `shortcut.input.click`,
+    })
     const input = this.getInput(e)
     input.readOnly = false
     input.value = ""
@@ -268,15 +287,22 @@ export class ShortcutsUpdater {
   }
 
   private handleShortcutKeyup(e: KeyboardEvent) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `shortcut.input.keyup`,
+    })
     const input = this.getInput(e)
     input.blur()
   }
 
   private handleShortcutBlur(e: FocusEvent) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `shortcut.input.blur`,
+    })
     const input = this.getInput(e)
     input.readOnly = true
     input.value = input.dataset.shortcutValue!
     this._downKeyCodes.length = 0
+    this.setInputWidth(input)
     window.electronAPI.ipcRenderer.send(HotkeysEvents.GLOBAL_RESUME, {})
   }
 
