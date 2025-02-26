@@ -560,7 +560,6 @@ function registerShortCutsOnShow() {
 function unregisterShortCutsOnHide() {
   globalShortcut.unregister("Cmd+H")
 }
-HotkeysEvents.GLOBAL_PAUSE
 
 function loadAccountData() {
   if (!TokenStorage.token || !TokenStorage.organizationId) {
@@ -1596,7 +1595,12 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
-  if (modalWindow && modalWindow.isAlwaysOnTop() && !isDialogWindowOpen) {
+  if (
+    modalWindow &&
+    modalWindow.isAlwaysOnTop() &&
+    !isDialogWindowOpen &&
+    !isHotkeysLocked
+  ) {
     mainWindow.focus()
   }
 })

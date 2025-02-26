@@ -821,24 +821,6 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-// window.electronAPI.ipcRenderer.on(
-//   "dropdown:select.screenshot",
-//   (event, data: IDropdownPageSelectData) => {
-//     if (isRecording) {
-//       return
-//     }
-
-//     activeScreenActionItem = screenActionsList[0]!
-//     streamSettings = {
-//       ...streamSettings,
-//       action: "fullScreenVideo",
-//       ...activeScreenActionItem,
-//     }
-//     renderScreenSettings(activeScreenActionItem)
-//     sendSettings()
-//   }
-// )
-
 window.electronAPI.ipcRenderer.on(ModalWindowEvents.SHOW, (event) => {
   initVisualAudio()
 })

@@ -442,18 +442,26 @@ const createVideo = (_stream, _canvas, _video) => {
     })
     currentRecordChunksCount += 1
     const blob = new Blob([e.data], { type: getSupportedMimeType() })
-    const reader = new FileReader()
-    reader.onload = function () {
-      const arrayBuffer = reader.result
-      window.electronAPI.ipcRenderer.send(RecordEvents.SEND_DATA, {
-        data: arrayBuffer,
-        isLast: !videoRecorder?.stream?.active,
-        index: currentRecordChunksCount,
-        fileUuid: currentRecordedUuid,
+    readFileAsync(
+      blob,
+      currentRecordChunksCount,
+      !videoRecorder?.stream?.active,
+      currentRecordedUuid
+    )
+      .then(({ result, index, isLast, fileUuid }) => {
+        window.electronAPI.ipcRenderer.send(RecordEvents.SEND_DATA, {
+          data: result,
+          isLast,
+          index,
+          fileUuid,
+        })
       })
-      lastChunk = arrayBuffer
-    }
-    reader.readAsArrayBuffer(blob)
+      .catch((e) => {
+        window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
+          title: "videoRecorder.onerror",
+          body: JSON.stringify(e),
+        })
+      })
   }
 
   videoRecorder.onstop = function (e) {
@@ -890,21 +898,6 @@ function initRecord(data: StreamSettings) {
   }
 }
 
-// window.electronAPI.ipcRenderer.on(
-//   "dropdown:select.screenshot",
-//   (event, data: StreamSettings) => {
-//     if (isRecording) {
-//       return
-//     }
-
-//     const settings: StreamSettings = lastStreamSettings
-//       ? { ...lastStreamSettings, action: "fullScreenVideo" }
-//       : { action: "fullScreenVideo" }
-//     initRecord(settings)
-//     lastStreamSettings = settings
-//   }
-// )
-
 window.electronAPI.ipcRenderer.on(
   "record-settings-change",
   (event, settings: StreamSettings) => {
@@ -1227,5 +1220,17 @@ function updateHotkeysTexts() {
         el.setAttribute("hidden", "")
       }
     }
+  })
+}
+
+function readFileAsync(file, index, isLast, fileUuid): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () =>
+      resolve({ result: reader.result, index, isLast, fileUuid })
+    reader.onerror = () => reject(reader.error)
+
+    reader.readAsArrayBuffer(file)
   })
 }
