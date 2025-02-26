@@ -1321,6 +1321,24 @@ window.electronAPI.ipcRenderer.on(
       ".settings-shortcut-checkbox"
     ) as NodeListOf<HTMLInputElement>
     shortcutsUpdater.bindEvents(inputs, checkboxes, data)
+
+    const shortcutSelects = document.querySelectorAll(
+      ".settings-shortcut-input-wrapper"
+    )
+
+    shortcutSelects.forEach((select) => {
+      select.addEventListener(
+        "click",
+        () => {
+          const input = select.querySelector(
+            ".settings-shortcut-input"
+          )! as HTMLElement
+          const activeItem = input.dataset.shortcutValue
+          // const items:
+        },
+        false
+      )
+    })
   }
 )
 

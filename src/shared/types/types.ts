@@ -217,3 +217,28 @@ export enum HotkeysEvents {
   GLOBAL_PAUSE = "hotkeys:global:pause",
   GLOBAL_RESUME = "hotkeys:global:resume",
 }
+
+export enum SelectWindowEvent {
+  RENDER = "select-window:render",
+  CREATE = "select-window:create",
+  DESTROY = "select-window:destroy",
+}
+
+export interface ISelectWindowItem {
+  label: string
+  value: string
+  isSelected: boolean
+  data?: any
+}
+
+export interface ISelectWindowData {
+  renderer: {
+    items: ISelectWindowItem[]
+  }
+  window: {
+    width: number
+    height: number
+    offsetX: number
+    offsetY: number
+  }
+}
