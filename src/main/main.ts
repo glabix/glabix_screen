@@ -710,6 +710,32 @@ function createWindow() {
   createLoginWindow()
 }
 
+function sendUserSettings() {
+  if (modalWindow) {
+    modalWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+
+    modalWindow.webContents.send(
+      UserSettingsEvents.FLIP_CAMERA_GET,
+      eStore.get(UserSettingsKeys.FLIP_CAMERA)
+    )
+  }
+
+  if (mainWindow) {
+    mainWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+
+    mainWindow.webContents.send(
+      UserSettingsEvents.FLIP_CAMERA_GET,
+      eStore.get(UserSettingsKeys.FLIP_CAMERA)
+    )
+  }
+}
+
 function createModal(parentWindow) {
   modalWindow = new BrowserWindow({
     titleBarStyle: "hidden",
@@ -753,14 +779,7 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
     loadAccountData()
     modalWindow.webContents.send("app:version", app.getVersion())
-    modalWindow.webContents.send(
-      UserSettingsEvents.SHORTCUTS_GET,
-      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
-    )
-    mainWindow.webContents.send(
-      UserSettingsEvents.SHORTCUTS_GET,
-      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
-    )
+    sendUserSettings()
   })
 
   modalWindow.on("show", () => {
@@ -773,14 +792,7 @@ function createModal(parentWindow) {
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
     loadAccountData()
-    modalWindow.webContents.send(
-      UserSettingsEvents.SHORTCUTS_GET,
-      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
-    )
-    mainWindow.webContents.send(
-      UserSettingsEvents.SHORTCUTS_GET,
-      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
-    )
+    sendUserSettings()
   })
 
   modalWindow.on("blur", () => {})
@@ -1216,6 +1228,12 @@ ipcMain.on("change-organization", (event, orgId: number) => {
   ipcMain.emit(LoginEvents.TOKEN_CONFIRMED, lastTokenStorageData)
 })
 
+ipcMain.on(UserSettingsEvents.FLIP_CAMERA_SET, (event, data: boolean) => {
+  eStore.set(UserSettingsKeys.FLIP_CAMERA, data)
+  logSender.sendLog("settings.flip_camera.update", `${data}`)
+  sendUserSettings()
+})
+
 ipcMain.on(
   UserSettingsEvents.SHORTCUTS_SET,
   (event, data: IUserSettingsShortcut[]) => {
@@ -1227,14 +1245,7 @@ ipcMain.on(
     unregisterUserShortCuts()
     registerUserShortCuts()
 
-    modalWindow?.webContents.send(
-      UserSettingsEvents.SHORTCUTS_GET,
-      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
-    )
-    mainWindow?.webContents.send(
-      UserSettingsEvents.SHORTCUTS_GET,
-      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
-    )
+    sendUserSettings()
   }
 )
 

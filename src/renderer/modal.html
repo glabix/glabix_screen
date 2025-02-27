@@ -51,6 +51,23 @@
               <button
                 type="button"
                 class="settings-tab"
+                data-settings-tab="videoAudio"
+              >
+                <div class="flex items-center pointer-events-none">
+                  <div class="flex-center-5 mr-3 min-w-5">
+                    <i class="i i-video-music"></i>
+                  </div>
+                  <div class="flex-grow-1 text-overflow fw-500">
+                    Звук и видео
+                  </div>
+                  <div class="flex-center-5">
+                    <i class="i i--lg i-chevron-right"></i>
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                class="settings-tab"
                 data-settings-tab="shortCuts"
               >
                 <div class="flex items-center pointer-events-none">
@@ -120,17 +137,67 @@
               class="settings-scrollbox"
               id="shortcut_settings_container"
             ></div>
-            <!-- <div class="settings-section">
-              <div class="flex gap-1 items-center">
-                <div class="flex-grow-1 fw-500">Скриншот выбранной области</div>
-                <div>
-                  <div class="settings-shortcut-input-wrapper">
-                    <input class="settings-shortcut-input" type="text" value="Option+Shift+0" readonly data-shortcut-input="Option+Shift+0">
-                    <input type="checkbox">
-                  </div>
-                </div>
+          </div>
+        </div>
+      </div>
+      <!-- Video and Audio -->
+      <div class="h-full" data-settings-container="videoAudio" hidden>
+        <div class="flex flex-col no-drag h-full">
+          <div class="mb-4">
+            <div class="flex gap-2 items-center">
+              <div
+                class="flex-center-5 min-w-5 cursor-pointer"
+                data-settings-tab="root"
+              >
+                <i class="i i--lg i-chevron-left pointer-events-none"></i>
               </div>
-            </div> -->
+              <div class="flex-grow-1 text-center text-overflow fw-500 text-lg">
+                Звук и видео
+              </div>
+              <div class="flex-center-5"></div>
+            </div>
+          </div>
+          <div class="flex-grow-1">
+            <div class="settings-scrollbox">
+              <div class="settings-section system-audio-container" hidden>
+                <label class="flex items-center">
+                  <div class="flex-grow-1">
+                    <div class="font-weight-600 text-md">
+                      Использовать системное аудио
+                    </div>
+                    <div class="text-xs text-gray-600">
+                      Записывайте аудио из других приложений на вашем устройстве
+                    </div>
+                  </div>
+                  <div class="form-toggle ml-2">
+                    <input
+                      class="form-toggle-input system-audio-checkbox"
+                      type="checkbox"
+                    />
+                    <span class="form-toggle-label"></span>
+                  </div>
+                </label>
+              </div>
+              <div class="settings-section">
+                <label class="flex items-center">
+                  <div class="flex-grow-1">
+                    <div class="font-weight-600 text-md">
+                      Зеркально отразить камеру
+                    </div>
+                    <div class="text-xs text-gray-600">
+                      Измените ориентацию вашей камеры
+                    </div>
+                  </div>
+                  <div class="form-toggle ml-2">
+                    <input
+                      class="form-toggle-input js-flip-camera-checkbox"
+                      type="checkbox"
+                    />
+                    <span class="form-toggle-label"></span>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -348,25 +415,6 @@
             <div id="video_device_container"></div>
           </div>
           <div id="audio_device_container"></div>
-          <div class="mt-6 system-audio-container" hidden>
-            <label class="flex items-center">
-              <div class="flex-grow-1">
-                <div class="font-weight-600 text-md">
-                  Использовать системное аудио
-                </div>
-                <div class="text-xs text-gray-600">
-                  Записывайте аудио из других приложений на вашем устройстве
-                </div>
-              </div>
-              <div class="form-toggle ml-2">
-                <input
-                  class="form-toggle-input system-audio-checkbox"
-                  type="checkbox"
-                />
-                <span class="form-toggle-label"></span>
-              </div>
-            </label>
-          </div>
         </div>
         <div>
           <button type="button" id="startBtn" class="btn btn--primary">
@@ -446,17 +494,6 @@
       <div class="log-out">
         <button
           type="button"
-          class="btn js-settings-btn justify-start text-overflow bg-transparent border-transparent"
-        >
-          <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
-            <i class="i i-gear"></i>
-          </div>
-          <span class="text-overflow text-left pointer-events-none flex-grow-1"
-            >Настройки</span
-          >
-        </button>
-        <button
-          type="button"
           class="btn js-logout-btn justify-start text-overflow bg-transparent border-transparent"
         >
           <div class="flex-center-5 min-w-5 mr-3 pointer-events-none">
@@ -494,8 +531,12 @@
 
     <template id="profile_tpl">
       <div class="flex items-center">
-        <div class="mr-4 back">
-          <i class="i i-chevron-left text-align-middle"></i>
+        <div class="mr-2 back">
+          <button type="button" class="btn btn--blank btn--sm p-2">
+            <i
+              class="i i-chevron-left text-align-middle pointer-events-none"
+            ></i>
+          </button>
         </div>
         <div class="mr-3">
           <div class="avatar">
@@ -506,8 +547,13 @@
           <div class="user-name text-overflow mb-1"></div>
           <div class="org-name text-overflow text-xs text-gray-600"></div>
         </div>
-        <div class="ml-auto pl-3 next">
-          <i class="i i-chevron-right text-align-middle"></i>
+        <div class="ml-auto pl-2">
+          <button
+            type="button"
+            class="btn btn--blank btn--sm p-2 js-settings-btn"
+          >
+            <i class="i i--lg i-gear text-align-middle pointer-events-none"></i>
+          </button>
         </div>
       </div>
     </template>

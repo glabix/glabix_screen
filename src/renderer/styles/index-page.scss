@@ -58,6 +58,10 @@ body {
       border-radius: 10px;
     }
   }
+
+  &.is-flip video {
+    transform: scaleX(-1);
+  }
 }
 
 .webcamera-view-error {

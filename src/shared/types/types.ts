@@ -31,6 +31,7 @@ export enum ModalWindowHeight {
   // MODAL_MAC = 395,
   MODAL_WIN = 535,
   MODAL_MAC = 460,
+  MODAL = 460,
   SCREENSHOT_TAB = 335,
   PROFILE = 500,
   SETTINGS = 500,

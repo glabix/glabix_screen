@@ -8,6 +8,7 @@ import {
 import Moveable, { MoveableRefTargetType } from "moveable"
 import { RecordEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
+import { UserSettingsEvents } from "@shared/types/user-settings.types"
 
 const videoContainer = document.getElementById(
   "webcamera-view"
@@ -104,6 +105,9 @@ function startStream(deviseId) {
   }
 }
 
+function flipCamera(isFlip: boolean) {
+  videoContainer.classList.toggle("is-flip", isFlip)
+}
 function stopStream() {
   videoContainer.setAttribute("hidden", "")
   videoContainerError.setAttribute("hidden", "")
@@ -193,6 +197,15 @@ window.electronAPI.ipcRenderer.on("app:show", () => {
     checkStream(lastStreamSettings!)
   }
 })
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.FLIP_CAMERA_GET,
+  (event, isFlip: boolean) => {
+    if (typeof isFlip == "boolean") {
+      flipCamera(isFlip)
+    }
+  }
+)
 
 changeCameraViewSizeBtn.forEach((button) => {
   button.addEventListener(
