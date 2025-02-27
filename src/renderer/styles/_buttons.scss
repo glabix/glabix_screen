@@ -82,6 +82,16 @@
     color: var(--dark);
   }
 
+  &--blank {
+    background-color: transparent;
+    border-color: transparent;
+  }
+
+  &--blank:hover {
+    background-color: var(--gray-100);
+    border-color: var(--gray-100);
+  }
+
   &--sm {
     height: 2rem;
     padding: 0 0.75rem;

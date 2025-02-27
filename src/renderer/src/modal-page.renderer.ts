@@ -28,7 +28,7 @@ import {
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
-type SettingsTabType = "root" | "shortCuts"
+type SettingsTabType = "root" | "shortCuts" | "videoAudio"
 type PageViewType =
   | "modal"
   | "permissions"
@@ -135,7 +135,9 @@ let streamSettings: StreamSettings = {
   video: true,
 }
 let isScreenshotTab = false
-
+const flipCheckbox = document.querySelector(
+  ".js-flip-camera-checkbox"
+)! as HTMLInputElement
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
 ) as NodeListOf<HTMLElement>
@@ -187,9 +189,7 @@ tabButtons.forEach((btn) => {
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
           width: ModalWindowWidth.MODAL,
-          height: isWindows
-            ? ModalWindowHeight.MODAL_WIN
-            : ModalWindowHeight.MODAL_MAC,
+          height: ModalWindowHeight.MODAL,
         })
       }
 
@@ -729,9 +729,7 @@ window.electronAPI.ipcRenderer.on(
       } else {
         const height = isScreenshotTab
           ? ModalWindowHeight.SCREENSHOT_TAB
-          : isWindows
-            ? ModalWindowHeight.MODAL_WIN
-            : ModalWindowHeight.MODAL_MAC
+          : ModalWindowHeight.MODAL
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
           width: ModalWindowWidth.MODAL,
@@ -881,6 +879,41 @@ window.electronAPI.ipcRenderer.on(
       renderProfile(localData)
       renderOrganizations(localData)
     }
+
+    const settingsBtn = document.querySelectorAll(".js-settings-btn")
+    settingsBtn.forEach((btn) => {
+      btn.addEventListener(
+        "click",
+        (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          setPageView("settings")
+          showSettingsTab("root")
+          window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+            alwaysOnTop: true,
+            width: ModalWindowWidth.SETTINGS,
+            height: ModalWindowHeight.SETTINGS,
+          })
+        },
+        false
+      )
+    })
+    const toModalPageBtn = document.querySelector(".js-to-modal-page")!
+    toModalPageBtn.addEventListener(
+      "click",
+      () => {
+        setPageView("modal")
+        const height = isScreenshotTab
+          ? ModalWindowHeight.SCREENSHOT_TAB
+          : ModalWindowHeight.MODAL
+        window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
+          alwaysOnTop: true,
+          width: ModalWindowWidth.MODAL,
+          height: height,
+        })
+      },
+      false
+    )
   }
 )
 
@@ -1177,38 +1210,6 @@ logoutBtn.addEventListener(
   },
   false
 )
-const settingsBtn = document.querySelector(".js-settings-btn")!
-settingsBtn.addEventListener(
-  "click",
-  () => {
-    setPageView("settings")
-    showSettingsTab("root")
-    window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
-      alwaysOnTop: true,
-      width: ModalWindowWidth.SETTINGS,
-      height: ModalWindowHeight.SETTINGS,
-    })
-  },
-  false
-)
-const toModalPageBtn = document.querySelector(".js-to-modal-page")!
-toModalPageBtn.addEventListener(
-  "click",
-  () => {
-    setPageView("modal")
-    const height = isScreenshotTab
-      ? ModalWindowHeight.SCREENSHOT_TAB
-      : isWindows
-        ? ModalWindowHeight.MODAL_WIN
-        : ModalWindowHeight.MODAL_MAC
-    window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
-      alwaysOnTop: true,
-      width: ModalWindowWidth.MODAL,
-      height: height,
-    })
-  },
-  false
-)
 
 const profileToggleBtn = document.querySelectorAll(".js-profile-toggle-btn")
 profileToggleBtn.forEach((btn) => {
@@ -1226,9 +1227,7 @@ profileToggleBtn.forEach((btn) => {
         setPageView("modal")
         const height = isScreenshotTab
           ? ModalWindowHeight.SCREENSHOT_TAB
-          : isWindows
-            ? ModalWindowHeight.MODAL_WIN
-            : ModalWindowHeight.MODAL_MAC
+          : ModalWindowHeight.MODAL
         window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
           alwaysOnTop: true,
           width: ModalWindowWidth.MODAL,
@@ -1252,7 +1251,29 @@ organizationContainer.addEventListener(
   },
   false
 )
+// FlipCamera
+flipCheckbox.addEventListener(
+  "change",
+  (event) => {
+    const checkbox = event.target as HTMLInputElement
+    window.electronAPI.ipcRenderer.send(
+      UserSettingsEvents.FLIP_CAMERA_SET,
+      checkbox.checked
+    )
+  },
+  false
+)
 
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.FLIP_CAMERA_GET,
+  (event, isFlip: boolean) => {
+    if (typeof isFlip == "boolean") {
+      flipCheckbox.checked = isFlip
+    } else {
+      flipCheckbox.checked = true
+    }
+  }
+)
 // Shortcuts
 function renderShortcutSettings(shortcut: IUserSettingsShortcut): HTMLElement {
   const template = document.querySelector(
@@ -1321,6 +1342,24 @@ window.electronAPI.ipcRenderer.on(
       ".settings-shortcut-checkbox"
     ) as NodeListOf<HTMLInputElement>
     shortcutsUpdater.bindEvents(inputs, checkboxes, data)
+
+    const shortcutSelects = document.querySelectorAll(
+      ".settings-shortcut-input-wrapper"
+    )
+
+    shortcutSelects.forEach((select) => {
+      select.addEventListener(
+        "click",
+        () => {
+          const input = select.querySelector(
+            ".settings-shortcut-input"
+          )! as HTMLElement
+          const activeItem = input.dataset.shortcutValue
+          // const items:
+        },
+        false
+      )
+    })
   }
 )
 

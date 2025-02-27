@@ -31,6 +31,7 @@ export enum ModalWindowHeight {
   // MODAL_MAC = 395,
   MODAL_WIN = 535,
   MODAL_MAC = 460,
+  MODAL = 460,
   SCREENSHOT_TAB = 335,
   PROFILE = 500,
   SETTINGS = 500,
@@ -216,4 +217,29 @@ export enum HotkeysEvents {
   // Pause/Resume hotkeys
   GLOBAL_PAUSE = "hotkeys:global:pause",
   GLOBAL_RESUME = "hotkeys:global:resume",
+}
+
+export enum SelectWindowEvent {
+  RENDER = "select-window:render",
+  CREATE = "select-window:create",
+  DESTROY = "select-window:destroy",
+}
+
+export interface ISelectWindowItem {
+  label: string
+  value: string
+  isSelected: boolean
+  data?: any
+}
+
+export interface ISelectWindowData {
+  renderer: {
+    items: ISelectWindowItem[]
+  }
+  window: {
+    width: number
+    height: number
+    offsetX: number
+    offsetY: number
+  }
 }
