@@ -73,6 +73,11 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
 }
 
 function startStream(deviseId) {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.startStream`,
+    body: `currentStream: ${Boolean(currentStream)}`,
+  })
+
   if (!deviseId) {
     return
   }
@@ -113,6 +118,11 @@ function stopStream() {
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.stopStream`,
+    body: `currentStream: ${Boolean(currentStream)}`,
+  })
 
   if (currentStream) {
     const tracks = currentStream.getTracks()
