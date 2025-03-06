@@ -930,14 +930,14 @@ const systemAudioEl = document.querySelector(".system-audio-container")!
 
 if (isWindows) {
   systemAudioEl.removeAttribute("hidden")
-  windowsToolbar.removeAttribute("hidden")
 }
+windowsToolbar.removeAttribute("hidden")
 
 windowsMinimizeBtn.addEventListener(
   "click",
   () => {
+    window.electronAPI.ipcRenderer.send("windows:minimize", {})
     if (isWindows) {
-      window.electronAPI.ipcRenderer.send("windows:minimize", {})
     }
   },
   false
@@ -945,8 +945,8 @@ windowsMinimizeBtn.addEventListener(
 windowsCloseBtn.addEventListener(
   "click",
   () => {
+    window.electronAPI.ipcRenderer.send("windows:close", {})
     if (isWindows) {
-      window.electronAPI.ipcRenderer.send("windows:close", {})
     }
   },
   false

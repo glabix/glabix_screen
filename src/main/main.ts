@@ -788,6 +788,7 @@ function createModal(parentWindow) {
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
+    console.log("!!!!!!app:show!!!!!!!!")
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
