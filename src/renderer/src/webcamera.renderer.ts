@@ -143,7 +143,8 @@ function checkStream(data: StreamSettings) {
     title: `webcamera.checkStream`,
   })
   if (
-    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
+    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action) ||
+    !isAppShown
   ) {
     stopStream()
     return
@@ -181,6 +182,10 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   isAppShown = false
 
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.app:hide`,
+  })
+
   if (isRecording || isCountdown) {
     return
   }
@@ -213,6 +218,9 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
   isAppShown = true
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.app:show`,
+  })
   if (!isRecording && !isScreenshotMode) {
     checkStream(lastStreamSettings!)
   }

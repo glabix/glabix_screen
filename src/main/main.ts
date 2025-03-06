@@ -788,7 +788,6 @@ function createModal(parentWindow) {
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
-    console.log("!!!!!!app:show!!!!!!!!")
     mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
@@ -815,6 +814,11 @@ function createModal(parentWindow) {
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
+
+    if (modalWindow.isVisible()) {
+      mainWindow.webContents.send("app:show")
+    }
+
     loadAccountData()
   })
 
