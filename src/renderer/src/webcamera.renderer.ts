@@ -30,6 +30,7 @@ let lastStreamSettings: StreamSettings | undefined = undefined
 let isRecording = false
 let isCountdown = false
 let isScreenshotMode = false
+let isAppShown = false
 
 function initMovable() {
   moveable = new Moveable(document.body, {
@@ -73,6 +74,11 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
 }
 
 function startStream(deviseId) {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.startStream`,
+    body: `currentStream: ${Boolean(currentStream)} deviseId: ${deviseId}`,
+  })
+
   if (!deviseId) {
     return
   }
@@ -114,6 +120,11 @@ function stopStream() {
   videoContainerPermissionError.setAttribute("hidden", "")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.stopStream`,
+    body: `currentStream: ${Boolean(currentStream)}`,
+  })
+
   if (currentStream) {
     const tracks = currentStream.getTracks()
     tracks.forEach((track) => track.stop())
@@ -128,8 +139,12 @@ function stopStream() {
 }
 
 function checkStream(data: StreamSettings) {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.checkStream`,
+  })
   if (
-    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
+    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action) ||
+    !isAppShown
   ) {
     stopStream()
     return
@@ -147,7 +162,10 @@ window.electronAPI.ipcRenderer.on(
   (event, data: StreamSettings) => {
     if (!isScreenshotMode) {
       lastStreamSettings = data
-      if (!isRecording) {
+      if (!isRecording && isAppShown) {
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `webcamera.record-settings-change`,
+        })
         checkStream(data)
       }
     } else {
@@ -162,6 +180,12 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 window.electronAPI.ipcRenderer.on("app:hide", () => {
+  isAppShown = false
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.app:hide`,
+  })
+
   if (isRecording || isCountdown) {
     return
   }
@@ -193,6 +217,10 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
+  isAppShown = true
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.app:show`,
+  })
   if (!isRecording && !isScreenshotMode) {
     checkStream(lastStreamSettings!)
   }
