@@ -125,10 +125,10 @@ function stopStream() {
     body: `currentStream: ${Boolean(currentStream)}`,
   })
 
+  video.srcObject = null
+
   if (currentStream) {
-    const tracks = currentStream.getTracks()
-    tracks.forEach((track) => track.stop())
-    video.srcObject = null
+    currentStream.getTracks().forEach((track) => track.stop())
     currentStream = undefined
   }
 
