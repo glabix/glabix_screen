@@ -128,11 +128,6 @@ function stopStream() {
   videoContainerPermissionError.setAttribute("hidden", "")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 
-  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //   title: `webcamera.stopStream`,
-  //   body: `currentStream: ${Boolean(currentStream)}`,
-  // })
-
   video.srcObject = null
 
   if (currentStream) {
@@ -147,12 +142,8 @@ function stopStream() {
 }
 
 function checkStream(data: StreamSettings) {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.checkStream`,
-  })
   if (
-    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action) ||
-    !isAppShown
+    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
   ) {
     stopStream()
     return
@@ -170,10 +161,7 @@ window.electronAPI.ipcRenderer.on(
   (event, data: StreamSettings) => {
     if (!isScreenshotMode) {
       lastStreamSettings = data
-      if (!isRecording && isAppShown) {
-        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: `webcamera.record-settings-change`,
-        })
+      if (!isRecording) {
         checkStream(data)
       }
     } else {
@@ -228,9 +216,6 @@ window.electronAPI.ipcRenderer.on("app:show", () => {
   isAppShown = true
   clearCameraStopInterval()
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.app:show`,
-  })
   if (!isRecording && !isScreenshotMode) {
     checkStream(lastStreamSettings!)
   }
