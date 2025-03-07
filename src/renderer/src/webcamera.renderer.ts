@@ -31,6 +31,14 @@ let isRecording = false
 let isCountdown = false
 let isScreenshotMode = false
 let isAppShown = false
+let cameraStopInterval: NodeJS.Timeout | undefined = undefined
+
+function clearCameraStopInterval() {
+  if (cameraStopInterval) {
+    clearInterval(cameraStopInterval)
+    cameraStopInterval = undefined
+  }
+}
 
 function initMovable() {
   moveable = new Moveable(document.body, {
@@ -120,10 +128,10 @@ function stopStream() {
   videoContainerPermissionError.setAttribute("hidden", "")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.stopStream`,
-    body: `currentStream: ${Boolean(currentStream)}`,
-  })
+  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //   title: `webcamera.stopStream`,
+  //   body: `currentStream: ${Boolean(currentStream)}`,
+  // })
 
   video.srcObject = null
 
@@ -181,7 +189,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   isAppShown = false
-
+  cameraStopInterval = setInterval(stopStream, 1000)
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: `webcamera.app:hide`,
   })
@@ -218,6 +226,8 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
   isAppShown = true
+  clearCameraStopInterval()
+
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: `webcamera.app:show`,
   })
