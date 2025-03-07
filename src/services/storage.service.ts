@@ -7,7 +7,7 @@ import Record, {
 import path from "path"
 import fs from "fs"
 import { fsErrorParser } from "../main/helpers/fs-error-parser"
-import { app } from "electron"
+import { app, clipboard } from "electron"
 import Chunk, {
   ChunkCreationAttributes,
   ChunkStatus,
@@ -310,6 +310,9 @@ class StorageService {
           status: RecordStatus.CREATED_ON_SERVER,
           server_uuid,
         }
+        const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/shared/${server_uuid}`
+        clipboard.writeText(publicPage)
+
         return await updateRecordDal(fileUuid, update)
       } else {
         throw new Error(
