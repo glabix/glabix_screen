@@ -61,6 +61,7 @@ body {
 
   &.is-flip video {
     transform: scaleX(-1);
+    backface-visibility: hidden;
   }
 }
 
