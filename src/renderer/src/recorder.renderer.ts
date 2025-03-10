@@ -68,6 +68,14 @@ let isScreenshotMode = false
 let isRecording = false
 let isRecordCanceled = false
 let isRecordRestart = false
+let streamStopInterval: NodeJS.Timeout | undefined = undefined
+
+function clearStreamStopInterval() {
+  if (streamStopInterval) {
+    clearInterval(streamStopInterval)
+    streamStopInterval = undefined
+  }
+}
 
 function dialogWindowToggle(isOpen: boolean) {
   isDialogWindowOpen = isOpen
@@ -1054,13 +1062,18 @@ window.electronAPI.ipcRenderer.on("screen:change", (event) => {
 })
 
 window.electronAPI.ipcRenderer.on("app:hide", (event) => {
-  stopStreamTracks()
+  if (!streamStopInterval) {
+    streamStopInterval = setInterval(stopStreamTracks, 1000)
+  }
 })
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
   if (!isScreenshotMode) {
     document.body.classList.remove("is-panel-hidden")
+    initRecord(lastStreamSettings!)
   }
+
+  clearStreamStopInterval()
 })
 
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
