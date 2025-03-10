@@ -5,6 +5,7 @@ import Chunk from "./Chunk"
 export enum RecordStatus {
   RECORDING = "recording",
   RECORDED = "recorded",
+  CREATING_ON_SERVER = "creating_on_server",
   CREATED_ON_SERVER = "created_on_server",
   COMPLETED = "completed",
   CANCELED = "canceled",

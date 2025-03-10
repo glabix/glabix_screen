@@ -81,6 +81,7 @@ export class RecordManager {
   static async updateRecordsInProgress() {
     await StorageService.updateLoadingChunks()
     await StorageService.updateRecordingFiles()
+    await StorageService.updateCratingOnServerFiles()
   }
 
   static async deleteUnknownChunks() {
