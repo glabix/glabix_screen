@@ -177,10 +177,10 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   isAppShown = false
-  cameraStopInterval = setInterval(stopStream, 1000)
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.app:hide`,
-  })
+
+  if (!cameraStopInterval) {
+    cameraStopInterval = setInterval(stopStream, 1000)
+  }
 
   if (isRecording || isCountdown) {
     return
@@ -214,6 +214,7 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
   isAppShown = true
+
   clearCameraStopInterval()
 
   if (!isRecording && !isScreenshotMode) {
