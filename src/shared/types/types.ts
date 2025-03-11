@@ -164,6 +164,8 @@ export enum ModalWindowEvents {
   RESIZE = "modal-window:resize",
   RENDER = "modal-window:render",
   TAB = "modal-window:tab",
+  UPLOAD_PROGRESS_SHOW = "modal-window:upload_progress:show",
+  UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
 export interface IModalWindowTabData {
   activeTab: "video" | "screenshot"

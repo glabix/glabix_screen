@@ -117,6 +117,6 @@ export class ProgressResolver {
         progress,
       }
     })
-    ipcMain.emit(FileUploadEvents.UPLOAD_PROGRESS_STATUS, response)
+    ipcMain.emit(FileUploadEvents.UPLOAD_PROGRESS_STATUS, null, response)
   }
 }

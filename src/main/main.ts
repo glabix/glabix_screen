@@ -46,6 +46,7 @@ import {
   ScreenshotWindowEvents,
   ScreenshotActionEvents,
   ModalWindowWidth,
+  IRecordUploadProgressData,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -1463,6 +1464,22 @@ ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
     modalWindow.webContents.send("userAccountData:get", avatarData)
   }
 })
+
+ipcMain.on(
+  FileUploadEvents.UPLOAD_PROGRESS_STATUS,
+  (event, data: IRecordUploadProgressData[]) => {
+    logSender.sendLog(FileUploadEvents.UPLOAD_PROGRESS_STATUS, stringify(data))
+    if (!data.length) {
+      modalWindow?.webContents.send(ModalWindowEvents.UPLOAD_PROGRESS_HIDE)
+    } else {
+      const progress = data[0]!.progress
+      modalWindow?.webContents.send(
+        ModalWindowEvents.UPLOAD_PROGRESS_SHOW,
+        progress
+      )
+    }
+  }
+)
 
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
