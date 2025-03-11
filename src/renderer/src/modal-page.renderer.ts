@@ -1274,6 +1274,30 @@ window.electronAPI.ipcRenderer.on(
     }
   }
 )
+
+window.electronAPI.ipcRenderer.on(
+  ModalWindowEvents.UPLOAD_PROGRESS_HIDE,
+  (event, data) => {
+    document.body.classList.remove("is-uploading")
+    const bar = document.querySelector(".js-progress-bar")! as HTMLElement
+    const value = document.querySelector(".js-progress-value")! as HTMLElement
+
+    bar.style.width = "0%"
+    value.innerHTML = ""
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  ModalWindowEvents.UPLOAD_PROGRESS_SHOW,
+  (event, progress: number) => {
+    document.body.classList.add("is-uploading")
+    const bar = document.querySelector(".js-progress-bar")! as HTMLElement
+    const value = document.querySelector(".js-progress-value")! as HTMLElement
+
+    bar.style.width = `${progress}%`
+    value.innerHTML = `${progress}%`
+  }
+)
+
 // Shortcuts
 function renderShortcutSettings(shortcut: IUserSettingsShortcut): HTMLElement {
   const template = document.querySelector(

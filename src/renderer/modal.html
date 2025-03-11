@@ -217,6 +217,7 @@
       </button>
     </div>
 
+    <!-- NO MIC -->
     <div class="no-microphone-content h-full" hidden>
       <div class="flex h-full flex-col justify-center items-center">
         <div>
@@ -254,6 +255,7 @@
       </div>
     </div>
 
+    <!-- PERMISSIONS -->
     <div class="permissions-content" hidden>
       <div class="mb-6 flex justify-center">
         <div id="recorder-logo" class="glabix-screen-logo"></div>
@@ -360,6 +362,7 @@
       </div>
     </div>
 
+    <!-- MODAL -->
     <div class="modal-content" hidden>
       <div class="mb-4 profile-container js-profile-toggle-btn"></div>
 
@@ -486,6 +489,7 @@
       </div>
     </div>
 
+    <!-- PROFILE -->
     <div class="profile-content" hidden>
       <div class="mb-4 profile-container js-profile-toggle-btn"></div>
       <div class="overflow-hidden mb-4">
@@ -506,13 +510,27 @@
       </div>
     </div>
 
+    <!-- FOOTER -->
     <div
       id="footer"
       class="text-center screen-footer mt-5 text-xs text-gray-600"
       hidden
     >
-      &copy; 2025 ООО «Глабикс»
-      <span id="app_version"></span>
+      <div class="footer-progress items-center pl-5 pr-5 whitespace-nowrap">
+        <div class="mr-2">Загрузка на сервер</div>
+        <div class="flex-grow-1">
+          <div class="progress">
+            <div class="progress-bar js-progress-bar"></div>
+          </div>
+        </div>
+        <div class="min-w-9 text-primary text-right">
+          <span class="js-progress-value"></span>
+        </div>
+      </div>
+      <div class="footer-content">
+        &copy; 2025 ООО «Глабикс»
+        <span id="app_version"></span>
+      </div>
     </div>
 
     <template id="screen_settings_tpl">
