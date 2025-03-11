@@ -33,6 +33,8 @@ import { uploadFileChunkCommand } from "../main/commands/upload-file-chunk.comma
 import { RecordManager } from "./record-manager"
 import { PreviewManager } from "./preview-manager"
 import { ICropVideoData } from "../shared/types/types"
+import { ProgressResolver } from "../services/progress-resolver"
+import { AxiosRequestConfig } from "axios"
 
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
@@ -246,78 +248,95 @@ class StorageService {
   }
 
   static async createFileOnServer(fileUuid: string): Promise<Record> {
-    this.logSender.sendLog(
-      "record.create_on_server.start",
-      stringify({
-        fileUuid,
-      })
-    )
-    let record = await getByUuidRecordDal(fileUuid)
-    const title = record.getDataValue("title")
-    const fileChunks = record.getDataValue("Chunks")
-    const size = fileChunks.reduce(
-      (accumulator, chunk) => accumulator + chunk.getDataValue("size"),
-      0
-    )
-    const count = fileChunks.length
-    const appVersion = getVersion()
-    const fileName = title + ".mp4"
-    let crop: ICropVideoData | null = null
-    if (
-      record.getDataValue("out_w") !== null &&
-      record.getDataValue("out_h") !== null &&
-      record.getDataValue("x") !== null &&
-      record.getDataValue("y") !== null
-    ) {
-      crop = {
-        out_w: record.getDataValue("out_w"),
-        out_h: record.getDataValue("out_h"),
-        x: record.getDataValue("x"),
-        y: record.getDataValue("y"),
-      }
-    }
-    const previewSource = record.getDataValue("previewSource")
-    let preview: File | null = null
-    if (previewSource) {
-      preview = (await PreviewManager.getPreview(previewSource)) as File
-    }
     try {
       this.logSender.sendLog(
-        "record.create_on_server.response",
+        "record.create_on_server.start",
         stringify({
           fileUuid,
-          title,
-          count,
-          size,
-          isCrop: !!crop,
-          isPreview: !!preview,
         })
       )
-      const response = await createFileUploadCommand(
-        TokenStorage.token!.access_token,
-        TokenStorage.organizationId!,
-        fileName,
-        count,
-        title,
-        size,
-        appVersion,
-        preview,
-        crop
-      )
-      if (response.status === 200 || response.status === 201) {
-        const server_uuid = response.data.uuid
-        const update: Partial<RecordCreationAttributes> = {
-          status: RecordStatus.CREATED_ON_SERVER,
-          server_uuid,
-        }
-        const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/shared/${server_uuid}`
-        clipboard.writeText(publicPage)
 
-        return await updateRecordDal(fileUuid, update)
-      } else {
-        throw new Error(
-          `Failed to create multipart file upload, code ${response.status}`
+      const update: Partial<RecordCreationAttributes> = {
+        status: RecordStatus.CREATING_ON_SERVER,
+      }
+      await updateRecordDal(fileUuid, update)
+
+      await ProgressResolver.createRecord(fileUuid)
+
+      let record = await getByUuidRecordDal(fileUuid)
+      const title = record.getDataValue("title")
+      const fileChunks = record.getDataValue("Chunks")
+      const size = fileChunks.reduce(
+        (accumulator, chunk) => accumulator + chunk.getDataValue("size"),
+        0
+      )
+      const count = fileChunks.length
+      const appVersion = getVersion()
+      const fileName = title + ".mp4"
+      let crop: ICropVideoData | null = null
+      if (
+        record.getDataValue("out_w") !== null &&
+        record.getDataValue("out_h") !== null &&
+        record.getDataValue("x") !== null &&
+        record.getDataValue("y") !== null
+      ) {
+        crop = {
+          out_w: record.getDataValue("out_w"),
+          out_h: record.getDataValue("out_h"),
+          x: record.getDataValue("x"),
+          y: record.getDataValue("y"),
+        }
+      }
+      const previewSource = record.getDataValue("previewSource")
+      let preview: File | null = null
+      if (previewSource) {
+        preview = (await PreviewManager.getPreview(previewSource)) as File
+      }
+      try {
+        this.logSender.sendLog(
+          "record.create_on_server.response",
+          stringify({
+            fileUuid,
+            title,
+            count,
+            size,
+            isCrop: !!crop,
+            isPreview: !!preview,
+          })
         )
+        const response = await createFileUploadCommand(
+          TokenStorage.token!.access_token,
+          TokenStorage.organizationId!,
+          fileName,
+          count,
+          title,
+          size,
+          appVersion,
+          preview,
+          crop
+        )
+        if (response.status === 200 || response.status === 201) {
+          const server_uuid = response.data.uuid
+          const update: Partial<RecordCreationAttributes> = {
+            status: RecordStatus.CREATED_ON_SERVER,
+            server_uuid,
+          }
+          const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/shared/${server_uuid}`
+          clipboard.writeText(publicPage)
+
+          return await updateRecordDal(fileUuid, update)
+        } else {
+          throw new Error(
+            `Failed to create multipart file upload, code ${response.status}`
+          )
+        }
+      } catch (err) {
+        this.logSender.sendLog(
+          "record.create_on_server.response.error",
+          stringify({ fileUuid, err }),
+          true
+        )
+        throw err
       }
     } catch (err) {
       this.logSender.sendLog(
@@ -325,6 +344,10 @@ class StorageService {
         stringify({ fileUuid, err }),
         true
       )
+      const update: Partial<RecordCreationAttributes> = {
+        status: RecordStatus.RECORDED,
+      }
+      await updateRecordDal(fileUuid, update)
       throw err
     }
   }
@@ -366,12 +389,22 @@ class StorageService {
       chunk = await updateChunkDal(_chunk.getDataValue("uuid"), {
         status: ChunkStatus.LOADING,
       })
+      const config: AxiosRequestConfig = {
+        onUploadProgress: (progressEvent) => {
+          ProgressResolver.updateChunkData(
+            chunk.getDataValue("fileUuid"),
+            _chunk.getDataValue("uuid"),
+            progressEvent.loaded
+          )
+        },
+      }
       const response = await uploadFileChunkCommand(
         TokenStorage.token!.access_token,
         TokenStorage.organizationId!,
         serverUuid,
         data,
-        chunkNumber
+        chunkNumber,
+        config
       )
       if (response.status === 200 || response.status === 201) {
         chunk = await updateChunkDal(_chunk.getDataValue("uuid"), {
@@ -412,11 +445,21 @@ class StorageService {
 
   static async RecordUploadEnd(fileUuid: string) {
     await updateRecordDal(fileUuid, { status: RecordStatus.COMPLETED })
+    ProgressResolver.completeRecord(fileUuid)
     await deleteByUuidRecordsDal([fileUuid])
   }
 
   static async updateRecordingFiles() {
     let records = await getAllRecordDal({ status: RecordStatus.RECORDING })
+    records.forEach((r) => {
+      updateRecordDal(r.getDataValue("uuid"), { status: RecordStatus.RECORDED })
+    })
+  }
+
+  static async updateCratingOnServerFiles() {
+    let records = await getAllRecordDal({
+      status: RecordStatus.CREATING_ON_SERVER,
+    })
     records.forEach((r) => {
       updateRecordDal(r.getDataValue("uuid"), { status: RecordStatus.RECORDED })
     })

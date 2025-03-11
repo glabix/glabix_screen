@@ -12,4 +12,5 @@ export enum FileUploadEvents {
   LOAD_FILE_CHUNK = "load-file-chunk",
   FILE_CHUNK_UPLOADED = "file-chunk-uploaded",
   FILE_UPLOADED = "file-uploaded",
+  UPLOAD_PROGRESS_STATUS = "upload-progress-status",
 }

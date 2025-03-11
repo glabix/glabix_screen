@@ -243,3 +243,15 @@ export interface ISelectWindowData {
     offsetY: number
   }
 }
+
+export enum IRecordProgressStatus {
+  PENDING = "pending",
+  LOADING = "loading",
+  COMPLETE = "complete",
+}
+
+export interface IRecordUploadProgressData {
+  status: IRecordProgressStatus
+  uuid: string
+  progress: number // %
+}

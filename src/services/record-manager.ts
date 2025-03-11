@@ -81,6 +81,7 @@ export class RecordManager {
   static async updateRecordsInProgress() {
     await StorageService.updateLoadingChunks()
     await StorageService.updateRecordingFiles()
+    await StorageService.updateCratingOnServerFiles()
   }
 
   static async deleteUnknownChunks() {
@@ -178,7 +179,6 @@ export class RecordManager {
           stringify({ uuid, past: this.currentProcessRecordUuid })
         )
         this.currentProcessRecordUuid = uuid
-
         const chunks = record.getDataValue("Chunks")
         if (!chunks.length) {
           this.logSender.sendLog(
@@ -189,7 +189,6 @@ export class RecordManager {
           this.currentProcessRecordUuid = null
           return
         }
-
         try {
           const updatedRecord = await this.recordServerCreate(record)
           checkOrganizationLimits()
