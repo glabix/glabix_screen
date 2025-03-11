@@ -290,6 +290,10 @@ const stopStreamTracks = () => {
     return
   }
 
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop())
+  }
+
   desktopStream.getTracks().forEach((track) => track.stop())
   voiceStream.getTracks().forEach((track) => track.stop())
 }
