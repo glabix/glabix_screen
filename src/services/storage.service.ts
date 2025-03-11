@@ -33,6 +33,8 @@ import { uploadFileChunkCommand } from "../main/commands/upload-file-chunk.comma
 import { RecordManager } from "./record-manager"
 import { PreviewManager } from "./preview-manager"
 import { ICropVideoData } from "../shared/types/types"
+import { ProgressResolver } from "../services/progress-resolver"
+import { AxiosRequestConfig } from "axios"
 
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
@@ -259,6 +261,8 @@ class StorageService {
       }
       await updateRecordDal(fileUuid, update)
 
+      await ProgressResolver.createRecord(fileUuid)
+
       let record = await getByUuidRecordDal(fileUuid)
       const title = record.getDataValue("title")
       const fileChunks = record.getDataValue("Chunks")
@@ -385,12 +389,22 @@ class StorageService {
       chunk = await updateChunkDal(_chunk.getDataValue("uuid"), {
         status: ChunkStatus.LOADING,
       })
+      const config: AxiosRequestConfig = {
+        onUploadProgress: (progressEvent) => {
+          ProgressResolver.updateChunkData(
+            chunk.getDataValue("fileUuid"),
+            _chunk.getDataValue("uuid"),
+            progressEvent.loaded
+          )
+        },
+      }
       const response = await uploadFileChunkCommand(
         TokenStorage.token!.access_token,
         TokenStorage.organizationId!,
         serverUuid,
         data,
-        chunkNumber
+        chunkNumber,
+        config
       )
       if (response.status === 200 || response.status === 201) {
         chunk = await updateChunkDal(_chunk.getDataValue("uuid"), {
@@ -431,6 +445,7 @@ class StorageService {
 
   static async RecordUploadEnd(fileUuid: string) {
     await updateRecordDal(fileUuid, { status: RecordStatus.COMPLETED })
+    ProgressResolver.completeRecord(fileUuid)
     await deleteByUuidRecordsDal([fileUuid])
   }
 
