@@ -17,6 +17,7 @@ import {
   ScreenshotActionEvents,
   ModalWindowWidth,
   HotkeysEvents,
+  ILastDeviceSettings,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -36,11 +37,7 @@ type PageViewType =
   | "no-microphone"
   | "profile"
   | "settings"
-interface IDeviceIds {
-  videoId?: string
-  audioId?: string
-  systemAudio?: boolean
-}
+
 const SETTINGS_SHORT_CUTS_LOCALES = {
   [HotkeysEvents.FULL_SCREENSHOT]: "Скриншот всего экрана",
   [HotkeysEvents.CROP_SCREENSHOT]: "Скриншот выбранной области",
@@ -112,7 +109,7 @@ let hasCamera = false
 let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
-let lastDeviceIds: IDeviceIds = {}
+let lastDeviceIds: ILastDeviceSettings = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
   label: "Без камеры",
@@ -229,9 +226,9 @@ screenshotButtons.forEach((btn) => {
   )
 })
 
-function getLastMediaDevices(): IDeviceIds {
+function getLastMediaDevices(): ILastDeviceSettings {
   const lastDeviceIdsStr = localStorage.getItem(LAST_DEVICE_IDS)
-  const lastDeviceIds: IDeviceIds = lastDeviceIdsStr
+  const lastDeviceIds: ILastDeviceSettings = lastDeviceIdsStr
     ? JSON.parse(lastDeviceIdsStr)
     : {}
   return lastDeviceIds

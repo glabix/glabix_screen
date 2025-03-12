@@ -90,6 +90,7 @@ import {
   UserSettingsEvents,
   UserSettingsKeys,
 } from "@shared/types/user-settings.types"
+import { getLastDevices } from "./helpers/get-last-devices-settings.helper"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -670,6 +671,15 @@ function createWindow() {
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
   activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
 
+  getLastDevices(mainWindow).then((settings) => {
+    console.log(
+      `
+      mainWindow getLastDevices:
+    `,
+      settings
+    )
+  })
+
   if (os.platform() == "darwin") {
     mainWindow.setWindowButtonVisibility(false)
   }
@@ -762,6 +772,15 @@ function createModal(parentWindow) {
   })
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+
+  getLastDevices(modalWindow).then((settings) => {
+    console.log(
+      `
+      modalWindow getLastDevices:
+    `,
+      settings
+    )
+  })
 
   modalWindow.on("hide", () => {
     modalWindow.webContents.send(ModalWindowEvents.HIDE)

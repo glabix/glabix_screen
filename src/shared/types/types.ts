@@ -257,3 +257,9 @@ export interface IRecordUploadProgressData {
   uuid: string
   progress: number // %
 }
+
+export interface ILastDeviceSettings {
+  videoId?: string
+  audioId?: string
+  systemAudio?: boolean
+}
