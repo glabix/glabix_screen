@@ -1357,8 +1357,8 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
     }
   }
 })
-ipcMain.on("record-settings-change", (event, data) => {
-  mainWindow.webContents.send("record-settings-change", data)
+ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
+  mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
 ipcMain.on("dropdown:close", (event, data) => {
@@ -1678,8 +1678,12 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   checkOrganizationLimits().then(() => {
     contextMenu.getMenuItemById("menuLogOutItem")!.visible = true
     loginWindow.hide()
-    mainWindow.show()
-    modalWindow.show()
+    getLastStreamSettings(modalWindow).then((settings) => {
+      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.show()
+      modalWindow.show()
+    })
   })
 })
 

@@ -34,14 +34,6 @@ let isRecording = false
 let isCountdown = false
 let isScreenshotMode = false
 let isAppShown = false
-let cameraStopInterval: NodeJS.Timeout | undefined = undefined
-
-function clearCameraStopInterval() {
-  if (cameraStopInterval) {
-    clearInterval(cameraStopInterval)
-    cameraStopInterval = undefined
-  }
-}
 
 function initMovable() {
   moveable = new Moveable(document.body, {
@@ -88,12 +80,12 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
 }
 
 function startStream(deviseId) {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.startStream`,
-    body: `currentStream: ${Boolean(currentStream)} deviseId: ${deviseId}`,
-  })
-
   if (!deviseId) {
+    return
+  }
+
+  if (currentStream) {
+    showVideo()
     return
   }
 
@@ -101,28 +93,23 @@ function startStream(deviseId) {
     initMovable()
   }
 
-  if (!currentStream) {
-    const constraints = {
-      video: { deviceId: { exact: deviseId } },
-    }
-
-    const media = navigator.mediaDevices.getUserMedia(constraints)
-
-    media
-      .then((stream) => {
-        currentStream = stream
-        showVideo()
-      })
-      .catch((e) => {
-        if (e.toString().toLowerCase().includes("permission denied")) {
-          showVideo(true, "no-permission")
-        } else {
-          showVideo(true)
-        }
-      })
-  } else {
-    showVideo()
+  const constraints = {
+    video: { deviceId: { exact: deviseId } },
   }
+
+  navigator.mediaDevices
+    .getUserMedia(constraints)
+    .then((stream) => {
+      currentStream = stream
+      showVideo()
+    })
+    .catch((e) => {
+      if (e.toString().toLowerCase().includes("permission denied")) {
+        showVideo(true, "no-permission")
+      } else {
+        showVideo(true)
+      }
+    })
 }
 
 function flipCamera(isFlip: boolean) {
@@ -133,11 +120,11 @@ function stopStream() {
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+  video.srcObject = null
 
   if (currentStream) {
     currentStream.getTracks().forEach((track) => track.stop())
     currentStream = undefined
-    video.srcObject = null
   }
 
   if (moveable) {
@@ -147,10 +134,6 @@ function stopStream() {
 }
 
 function checkStream(data: IStreamSettings) {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.checkStream`,
-    body: JSON.stringify({ data, isAppShown }),
-  })
   if (
     ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
   ) {
@@ -166,12 +149,13 @@ function checkStream(data: IStreamSettings) {
 }
 
 window.electronAPI.ipcRenderer.on(
-  "record-settings-change",
+  RecordSettingsEvents.UPDATE,
   (event, data: IStreamSettings) => {
     lastStreamSettings = data
 
     if (!isScreenshotMode) {
       if (!isRecording) {
+        stopStream()
         checkStream(data)
       }
     } else {
@@ -203,22 +187,16 @@ window.electronAPI.ipcRenderer.on("app:hide", () => {
     return
   }
 
-  stopStream()
-
-  if (!cameraStopInterval) {
-    cameraStopInterval = setInterval(stopStream, 1000)
-  }
-})
-
-window.electronAPI.ipcRenderer.on("app:show", () => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.app:show`,
+    title: `webcamera.renderer.app:hide`,
     body: JSON.stringify({ lastStreamSettings }),
   })
 
-  isAppShown = true
+  stopStream()
+})
 
-  clearCameraStopInterval()
+window.electronAPI.ipcRenderer.on("app:show", () => {
+  isAppShown = true
 
   if (!isRecording && !isScreenshotMode) {
     if (lastStreamSettings) {
@@ -239,13 +217,13 @@ window.electronAPI.ipcRenderer.on(
   ModalWindowEvents.TAB,
   (event, data: IModalWindowTabData) => {
     if (data.activeTab == "screenshot") {
-      stopStream()
       isScreenshotMode = true
+      stopStream()
     }
 
     if (data.activeTab == "video") {
-      checkStream(lastStreamSettings!)
       isScreenshotMode = false
+      checkStream(lastStreamSettings!)
     }
   }
 )

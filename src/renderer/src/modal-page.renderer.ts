@@ -356,6 +356,7 @@ function initVisualAudio() {
 
 async function setupMediaDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices()
+  const prevSettings = { ...streamSettings }
   hasMicrophone = devices.some((d) => d.kind == "audioinput")
   hasCamera = devices.some((d) => d.kind == "videoinput")
   audioDevicesList = devices.filter((d) => d.kind == "audioinput")
@@ -363,7 +364,6 @@ async function setupMediaDevices() {
 
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
-
   // System Audio
   systemAudioCheckbox.checked = streamSettings.audio!
 
@@ -417,8 +417,11 @@ async function setupMediaDevices() {
     }
   }
 
-  sendSettings()
+  if (JSON.stringify(prevSettings) != JSON.stringify(streamSettings)) {
+    sendSettings()
+  }
 }
+
 function initMediaDevice() {
   setupMediaDevices()
     .then(() => {
@@ -619,15 +622,10 @@ function getDropdownItems(type: DropdownListType): IDropdownItem[] {
 }
 
 function sendSettings() {
-  if (streamSettings.audioDeviceId == "no-microphone") {
-    delete streamSettings.audioDeviceId
-  }
-
-  if (streamSettings.cameraDeviceId == "no-camera") {
-    delete streamSettings.cameraDeviceId
-  }
-
-  window.electronAPI.ipcRenderer.send("record-settings-change", streamSettings)
+  window.electronAPI.ipcRenderer.send(
+    RecordSettingsEvents.UPDATE,
+    streamSettings
+  )
 }
 
 function setPageView(view: PageViewType) {
@@ -919,11 +917,7 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on(
   RecordSettingsEvents.INIT,
   (event, settings: IStreamSettings) => {
-    // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    //   title: `modal-page.renderer.${RecordSettingsEvents.INIT}`,
-    //   body: JSON.stringify(settings),
-    // })
-    streamSettings = settings
+    streamSettings = { ...settings }
   }
 )
 

@@ -56,13 +56,12 @@ const changeCameraOnlySizeBtn = document.querySelectorAll(
 )!
 let lastScreenAction: ScreenAction | undefined = "fullScreenVideo"
 let videoRecorder: MediaRecorder | undefined
-let stream: MediaStream | undefined
-let innerStream: MediaStream | undefined
+let combineStream: MediaStream | undefined
 let cropMoveable: Moveable | undefined
 let cameraMoveable: Moveable | undefined
 let lastStreamSettings: IStreamSettings | undefined
-let desktopStream: MediaStream = new MediaStream()
-let voiceStream: MediaStream = new MediaStream()
+let desktopStream: MediaStream | undefined = undefined
+let voiceStream: MediaStream | undefined = undefined
 let requestId = 0
 let currentRecordedUuid: string | null = null
 let currentRecordChunksCount = 0
@@ -72,14 +71,6 @@ let isScreenshotMode = false
 let isRecording = false
 let isRecordCanceled = false
 let isRecordRestart = false
-let streamStopInterval: NodeJS.Timeout | undefined = undefined
-
-function clearStreamStopInterval() {
-  if (streamStopInterval) {
-    clearInterval(streamStopInterval)
-    streamStopInterval = undefined
-  }
-}
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -315,16 +306,29 @@ const stopStreamTracks = () => {
     return
   }
 
-  stream?.getTracks().forEach((track) => track.stop())
-  innerStream?.getTracks().forEach((track) => track.stop())
-  desktopStream.getTracks().forEach((track) => track.stop())
-  voiceStream.getTracks().forEach((track) => track.stop())
+  if (combineStream) {
+    combineStream.getTracks().forEach((track) => track.stop())
+    combineStream = undefined
+  }
+
+  if (desktopStream) {
+    desktopStream.getTracks().forEach((track) => track.stop())
+    desktopStream = undefined
+  }
+
+  if (voiceStream) {
+    voiceStream.getTracks().forEach((track) => track.stop())
+    voiceStream = undefined
+  }
 }
 
 const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
   stopStreamTracks()
 
   let systemAudioSettings: boolean | MediaTrackConstraints = false
+
+  voiceStream = new MediaStream()
+  desktopStream = new MediaStream()
 
   if (settings.audio && isWindows) {
     systemAudioSettings = {
@@ -395,12 +399,12 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
     ? mergeAudioStreams(desktopStream, voiceStream)
     : voiceStream.getAudioTracks()
 
-  const combinedStream = new MediaStream([
-    ...desktopStream.getVideoTracks(),
+  combineStream = new MediaStream([
+    ...desktopStream!.getVideoTracks(),
     ...audioStreamTracks,
   ])
 
-  return combinedStream
+  return combineStream
 }
 
 const getSupportedMimeType = () => {
@@ -413,14 +417,8 @@ const getSupportedMimeType = () => {
   }
 }
 
-const createVideo = (_stream, _video) => {
-  innerStream = _stream
-  stream = new MediaStream([
-    ..._stream.getVideoTracks(),
-    ..._stream.getAudioTracks(),
-  ])
-
-  videoRecorder = new MediaRecorder(stream!, {
+const createVideo = (stream: MediaStream, _video) => {
+  videoRecorder = new MediaRecorder(stream, {
     mimeType: getSupportedMimeType(),
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
@@ -435,7 +433,7 @@ const createVideo = (_stream, _video) => {
   let lastChunk: ArrayBuffer | string | null = null
 
   if (_video) {
-    _video.srcObject = new MediaStream([..._stream.getVideoTracks()])
+    _video.srcObject = stream
   }
 
   videoRecorder.onpause = function (e) {
@@ -511,8 +509,8 @@ const createVideo = (_stream, _video) => {
     // a.click()
     // window.URL.revokeObjectURL(url)
 
-    stream!.getTracks().forEach((track) => track.stop())
-    innerStream?.getTracks().forEach((track) => track.stop())
+    stream.getTracks().forEach((track) => track.stop())
+    combineStream?.getTracks().forEach((track) => track.stop())
 
     const cropScreen = document.querySelector(
       "#crop_video_screen"
@@ -548,7 +546,7 @@ const updateRecorderState = (state: RecorderState | null | "countdown") => {
 }
 
 const createPreview = () => {
-  if (stream) {
+  if (combineStream) {
     let crop: Rectangle | undefined = undefined
     let screenSize = {
       width: window.innerWidth,
@@ -578,18 +576,20 @@ const createPreview = () => {
       }
     }
 
-    captureVideoFrame(stream, screenSize, crop).then((previewDataURL) => {
-      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-        title: "captureVideoFrame",
-      })
+    captureVideoFrame(combineStream, screenSize, crop).then(
+      (previewDataURL) => {
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "captureVideoFrame",
+        })
 
-      const data: ISimpleStoreData = {
-        key: "lastVideoPreview",
-        value: previewDataURL,
+        const data: ISimpleStoreData = {
+          key: "lastVideoPreview",
+          value: previewDataURL,
+        }
+
+        window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
       }
-
-      window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
-    })
+    )
   }
 }
 const startRecording = () => {
@@ -655,8 +655,9 @@ const clearCameraOnlyVideoStream = () => {
   const video = document.querySelector("#webcam_only_video") as HTMLVideoElement
   video.srcObject = null
 
-  if (stream) {
-    stream.getTracks().forEach((track) => track.stop())
+  if (combineStream) {
+    combineStream.getTracks().forEach((track) => track.stop())
+    combineStream = undefined
   }
 }
 const setNoMicrophoneAlerts = (settings) => {
@@ -914,7 +915,7 @@ function initRecord(data: IStreamSettings): Promise<void> {
 }
 
 window.electronAPI.ipcRenderer.on(
-  "record-settings-change",
+  RecordSettingsEvents.UPDATE,
   (event, settings: IStreamSettings) => {
     if (isRecording) {
       return
@@ -1079,19 +1080,12 @@ window.electronAPI.ipcRenderer.on("screen:change", (event) => {
 window.electronAPI.ipcRenderer.on(
   RecordSettingsEvents.INIT,
   (event, settings: IStreamSettings) => {
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: `recorder.renderer.${RecordSettingsEvents.INIT}`,
-      body: JSON.stringify({ settings }),
-    })
-
     lastStreamSettings = filterStreamSettings(settings)
   }
 )
 
 window.electronAPI.ipcRenderer.on("app:hide", (event) => {
-  if (!streamStopInterval) {
-    streamStopInterval = setInterval(stopStreamTracks, 1000)
-  }
+  stopStreamTracks()
 })
 
 window.electronAPI.ipcRenderer.on("app:show", () => {
@@ -1107,8 +1101,6 @@ window.electronAPI.ipcRenderer.on("app:show", () => {
       initRecord(lastStreamSettings)
     }
   }
-
-  clearStreamStopInterval()
 })
 
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {

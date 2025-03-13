@@ -1,5 +1,8 @@
 import { BrowserWindow } from "electron"
 import { ILastDeviceSettings, IStreamSettings } from "@shared/types/types"
+import { LogSender } from "./log-sender"
+import { stringify } from "./stringify"
+const logSender = new LogSender()
 
 const DEFAULT_STREAM_SETTINGS: IStreamSettings = {
   action: "fullScreenVideo",
@@ -27,7 +30,11 @@ export function getLastStreamSettings(
             cameraDeviceId: deviceSettings.videoId,
           }
         }
-
+        logSender.sendLog(
+          "getLastStreamSettings",
+          stringify({ settings }),
+          true
+        )
         resolve(settings)
       })
       .catch((e) => {
