@@ -8,18 +8,11 @@ export type ScreenAction =
   | "cropScreenshot"
 export type RecorderState = "recording" | "paused" | "stopped"
 export type MediaDeviceType = "camera" | "microphone" | "screen"
-export interface StreamSettings {
+export interface IStreamSettings {
   action: ScreenAction
   audioDeviceId?: string
   cameraDeviceId?: string
-  video?: boolean
   audio?: boolean
-  screenshot?: {
-    x: null | number
-    y: null | number
-    width: null | number
-    height: null | number
-  }
 }
 
 export enum ModalWindowWidth {
@@ -256,4 +249,10 @@ export interface IRecordUploadProgressData {
   status: IRecordProgressStatus
   uuid: string
   progress: number // %
+}
+
+export interface ILastDeviceSettings {
+  videoId?: string
+  audioId?: string
+  systemAudio?: boolean
 }

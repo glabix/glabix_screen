@@ -3,10 +3,13 @@ import {
   ModalWindowEvents,
   ScreenshotActionEvents,
   SimpleStoreEvents,
-  StreamSettings,
+  IStreamSettings,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
-import { RecordEvents } from "../../shared/events/record.events"
+import {
+  RecordEvents,
+  RecordSettingsEvents,
+} from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 
@@ -26,19 +29,11 @@ const changeCameraViewSizeBtn = document.querySelectorAll(
 
 let currentStream: MediaStream | undefined = undefined
 let moveable: Moveable | undefined = undefined
-let lastStreamSettings: StreamSettings | undefined = undefined
+let lastStreamSettings: IStreamSettings | undefined = undefined
 let isRecording = false
 let isCountdown = false
 let isScreenshotMode = false
 let isAppShown = false
-let cameraStopInterval: NodeJS.Timeout | undefined = undefined
-
-function clearCameraStopInterval() {
-  if (cameraStopInterval) {
-    clearInterval(cameraStopInterval)
-    cameraStopInterval = undefined
-  }
-}
 
 function initMovable() {
   moveable = new Moveable(document.body, {
@@ -66,6 +61,9 @@ function initMovable() {
 initMovable()
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.showVideo`,
+  })
   video.srcObject = currentStream!
   videoContainer.removeAttribute("hidden")
 
@@ -82,12 +80,12 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
 }
 
 function startStream(deviseId) {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.startStream`,
-    body: `currentStream: ${Boolean(currentStream)} deviseId: ${deviseId}`,
-  })
-
   if (!deviseId) {
+    return
+  }
+
+  if (currentStream) {
+    showVideo()
     return
   }
 
@@ -95,28 +93,23 @@ function startStream(deviseId) {
     initMovable()
   }
 
-  if (!currentStream) {
-    const constraints = {
-      video: { deviceId: { exact: deviseId } },
-    }
-
-    const media = navigator.mediaDevices.getUserMedia(constraints)
-
-    media
-      .then((stream) => {
-        currentStream = stream
-        showVideo()
-      })
-      .catch((e) => {
-        if (e.toString().toLowerCase().includes("permission denied")) {
-          showVideo(true, "no-permission")
-        } else {
-          showVideo(true)
-        }
-      })
-  } else {
-    showVideo()
+  const constraints = {
+    video: { deviceId: { exact: deviseId } },
   }
+
+  navigator.mediaDevices
+    .getUserMedia(constraints)
+    .then((stream) => {
+      currentStream = stream
+      showVideo()
+    })
+    .catch((e) => {
+      if (e.toString().toLowerCase().includes("permission denied")) {
+        showVideo(true, "no-permission")
+      } else {
+        showVideo(true)
+      }
+    })
 }
 
 function flipCamera(isFlip: boolean) {
@@ -127,7 +120,6 @@ function stopStream() {
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-
   video.srcObject = null
 
   if (currentStream) {
@@ -141,7 +133,7 @@ function stopStream() {
   }
 }
 
-function checkStream(data: StreamSettings) {
+function checkStream(data: IStreamSettings) {
   if (
     ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
   ) {
@@ -149,7 +141,7 @@ function checkStream(data: StreamSettings) {
     return
   }
 
-  if (data.cameraDeviceId) {
+  if (data.cameraDeviceId && data.cameraDeviceId != "no-camera") {
     startStream(data.cameraDeviceId)
   } else {
     stopStream()
@@ -157,15 +149,28 @@ function checkStream(data: StreamSettings) {
 }
 
 window.electronAPI.ipcRenderer.on(
-  "record-settings-change",
-  (event, data: StreamSettings) => {
+  RecordSettingsEvents.UPDATE,
+  (event, data: IStreamSettings) => {
+    lastStreamSettings = data
+
     if (!isScreenshotMode) {
-      lastStreamSettings = data
       if (!isRecording) {
+        stopStream()
         checkStream(data)
       }
     } else {
       isScreenshotMode = false
+    }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  RecordSettingsEvents.INIT,
+  (event, settings: IStreamSettings) => {
+    lastStreamSettings = settings
+
+    if (isAppShown) {
+      checkStream(lastStreamSettings)
     }
   }
 )
@@ -178,15 +183,26 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 window.electronAPI.ipcRenderer.on("app:hide", () => {
   isAppShown = false
 
-  if (!cameraStopInterval) {
-    cameraStopInterval = setInterval(stopStream, 1000)
-  }
-
   if (isRecording || isCountdown) {
     return
   }
 
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.app:hide`,
+    body: JSON.stringify({ lastStreamSettings }),
+  })
+
   stopStream()
+})
+
+window.electronAPI.ipcRenderer.on("app:show", () => {
+  isAppShown = true
+
+  if (!isRecording && !isScreenshotMode) {
+    if (lastStreamSettings) {
+      checkStream(lastStreamSettings)
+    }
+  }
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
@@ -201,26 +217,16 @@ window.electronAPI.ipcRenderer.on(
   ModalWindowEvents.TAB,
   (event, data: IModalWindowTabData) => {
     if (data.activeTab == "screenshot") {
-      stopStream()
       isScreenshotMode = true
+      stopStream()
     }
 
     if (data.activeTab == "video") {
-      checkStream(lastStreamSettings!)
       isScreenshotMode = false
+      checkStream(lastStreamSettings!)
     }
   }
 )
-
-window.electronAPI.ipcRenderer.on("app:show", () => {
-  isAppShown = true
-
-  clearCameraStopInterval()
-
-  if (!isRecording && !isScreenshotMode) {
-    checkStream(lastStreamSettings!)
-  }
-})
 
 window.electronAPI.ipcRenderer.on(
   UserSettingsEvents.FLIP_CAMERA_GET,

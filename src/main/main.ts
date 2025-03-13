@@ -65,7 +65,10 @@ import { stringify } from "./helpers/stringify"
 import { optimizer, is } from "@electron-toolkit/utils"
 import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
-import { RecordEvents } from "../shared/events/record.events"
+import {
+  RecordEvents,
+  RecordSettingsEvents,
+} from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
 import { uploadScreenshotCommand } from "./commands/upload-screenshot.command"
@@ -90,6 +93,7 @@ import {
   UserSettingsEvents,
   UserSettingsKeys,
 } from "@shared/types/user-settings.types"
+import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -286,7 +290,11 @@ if (!gotTheLock) {
       loadAccountData()
 
       checkOrganizationLimits().then(() => {
-        showWindows()
+        getLastStreamSettings(modalWindow).then((settings) => {
+          modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+          mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+          showWindows()
+        })
       })
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
@@ -695,15 +703,20 @@ function createWindow() {
     app.quit()
   })
 
+  mainWindow.on("show", () => {
+    mainWindow.webContents.send("app:show")
+    modalWindow?.webContents.send("app:show")
+  })
+
   mainWindow.on("hide", () => {
     mainWindow.webContents.send("app:hide")
-    if (modalWindow) {
-      modalWindow.webContents.send("app:hide")
-    }
+    modalWindow.webContents.send("app:hide")
   })
+
   mainWindow.on("blur", () => {
     mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   })
+
   mainWindow.on("focus", () => {
     mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   })
@@ -785,11 +798,11 @@ function createModal(parentWindow) {
 
   modalWindow.on("show", () => {
     modalWindow.webContents.send(ModalWindowEvents.SHOW)
+    modalWindow.webContents.send("app:show")
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
-    mainWindow.webContents.send("app:show")
     modalWindow.webContents.send("app:version", app.getVersion())
     checkOrganizationLimits()
     loadAccountData()
@@ -815,11 +828,6 @@ function createModal(parentWindow) {
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send("app:version", app.getVersion())
-
-    if (modalWindow.isVisible()) {
-      mainWindow.webContents.send("app:show")
-    }
-
     loadAccountData()
   })
 
@@ -910,6 +918,11 @@ function createLoginWindow() {
   } else {
     loginWindow.loadFile(join(import.meta.dirname, "../renderer/login.html"))
   }
+
+  loginWindow.on("show", () => {
+    mainWindow?.webContents.send("app:hide")
+    modalWindow?.webContents.send("app:hide")
+  })
 
   loginWindow.webContents.on("did-finish-load", () => {
     loginWindow.webContents.send("app:version", app.getVersion())
@@ -1049,8 +1062,12 @@ function hideWindows() {
   unregisterShortCutsOnHide()
   unregisterUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
-    if (mainWindow) mainWindow.hide()
-    if (modalWindow) modalWindow.hide()
+    if (mainWindow) {
+      mainWindow.hide()
+    }
+    if (modalWindow) {
+      modalWindow.hide()
+    }
   } else {
     if (loginWindow) loginWindow.hide()
   }
@@ -1172,6 +1189,7 @@ function createMenu() {
 
 function logOut() {
   TokenStorage.reset()
+  mainWindow.webContents.send("app:hide")
   mainWindow.hide()
   modalWindow.hide()
   loginWindow.show()
@@ -1339,8 +1357,8 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
     }
   }
 })
-ipcMain.on("record-settings-change", (event, data) => {
-  mainWindow.webContents.send("record-settings-change", data)
+ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
+  mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
 ipcMain.on("dropdown:close", (event, data) => {
@@ -1348,7 +1366,7 @@ ipcMain.on("dropdown:close", (event, data) => {
 })
 ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
   dropdownWindow.hide()
-  modalWindow.webContents.send("dropdown:select.video", data)
+  modalWindow.webContents.send("dropdown:select", data)
 })
 
 ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
@@ -1660,8 +1678,12 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   checkOrganizationLimits().then(() => {
     contextMenu.getMenuItemById("menuLogOutItem")!.visible = true
     loginWindow.hide()
-    mainWindow.show()
-    modalWindow.show()
+    getLastStreamSettings(modalWindow).then((settings) => {
+      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.show()
+      modalWindow.show()
+    })
   })
 })
 

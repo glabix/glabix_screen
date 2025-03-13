@@ -8,3 +8,8 @@ export enum RecordEvents {
   ERROR = "error",
   CANCEL = "cancel",
 }
+
+export enum RecordSettingsEvents {
+  INIT = "record-settings:init",
+  UPDATE = "record-settings:update",
+}

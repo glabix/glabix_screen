@@ -8,7 +8,7 @@ import {
   IMediaDevicesAccess,
   MediaDeviceType,
   ScreenAction,
-  StreamSettings,
+  IStreamSettings,
   ModalWindowHeight,
   IAvatarData,
   SimpleStoreEvents,
@@ -17,10 +17,14 @@ import {
   ScreenshotActionEvents,
   ModalWindowWidth,
   HotkeysEvents,
+  ILastDeviceSettings,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
-import { RecordEvents } from "../../shared/events/record.events"
+import {
+  RecordEvents,
+  RecordSettingsEvents,
+} from "../../shared/events/record.events"
 import { Palette } from "@shared/helpers/palette"
 import { debounce } from "@shared/helpers/debounce"
 import {
@@ -36,11 +40,7 @@ type PageViewType =
   | "no-microphone"
   | "profile"
   | "settings"
-interface IDeviceIds {
-  videoId?: string
-  audioId?: string
-  systemAudio?: boolean
-}
+
 const SETTINGS_SHORT_CUTS_LOCALES = {
   [HotkeysEvents.FULL_SCREENSHOT]: "Скриншот всего экрана",
   [HotkeysEvents.CROP_SCREENSHOT]: "Скриншот выбранной области",
@@ -112,7 +112,7 @@ let hasCamera = false
 let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
-let lastDeviceIds: IDeviceIds = {}
+let lastDeviceIds: ILastDeviceSettings = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
   label: "Без камеры",
@@ -130,9 +130,8 @@ const noAudioDevice: MediaDeviceInfo = {
 let videoDevicesList: MediaDeviceInfo[] = []
 let activeVideoDevice: MediaDeviceInfo | undefined
 let activeScreenAction: ScreenAction = "fullScreenVideo"
-let streamSettings: StreamSettings = {
+let streamSettings: IStreamSettings = {
   action: activeScreenAction,
-  video: true,
 }
 let isScreenshotTab = false
 const flipCheckbox = document.querySelector(
@@ -228,14 +227,6 @@ screenshotButtons.forEach((btn) => {
     false
   )
 })
-
-function getLastMediaDevices(): IDeviceIds {
-  const lastDeviceIdsStr = localStorage.getItem(LAST_DEVICE_IDS)
-  const lastDeviceIds: IDeviceIds = lastDeviceIdsStr
-    ? JSON.parse(lastDeviceIdsStr)
-    : {}
-  return lastDeviceIds
-}
 
 function setLastMediaDevices(
   lastAudioDeviceId?: string,
@@ -364,8 +355,8 @@ function initVisualAudio() {
 }
 
 async function setupMediaDevices() {
-  lastDeviceIds = getLastMediaDevices()
   const devices = await navigator.mediaDevices.enumerateDevices()
+  const prevSettings = { ...streamSettings }
   hasMicrophone = devices.some((d) => d.kind == "audioinput")
   hasCamera = devices.some((d) => d.kind == "videoinput")
   audioDevicesList = devices.filter((d) => d.kind == "audioinput")
@@ -373,16 +364,12 @@ async function setupMediaDevices() {
 
   videoDevicesList = devices.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
-
   // System Audio
-  const systemAudio =
-    lastDeviceIds.systemAudio === undefined ? true : lastDeviceIds.systemAudio
-  systemAudioCheckbox.checked = systemAudio
-  streamSettings = { ...streamSettings, audio: systemAudio }
+  systemAudioCheckbox.checked = streamSettings.audio!
 
   if (hasMicrophone) {
     const lastAudioDevice = audioDevicesList.find(
-      (d) => d.deviceId == lastDeviceIds.audioId
+      (d) => d.deviceId == streamSettings.audioDeviceId
     )
     if (lastAudioDevice) {
       activeAudioDevice = lastAudioDevice
@@ -406,7 +393,7 @@ async function setupMediaDevices() {
 
   if (hasCamera) {
     const lastVideoDevice = videoDevicesList.find(
-      (d) => d.deviceId == lastDeviceIds.videoId
+      (d) => d.deviceId == streamSettings.cameraDeviceId
     )
 
     if (lastVideoDevice) {
@@ -429,11 +416,15 @@ async function setupMediaDevices() {
       cameraDeviceId: undefined,
     }
   }
+
+  if (JSON.stringify(prevSettings) != JSON.stringify(streamSettings)) {
+    sendSettings()
+  }
 }
+
 function initMediaDevice() {
   setupMediaDevices()
     .then(() => {
-      sendSettings()
       initVisualAudio()
 
       if (activeVideoDevice) {
@@ -449,7 +440,6 @@ function initMediaDevice() {
     .catch((e) => {})
 }
 
-initMediaDevice()
 const changeMediaDevices = debounce(() => {
   initMediaDevice()
   window.electronAPI.ipcRenderer.send("dropdown:close", {})
@@ -632,15 +622,10 @@ function getDropdownItems(type: DropdownListType): IDropdownItem[] {
 }
 
 function sendSettings() {
-  if (streamSettings.audioDeviceId == "no-microphone") {
-    delete streamSettings.audioDeviceId
-  }
-
-  if (streamSettings.cameraDeviceId == "no-camera") {
-    delete streamSettings.cameraDeviceId
-  }
-
-  window.electronAPI.ipcRenderer.send("record-settings-change", streamSettings)
+  window.electronAPI.ipcRenderer.send(
+    RecordSettingsEvents.UPDATE,
+    streamSettings
+  )
 }
 
 function setPageView(view: PageViewType) {
@@ -751,7 +736,7 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
-  "dropdown:select.video",
+  "dropdown:select",
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
 
@@ -820,11 +805,23 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(ModalWindowEvents.SHOW, (event) => {
-  initVisualAudio()
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `modal.renderer.${ModalWindowEvents.SHOW}`,
+  })
+  // initMediaDevice()
+  // initMediaDevice()
+  // initVisualAudio()
 })
 window.electronAPI.ipcRenderer.on(ModalWindowEvents.HIDE, (event) => {
   openedDropdownType = undefined
   isAllowRecords = undefined
+})
+
+window.electronAPI.ipcRenderer.on("app:show", (event) => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `modal.renderer.app:show`,
+  })
+  initMediaDevice()
 })
 window.electronAPI.ipcRenderer.on("app:hide", (event) => {
   stopVisualAudio()
@@ -914,6 +911,13 @@ window.electronAPI.ipcRenderer.on(
       },
       false
     )
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  RecordSettingsEvents.INIT,
+  (event, settings: IStreamSettings) => {
+    streamSettings = { ...settings }
   }
 )
 
@@ -1132,9 +1136,9 @@ systemAudioCheckbox.addEventListener(
 )
 
 function start() {
-  if (streamSettings.action == "fullScreenVideo") {
-    sendSettings()
-  }
+  // if (streamSettings.action == "fullScreenVideo") {
+  //   sendSettings()
+  // }
 
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "recording.started",
@@ -1366,24 +1370,6 @@ window.electronAPI.ipcRenderer.on(
       ".settings-shortcut-checkbox"
     ) as NodeListOf<HTMLInputElement>
     shortcutsUpdater.bindEvents(inputs, checkboxes, data)
-
-    const shortcutSelects = document.querySelectorAll(
-      ".settings-shortcut-input-wrapper"
-    )
-
-    shortcutSelects.forEach((select) => {
-      select.addEventListener(
-        "click",
-        () => {
-          const input = select.querySelector(
-            ".settings-shortcut-input"
-          )! as HTMLElement
-          const activeItem = input.dataset.shortcutValue
-          // const items:
-        },
-        false
-      )
-    })
   }
 )
 

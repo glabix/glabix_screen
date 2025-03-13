@@ -4,7 +4,7 @@ import {
   ModalWindowEvents,
   ScreenshotActionEvents,
   ScreenshotWindowEvents,
-  StreamSettings,
+  IStreamSettings,
 } from "@shared/types/types"
 import { Display, Rectangle } from "electron"
 
