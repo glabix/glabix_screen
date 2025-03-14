@@ -57,6 +57,7 @@ const changeCameraOnlySizeBtn = document.querySelectorAll(
 let lastScreenAction: ScreenAction | undefined = "fullScreenVideo"
 let videoRecorder: MediaRecorder | undefined
 let combineStream: MediaStream | undefined
+let audioContext: AudioContext | undefined = undefined
 let cropMoveable: Moveable | undefined
 let cameraMoveable: Moveable | undefined
 let lastStreamSettings: IStreamSettings | undefined
@@ -278,17 +279,17 @@ const mergeAudioStreams = (
   desktopStream: MediaStream,
   voiceStream: MediaStream
 ): MediaStreamTrack[] => {
-  const context = new AudioContext()
+  audioContext = new AudioContext()
   const hasSystemAudio = Boolean(desktopStream.getAudioTracks().length)
   const hasMicrophone = Boolean(voiceStream.getAudioTracks().length)
   const desktopSource: MediaStreamAudioSourceNode | null = hasSystemAudio
-    ? context.createMediaStreamSource(desktopStream)
+    ? audioContext.createMediaStreamSource(desktopStream)
     : null
   const voiceSource: MediaStreamAudioSourceNode | null = hasMicrophone
-    ? context.createMediaStreamSource(voiceStream)
+    ? audioContext.createMediaStreamSource(voiceStream)
     : null
 
-  const combine = context.createMediaStreamDestination()
+  const combine = audioContext.createMediaStreamDestination()
 
   if (desktopSource) {
     desktopSource.connect(combine)
@@ -304,6 +305,11 @@ const mergeAudioStreams = (
 const stopStreamTracks = () => {
   if (isRecording) {
     return
+  }
+
+  if (audioContext) {
+    audioContext.close()
+    audioContext = undefined
   }
 
   if (combineStream) {
