@@ -36,11 +36,7 @@ export class MigrateOldStoragePrepared {
   constructor() {}
 
   async migrate() {
-    this.logSender.sendLog(
-      "database.migrate.prepared.start",
-      stringify({}),
-      true
-    )
+    this.logSender.sendLog("database.migrate.prepared.start", stringify({}))
     try {
       const flag = await fs.promises.access(this.mainPath)
     } catch (e) {
@@ -52,7 +48,7 @@ export class MigrateOldStoragePrepared {
       return
     }
     await this.moveChunks(this.mainPath, this.newStoragePath)
-    this.logSender.sendLog("database.migrate.prepared.end", "success", true)
+    this.logSender.sendLog("database.migrate.prepared.end", "success")
   }
 
   async moveChunks(sourceDir, targetDir) {
