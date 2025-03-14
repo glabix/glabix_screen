@@ -26,7 +26,7 @@ export class RecordManager {
   constructor() {}
 
   static async setTimer() {
-    this.updateRecordsInProgress()
+    await this.updateRecordsInProgress()
 
     if (!this.currentProcessRecordUuid) {
       await this.resolveUnprocessedRecords()
