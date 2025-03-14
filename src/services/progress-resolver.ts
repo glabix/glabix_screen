@@ -49,9 +49,12 @@ export class ProgressResolver {
     chunkUuid: string,
     loaded: number
   ) {
-    const record = this.getRecord(fileUuid)
+    let record = this.getRecord(fileUuid)
 
-    if (!record) return
+    if (!record) {
+      await this.createRecord(fileUuid)
+      record = this.getRecord(fileUuid)
+    }
 
     this.state = this.state.map((s) => {
       if (s.uuid === fileUuid) {
