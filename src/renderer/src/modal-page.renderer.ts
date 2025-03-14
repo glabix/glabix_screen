@@ -112,6 +112,7 @@ let hasCamera = false
 let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
+let audioContext: AudioContext | null = null
 let lastDeviceIds: ILastDeviceSettings = {}
 const noVideoDevice: MediaDeviceInfo = {
   deviceId: "no-camera",
@@ -249,6 +250,11 @@ function setLastMediaDevices(
 }
 
 function stopVisualAudio() {
+  if (audioContext) {
+    audioContext.close()
+    audioContext = null
+  }
+
   if (visualAudioStream) {
     visualAudioStream.getTracks().forEach((s) => s.stop())
     visualAudioStream = null
@@ -281,9 +287,9 @@ function initVisualAudio() {
       })
       .then((stream) => {
         visualAudioStream = stream
-        const context = new AudioContext()
-        const source = context.createMediaStreamSource(visualAudioStream)
-        const analyser = context.createAnalyser()
+        audioContext = new AudioContext()
+        const source = audioContext.createMediaStreamSource(visualAudioStream)
+        const analyser = audioContext.createAnalyser()
 
         analyser.fftSize = 2048
         source.connect(analyser)
