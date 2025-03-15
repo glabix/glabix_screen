@@ -836,6 +836,7 @@ const hideOnlyCameraError = () => {
 }
 
 function initRecord(data: IStreamSettings): Promise<void> {
+  stopStreamTracks()
   return new Promise((resolve, reject) => {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: `initRecord`,
