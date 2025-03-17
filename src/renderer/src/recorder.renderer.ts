@@ -31,6 +31,7 @@ import {
   IUserSettingsShortcut,
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
+import { AppEvents } from "@shared/events/app.events"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 let SHORTCUTS_TEXT_MAP = {}
@@ -71,7 +72,9 @@ let isDialogWindowOpen = false
 let isScreenshotMode = false
 let isRecording = false
 let isRecordCanceled = false
+let isAppShown = false
 let isRecordRestart = false
+let skipAppShowEvent = false
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -1091,23 +1094,27 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-window.electronAPI.ipcRenderer.on("app:hide", (event) => {
+window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
+  isAppShown = false
+  document.body.classList.add("is-panel-hidden")
   stopStreamTracks()
 })
 
-window.electronAPI.ipcRenderer.on("app:show", () => {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `recorder.renderer.app:show`,
-    body: JSON.stringify({ lastStreamSettings }),
-  })
+window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
+  isAppShown = true
 
-  if (!isScreenshotMode) {
-    document.body.classList.remove("is-panel-hidden")
-
-    if (lastStreamSettings && lastStreamSettings?.action == "cameraOnly") {
-      initRecord(lastStreamSettings)
+  if (skipAppShowEvent) {
+    document.body.classList.add("is-panel-hidden")
+  } else {
+    if (!isScreenshotMode) {
+      document.body.classList.remove("is-panel-hidden")
+      if (lastStreamSettings && lastStreamSettings?.action == "cameraOnly") {
+        initRecord(lastStreamSettings)
+      }
     }
   }
+
+  skipAppShowEvent = false
 })
 
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {
@@ -1118,6 +1125,8 @@ window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   if (isRecording) {
     return
   }
+
+  skipAppShowEvent = isAppShown ? false : true
 
   stopStreamTracks()
   document.body.classList.add("is-panel-hidden")

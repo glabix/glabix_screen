@@ -3,6 +3,7 @@ import { ipcMain } from "electron"
 import { APIEvents } from "@shared/events/api.events"
 import { stringify } from "@main/helpers/stringify"
 import { LogSender } from "@main/helpers/log-sender"
+import { AppEvents } from "@shared/events/app.events"
 
 const logSender = new LogSender()
 
@@ -58,7 +59,7 @@ export function uploadScreenshotCommand(
       //
       .catch((e) => {
         if (e.response && e.response.status == 401) {
-          ipcMain.emit("app:logout")
+          ipcMain.emit(AppEvents.LOGOUT)
         }
         logSender.sendLog("api.screenshots.post.create_url.catch(error)")
         resolve("")

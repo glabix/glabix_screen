@@ -12,6 +12,7 @@ import {
 } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
+import { AppEvents } from "@shared/events/app.events"
 
 const videoContainer = document.getElementById(
   "webcamera-view"
@@ -34,6 +35,7 @@ let isRecording = false
 let isCountdown = false
 let isScreenshotMode = false
 let isAppShown = false
+let skipAppShowEvent = false
 
 function initMovable() {
   moveable = new Moveable(document.body, {
@@ -180,7 +182,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
   isCountdown = state["recordingState"] == "countdown"
 })
 
-window.electronAPI.ipcRenderer.on("app:hide", () => {
+window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
   isAppShown = false
 
   if (isRecording || isCountdown) {
@@ -195,20 +197,27 @@ window.electronAPI.ipcRenderer.on("app:hide", () => {
   stopStream()
 })
 
-window.electronAPI.ipcRenderer.on("app:show", () => {
+window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   isAppShown = true
 
-  if (!isRecording && !isScreenshotMode) {
-    if (lastStreamSettings) {
-      checkStream(lastStreamSettings)
+  if (skipAppShowEvent) {
+  } else {
+    if (!isRecording && !isScreenshotMode) {
+      if (lastStreamSettings) {
+        checkStream(lastStreamSettings)
+      }
     }
   }
+
+  skipAppShowEvent = false
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   if (isRecording || isCountdown) {
     return
   }
+
+  skipAppShowEvent = isAppShown ? false : true
 
   stopStream()
 })

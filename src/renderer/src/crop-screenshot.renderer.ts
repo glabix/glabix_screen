@@ -1,3 +1,4 @@
+import { AppEvents } from "@shared/events/app.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import {
   IModalWindowTabData,
@@ -133,5 +134,6 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
   if (e.key == "Escape") {
     canvasContainer.setAttribute("hidden", "")
     initView()
+    window.electronAPI.ipcRenderer.send(AppEvents.HIDE)
   }
 })
