@@ -1,3 +1,4 @@
+import { AppEvents } from "@shared/events/app.events"
 import axios from "axios"
 import { ipcMain } from "electron"
 
@@ -22,7 +23,7 @@ export function createAppLogAuthCommand(
       .then((response) => {})
       .catch((e) => {
         if (e.response && e.response.status == 401) {
-          ipcMain.emit("app:logout")
+          ipcMain.emit(AppEvents.LOGOUT)
         }
       })
   } catch (e) {}

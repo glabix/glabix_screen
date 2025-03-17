@@ -94,6 +94,7 @@ import {
   UserSettingsKeys,
 } from "@shared/types/user-settings.types"
 import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
+import { AppEvents } from "@shared/events/app.events"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -446,6 +447,8 @@ function registerUserShortCuts() {
           const isRecording = (store.get() as any).recordingState == "recording"
 
           if (isScreenshotAllowed) {
+            mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
+
             if (!isRecording) {
               const cursorPosition = screen.getCursorScreenPoint()
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
@@ -456,8 +459,6 @@ function registerUserShortCuts() {
               mainWindow.focus()
               mainWindow.focusOnWebView()
             }
-
-            mainWindow.webContents.send(ScreenshotActionEvents.CROP, {})
           }
         })
       }
@@ -704,13 +705,13 @@ function createWindow() {
   })
 
   mainWindow.on("show", () => {
-    mainWindow.webContents.send("app:show")
-    modalWindow?.webContents.send("app:show")
+    mainWindow.webContents.send(AppEvents.ON_SHOW)
+    modalWindow?.webContents.send(AppEvents.ON_SHOW)
   })
 
   mainWindow.on("hide", () => {
-    mainWindow.webContents.send("app:hide")
-    modalWindow.webContents.send("app:hide")
+    mainWindow.webContents.send(AppEvents.ON_HIDE)
+    modalWindow.webContents.send(AppEvents.ON_HIDE)
   })
 
   mainWindow.on("blur", () => {
@@ -792,18 +793,18 @@ function createModal(parentWindow) {
     )
     checkOrganizationLimits()
     loadAccountData()
-    modalWindow.webContents.send("app:version", app.getVersion())
+    modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     sendUserSettings()
   })
 
   modalWindow.on("show", () => {
     modalWindow.webContents.send(ModalWindowEvents.SHOW)
-    modalWindow.webContents.send("app:show")
+    modalWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
     )
-    modalWindow.webContents.send("app:version", app.getVersion())
+    modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     checkOrganizationLimits()
     loadAccountData()
     sendUserSettings()
@@ -827,7 +828,7 @@ function createModal(parentWindow) {
   }
 
   modalWindow.webContents.on("did-finish-load", () => {
-    modalWindow.webContents.send("app:version", app.getVersion())
+    modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     loadAccountData()
   })
 
@@ -874,7 +875,7 @@ function createDropdownWindow(parentWindow) {
   }
 
   dropdownWindow.webContents.on("did-finish-load", () => {
-    dropdownWindow.webContents.send("app:version", app.getVersion())
+    dropdownWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 
   dropdownWindow.on("hide", () => {
@@ -920,12 +921,12 @@ function createLoginWindow() {
   }
 
   loginWindow.on("show", () => {
-    mainWindow?.webContents.send("app:hide")
-    modalWindow?.webContents.send("app:hide")
+    mainWindow?.webContents.send(AppEvents.ON_BEFORE_HIDE)
+    modalWindow?.webContents.send(AppEvents.ON_BEFORE_HIDE)
   })
 
   loginWindow.webContents.on("did-finish-load", () => {
-    loginWindow.webContents.send("app:version", app.getVersion())
+    loginWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 }
 
@@ -1063,9 +1064,11 @@ function hideWindows() {
   unregisterUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
     if (mainWindow) {
+      mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
       mainWindow.hide()
     }
     if (modalWindow) {
+      modalWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
       modalWindow.hide()
     }
   } else {
@@ -1189,7 +1192,7 @@ function createMenu() {
 
 function logOut() {
   TokenStorage.reset()
-  mainWindow.webContents.send("app:hide")
+  mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
   mainWindow.hide()
   modalWindow.hide()
   loginWindow.show()
@@ -1668,8 +1671,12 @@ ipcMain.on("redirect:app", (event, route) => {
   hideWindows()
 })
 
-ipcMain.on("app:logout", (event) => {
+ipcMain.on(AppEvents.LOGOUT, (event) => {
   logOut()
+})
+
+ipcMain.on(AppEvents.HIDE, (event) => {
+  hideWindows()
 })
 
 ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {

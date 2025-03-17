@@ -32,6 +32,7 @@ import {
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
+import { AppEvents } from "@shared/events/app.events"
 type SettingsTabType = "root" | "shortCuts" | "videoAudio"
 type PageViewType =
   | "modal"
@@ -677,7 +678,7 @@ function setPageView(view: PageViewType) {
 }
 
 // IPC
-window.electronAPI.ipcRenderer.on("app:version", (event, version) => {
+window.electronAPI.ipcRenderer.on(AppEvents.GET_VERSION, (event, version) => {
   const versionEl = document.querySelector("#app_version")!
   versionEl.innerHTML = `, v${version}`
 })
@@ -823,13 +824,13 @@ window.electronAPI.ipcRenderer.on(ModalWindowEvents.HIDE, (event) => {
   isAllowRecords = undefined
 })
 
-window.electronAPI.ipcRenderer.on("app:show", (event) => {
+window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: `modal.renderer.app:show`,
   })
   initMediaDevice()
 })
-window.electronAPI.ipcRenderer.on("app:hide", (event) => {
+window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
   stopVisualAudio()
 })
 
@@ -1215,7 +1216,7 @@ const logoutBtn = document.querySelector(".js-logout-btn")!
 logoutBtn.addEventListener(
   "click",
   () => {
-    window.electronAPI.ipcRenderer.send("app:logout")
+    window.electronAPI.ipcRenderer.send(AppEvents.LOGOUT)
     setPageView("modal")
   },
   false

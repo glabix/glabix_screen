@@ -4,6 +4,7 @@ import { APIEvents } from "@shared/events/api.events"
 import { stringify } from "@main/helpers/stringify"
 import { LogSender } from "@main/helpers/log-sender"
 import { IOrganizationLimits } from "@shared/types/types"
+import { AppEvents } from "@shared/events/app.events"
 
 const logSender = new LogSender()
 
@@ -24,7 +25,7 @@ export function getOrganizationLimits(
       })
       .catch((e) => {
         if (e.response && e.response.status == 401) {
-          ipcMain.emit("app:logout")
+          ipcMain.emit(AppEvents.LOGOUT)
         }
         logSender.sendLog("api.limits.get.error", stringify(e))
         resolve(false)

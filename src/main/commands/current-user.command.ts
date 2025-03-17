@@ -2,6 +2,7 @@ import axios from "axios"
 import { ipcMain } from "electron"
 import { LoginEvents } from "@shared/events/login.events"
 import { IUser } from "@shared/types/types"
+import { AppEvents } from "@shared/events/app.events"
 
 export function getCurrentUser(token: string): Promise<IUser> {
   const url = `${import.meta.env.VITE_API_PATH}/identities/current`
@@ -14,7 +15,7 @@ export function getCurrentUser(token: string): Promise<IUser> {
       })
       .catch((e) => {
         if (e.response && e.response.status == 401) {
-          ipcMain.emit("app:logout")
+          ipcMain.emit(AppEvents.LOGOUT)
         }
         reject(e)
       })
