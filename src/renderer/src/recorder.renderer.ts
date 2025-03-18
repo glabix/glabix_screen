@@ -1097,21 +1097,12 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
   isAppShown = false
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "recorder.renderer." + AppEvents.ON_BEFORE_HIDE,
-    body: JSON.stringify({ skipAppShowEvent }),
-  })
   document.body.classList.add("is-panel-hidden")
   stopStreamTracks()
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   isAppShown = true
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "recorder.renderer." + AppEvents.ON_SHOW,
-    body: JSON.stringify({ skipAppShowEvent }),
-  })
 
   if (skipAppShowEvent) {
     document.body.classList.add("is-panel-hidden")
@@ -1137,11 +1128,6 @@ window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   }
 
   skipAppShowEvent = isAppShown ? false : true
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "recorder.renderer." + ScreenshotActionEvents.CROP,
-    body: JSON.stringify({ skipAppShowEvent, isAppShown }),
-  })
 
   stopStreamTracks()
   document.body.classList.add("is-panel-hidden")
