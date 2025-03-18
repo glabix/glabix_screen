@@ -404,9 +404,10 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
     }
   }
 
-  const audioStreamTracks: MediaStreamTrack[] = systemAudioSettings
-    ? mergeAudioStreams(desktopStream, voiceStream)
-    : voiceStream.getAudioTracks()
+  const audioStreamTracks: MediaStreamTrack[] =
+    systemAudioSettings && settings.action != "cameraOnly"
+      ? mergeAudioStreams(desktopStream, voiceStream)
+      : voiceStream.getAudioTracks()
 
   combineStream = new MediaStream([
     ...desktopStream!.getVideoTracks(),
@@ -1062,9 +1063,9 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
       lastStreamSettings!.action == "cropVideo" && !isRecordRestart
         ? { ...lastStreamSettings, action: "fullScreenVideo" }
         : lastStreamSettings!
-    // initRecord(settings)
 
     lastStreamSettings = filterStreamSettings(settings)
+    initView(lastStreamSettings, true)
     window.electronAPI.ipcRenderer.send(
       ModalWindowEvents.RENDER,
       settings.action
