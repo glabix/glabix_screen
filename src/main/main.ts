@@ -455,9 +455,12 @@ function registerUserShortCuts() {
               mainWindow.webContents.send("screen:change", activeDisplay)
               modalWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
-              mainWindow.show()
-              mainWindow.focus()
-              mainWindow.focusOnWebView()
+
+              if (!mainWindow.isVisible()) {
+                mainWindow.show()
+                mainWindow.focus()
+                mainWindow.focusOnWebView()
+              }
             }
           }
         })
