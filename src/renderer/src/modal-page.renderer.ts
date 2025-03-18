@@ -61,6 +61,7 @@ let isAllowScreenshots: boolean | undefined = undefined
 let activePageView: PageViewType
 let activeSettingTab: SettingsTabType = "root"
 let openedDropdownType: DropdownListType | undefined = undefined
+let isAppShown = false
 const modalContent = document.querySelector(".modal-content")!
 const profileContent = document.querySelector(".profile-content")!
 const settingsContent = document.querySelector(".settings-content")!
@@ -454,7 +455,9 @@ const changeMediaDevices = debounce(() => {
 navigator.mediaDevices.addEventListener(
   "devicechange",
   () => {
-    changeMediaDevices()
+    if (isAppShown) {
+      changeMediaDevices()
+    }
   },
   false
 )
@@ -811,26 +814,18 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-window.electronAPI.ipcRenderer.on(ModalWindowEvents.SHOW, (event) => {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `modal.renderer.${ModalWindowEvents.SHOW}`,
-  })
-  // initMediaDevice()
-  // initMediaDevice()
-  // initVisualAudio()
-})
+window.electronAPI.ipcRenderer.on(ModalWindowEvents.SHOW, (event) => {})
 window.electronAPI.ipcRenderer.on(ModalWindowEvents.HIDE, (event) => {
   openedDropdownType = undefined
   isAllowRecords = undefined
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, (event) => {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `modal.renderer.app:show`,
-  })
+  isAppShown = true
   initMediaDevice()
 })
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
+  isAppShown = false
   stopVisualAudio()
 })
 

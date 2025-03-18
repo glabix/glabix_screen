@@ -611,8 +611,8 @@ const startRecording = () => {
       title: "videoRecorder.start()",
     })
 
-    timer.start(true)
     updateRecorderState("recording")
+    timer.start(true)
 
     createPreview()
   } else {
@@ -1096,6 +1096,7 @@ window.electronAPI.ipcRenderer.on(
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
   isAppShown = false
+
   document.body.classList.add("is-panel-hidden")
   stopStreamTracks()
 })
