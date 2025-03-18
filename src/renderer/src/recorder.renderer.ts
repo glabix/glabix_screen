@@ -452,12 +452,7 @@ const createVideo = (stream: MediaStream, _video) => {
     updateRecorderState("paused")
   }
 
-  videoRecorder.onstart = function (e) {
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "videoRecorder.onstart",
-    })
-    timer.start(true)
-  }
+  videoRecorder.onstart = function (e) {}
 
   videoRecorder.onresume = function (e) {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -617,6 +612,7 @@ const startRecording = () => {
     })
 
     updateRecorderState("recording")
+    timer.start(true)
 
     createPreview()
   } else {
