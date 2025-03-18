@@ -1065,7 +1065,13 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
         : lastStreamSettings!
 
     lastStreamSettings = filterStreamSettings(settings)
-    initView(lastStreamSettings, true)
+
+    if (lastStreamSettings.action == "cameraOnly") {
+      initRecord(lastStreamSettings)
+    } else {
+      initView(lastStreamSettings, true)
+    }
+
     window.electronAPI.ipcRenderer.send(
       ModalWindowEvents.RENDER,
       settings.action
