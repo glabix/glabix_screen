@@ -63,9 +63,6 @@ function initMovable() {
 initMovable()
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.showVideo`,
-  })
   video.srcObject = currentStream!
   videoContainer.removeAttribute("hidden")
 
@@ -102,8 +99,10 @@ function startStream(deviseId) {
   navigator.mediaDevices
     .getUserMedia(constraints)
     .then((stream) => {
-      currentStream = stream
-      showVideo()
+      if (lastStreamSettings?.action != "cameraOnly") {
+        currentStream = stream
+        showVideo()
+      }
     })
     .catch((e) => {
       if (e.toString().toLowerCase().includes("permission denied")) {
@@ -188,11 +187,6 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
   if (isRecording || isCountdown) {
     return
   }
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.app:hide`,
-    body: JSON.stringify({ lastStreamSettings }),
-  })
 
   stopStream()
 })
