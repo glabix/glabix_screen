@@ -99,8 +99,10 @@ function startStream(deviseId) {
   navigator.mediaDevices
     .getUserMedia(constraints)
     .then((stream) => {
-      currentStream = stream
-      showVideo()
+      if (lastStreamSettings?.action != "cameraOnly") {
+        currentStream = stream
+        showVideo()
+      }
     })
     .catch((e) => {
       if (e.toString().toLowerCase().includes("permission denied")) {
