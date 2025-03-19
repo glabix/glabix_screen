@@ -1105,6 +1105,7 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
   isAppShown = false
 
   document.body.classList.add("is-panel-hidden")
+  clearView()
   stopStreamTracks()
 })
 
@@ -1118,6 +1119,7 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
       document.body.classList.remove("is-panel-hidden")
       if (lastStreamSettings && lastStreamSettings?.action == "cameraOnly") {
         initRecord(lastStreamSettings)
+        initView(lastStreamSettings, true)
       }
     }
   }
