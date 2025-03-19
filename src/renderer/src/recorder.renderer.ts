@@ -1116,9 +1116,13 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
     document.body.classList.add("is-panel-hidden")
   } else {
     if (!isScreenshotMode) {
-      document.body.classList.remove("is-panel-hidden")
       if (lastStreamSettings && lastStreamSettings?.action == "cameraOnly") {
         initRecord(lastStreamSettings)
+      }
+
+      document.body.classList.remove("is-panel-hidden")
+
+      if (lastStreamSettings) {
         initView(lastStreamSettings, true)
       }
     }
