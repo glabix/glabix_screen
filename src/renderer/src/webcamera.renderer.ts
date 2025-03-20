@@ -185,16 +185,20 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
-  isAppShown = false
-
   if (isRecording || isCountdown) {
     return
   }
+
+  isAppShown = false
 
   stopStream()
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
+  if (isRecording || isCountdown) {
+    return
+  }
+
   isAppShown = true
 
   if (!isRecording && !isScreenshotMode && !skipAppShowEvent) {
