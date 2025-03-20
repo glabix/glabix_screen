@@ -969,7 +969,7 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-function showCountdownScreen(delay = 80): Promise<boolean> {
+function showCountdownScreen(delay = 100): Promise<boolean> {
   return new Promise((resolve) => {
     let timeleft = 2
     countdownContainer.removeAttribute("hidden")
@@ -1001,7 +1001,7 @@ window.electronAPI.ipcRenderer.on(
       currentRecordChunksCount = 0
       isRecording = true
       updateRecorderState("countdown")
-      showCountdownScreen(0).then(() => {
+      showCountdownScreen().then(() => {
         if (data.action == "cropVideo") {
           const screen = document.querySelector(
             "#crop_video_screen"
