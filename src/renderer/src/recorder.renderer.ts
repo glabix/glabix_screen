@@ -969,7 +969,7 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-function showCountdownScreen(delay = 80): Promise<boolean> {
+function showCountdownScreen(delay = 100): Promise<boolean> {
   return new Promise((resolve) => {
     let timeleft = 2
     countdownContainer.removeAttribute("hidden")
