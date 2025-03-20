@@ -30,11 +30,7 @@ export function getLastStreamSettings(
             cameraDeviceId: deviceSettings.videoId,
           }
         }
-        logSender.sendLog(
-          "getLastStreamSettings",
-          stringify({ settings }),
-          true
-        )
+        logSender.sendLog("getLastStreamSettings", stringify({ settings }))
         resolve(settings)
       })
       .catch((e) => {
