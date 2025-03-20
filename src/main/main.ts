@@ -710,6 +710,7 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   })
 
   mainWindow.on("hide", () => {
