@@ -288,6 +288,8 @@ function initVisualAudio() {
         video: false,
       })
       .then((stream) => {
+        stopVisualAudio()
+
         visualAudioStream = stream
         audioContext = new AudioContext()
         const source = audioContext.createMediaStreamSource(visualAudioStream)

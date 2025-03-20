@@ -65,6 +65,14 @@ body {
   }
 }
 
+.webcamera-view-target {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+}
+
 .webcamera-view-error {
   position: absolute;
   left: 0;

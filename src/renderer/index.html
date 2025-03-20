@@ -226,7 +226,7 @@
       <div class="webcamera-only-error webcamera-only-no-camera" hidden>
         <div>Выберите камеру</div>
       </div>
-      <video id="webcam_only_video" autoplay muted></video>
+      <video id="webcam_only_video" autoplay></video>
       <div class="webcamera-only-menu-container">
         <div class="webcamera-only-menu webcamera-only-menu-more">
           <div class="flex-center-6 min-w-6">
@@ -287,14 +287,16 @@
     </div>
 
     <div id="webcamera-view" class="webcamera-view-container is-flip sm" hidden>
-      <video id="video" autoplay muted></video>
-      <div class="webcamera-view-error webcamera-view-no-device" hidden>
-        <div>Камера не доступна или используется другой программой</div>
-      </div>
-      <div class="webcamera-view-error webcamera-view-no-permission" hidden>
-        <div>
-          Доступ к камере запрещен. Включите доступ к камере в настройках
-          системы.
+      <div id="webcamera-view-target" class="webcamera-view-target">
+        <video id="video" autoplay></video>
+        <div class="webcamera-view-error webcamera-view-no-device" hidden>
+          <div>Камера не доступна или используется другой программой</div>
+        </div>
+        <div class="webcamera-view-error webcamera-view-no-permission" hidden>
+          <div>
+            Доступ к камере запрещен. Включите доступ к камере в настройках
+            системы.
+          </div>
         </div>
       </div>
       <div class="webcamera-view-menu-container">
