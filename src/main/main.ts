@@ -781,11 +781,6 @@ function createModal(parentWindow) {
   // modalWindow.webContents.openDevTools()
   modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
-  getLastStreamSettings(modalWindow).then((settings) => {
-    modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-    mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-  })
-
   modalWindow.on("hide", () => {
     modalWindow.webContents.send(ModalWindowEvents.HIDE)
     dropdownWindow.hide()
@@ -838,6 +833,12 @@ function createModal(parentWindow) {
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
+
+    getLastStreamSettings(modalWindow).then((settings) => {
+      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
+
     loadAccountData()
   })
 

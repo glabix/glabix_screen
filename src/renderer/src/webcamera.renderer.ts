@@ -173,6 +173,11 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings) => {
     lastStreamSettings = settings
 
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `webcamera.renderer.${RecordSettingsEvents.INIT}`,
+      body: JSON.stringify({ lastStreamSettings }),
+    })
+
     if (isAppShown) {
       checkStream(lastStreamSettings)
     }
@@ -185,6 +190,9 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.${AppEvents.ON_BEFORE_HIDE}`,
+  })
   if (isRecording || isCountdown) {
     return
   }
@@ -195,6 +203,10 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.${AppEvents.ON_BEFORE_HIDE}`,
+    body: JSON.stringify({ lastStreamSettings }),
+  })
   if (isRecording || isCountdown) {
     return
   }
