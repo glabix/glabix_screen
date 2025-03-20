@@ -1001,7 +1001,7 @@ window.electronAPI.ipcRenderer.on(
       currentRecordChunksCount = 0
       isRecording = true
       updateRecorderState("countdown")
-      showCountdownScreen(0).then(() => {
+      showCountdownScreen().then(() => {
         if (data.action == "cropVideo") {
           const screen = document.querySelector(
             "#crop_video_screen"
