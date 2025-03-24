@@ -15,6 +15,7 @@ import {
   dialog,
   Rectangle,
   clipboard,
+  powerMonitor,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -95,6 +96,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
 import { AppEvents } from "@shared/events/app.events"
+import { PowerSaveBlocker } from "./helpers/power-blocker"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -1656,6 +1658,16 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   if (modalWindow) {
     modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
   }
+
+  const isRecording = ["recording", "paused"].includes(
+    store.get()["recordingState"]
+  )
+
+  if (isRecording) {
+    PowerSaveBlocker.start()
+  } else {
+    PowerSaveBlocker.stop()
+  }
 })
 
 ipcMain.on("main-window-focus", (event, data) => {
@@ -1805,4 +1817,24 @@ ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
     message:
       "Загрузка файла будет повторяться в фоновом процессе, пока он не будет отправлен на сервер. Как только файл будет загружен, вы увидите его в своей библиотеке.",
   })
+})
+
+powerMonitor.on("suspend", () => {
+  const isRecording = ["recording", "paused"].includes(
+    store.get()["recordingState"]
+  )
+  logSender.sendLog("powerMonitor.suspend")
+
+  if (isRecording) {
+    const data: ISimpleStoreData = {
+      key: "recordingState",
+      value: "stopped",
+    }
+
+    ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
+  }
+})
+
+powerMonitor.on("resume", () => {
+  logSender.sendLog("powerMonitor.resume")
 })
