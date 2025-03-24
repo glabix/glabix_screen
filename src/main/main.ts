@@ -128,22 +128,41 @@ app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
-getAutoUpdater().on("update-downloaded", (info) => {
-  logSender.sendLog(
-    "app_update.download_complete",
-    JSON.stringify({ old_version: getVersion(), new_version: info.version })
-  )
+getAutoUpdater().on("error", (error) => {
+  logSender.sendLog("app_update.error", JSON.stringify(error))
 })
+
+getAutoUpdater().on("update-downloaded", (info) => {
+  // logSender.sendLog(
+  //   "app_update.download_complete",
+  //   JSON.stringify({ old_version: getVersion(), new_version: info.version })
+  // )
+  logSender.sendLog("app_update.update-downloaded", JSON.stringify(info))
+})
+
 getAutoUpdater().on("download-progress", (info) => {
-  if (info.percent === 0) {
-    logSender.sendLog(
-      "app_update.download_started",
-      JSON.stringify({
-        old_version: getVersion(),
-        new_version: (info as any).version,
-      })
-    )
-  }
+  // if (info.percent === 0) {
+  //   logSender.sendLog(
+  //     "app_update.download_started",
+  //     JSON.stringify({
+  //       old_version: getVersion(),
+  //       new_version: (info as any).version,
+  //     })
+  //   )
+  // }
+
+  logSender.sendLog("app_update.download-progress", JSON.stringify(info))
+})
+
+getAutoUpdater().on("checking-for-update", () => {
+  logSender.sendLog("app_update.checking-for-update")
+})
+
+getAutoUpdater().on("update-available", (info) => {
+  logSender.sendLog("app_update.update-available", JSON.stringify(info))
+})
+getAutoUpdater().on("update-not-available", (info) => {
+  logSender.sendLog("app_update.update-not-available", JSON.stringify(info))
 })
 
 loggerInit() // init logger
@@ -238,6 +257,7 @@ function checkForUpdates() {
     body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
   }
   getAutoUpdater().checkForUpdatesAndNotify(downloadNotification)
+  // getAutoUpdater()
 }
 
 if (!gotTheLock) {
