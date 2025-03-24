@@ -167,6 +167,17 @@ export class RecordManager {
       "record.manager.process.start",
       stringify({ uuid, force })
     )
+    if (this.currentProcessRecordUuid && !force) {
+      this.logSender.sendLog(
+        "record.manager.process.end.reason.record_in_processing",
+        stringify({
+          currentProcessRecordUuid: this.currentProcessRecordUuid,
+          uuid,
+          force,
+        })
+      )
+      return
+    }
     try {
       const record = await getByUuidRecordDal(uuid)
 

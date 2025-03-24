@@ -40,6 +40,9 @@ let skipAppShowEvent = false
 function initMovable() {
   moveable = new Moveable(document.body, {
     target: videoContainer as MoveableRefTargetType,
+    dragTarget: videoContainer.querySelector(
+      "#webcamera-view-target"
+    ) as HTMLElement,
     container: document.body,
     className: "moveable-invisible-container",
     draggable: true,
@@ -170,6 +173,11 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings) => {
     lastStreamSettings = settings
 
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `webcamera.renderer.${RecordSettingsEvents.INIT}`,
+      body: JSON.stringify({ lastStreamSettings }),
+    })
+
     if (isAppShown) {
       checkStream(lastStreamSettings)
     }
@@ -182,24 +190,32 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
-  isAppShown = false
-
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.${AppEvents.ON_BEFORE_HIDE}`,
+  })
   if (isRecording || isCountdown) {
     return
   }
+
+  isAppShown = false
 
   stopStream()
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.${AppEvents.ON_BEFORE_HIDE}`,
+    body: JSON.stringify({ lastStreamSettings }),
+  })
+  if (isRecording || isCountdown) {
+    return
+  }
+
   isAppShown = true
 
-  if (skipAppShowEvent) {
-  } else {
-    if (!isRecording && !isScreenshotMode) {
-      if (lastStreamSettings) {
-        checkStream(lastStreamSettings)
-      }
+  if (!isRecording && !isScreenshotMode && !skipAppShowEvent) {
+    if (lastStreamSettings) {
+      checkStream(lastStreamSettings)
     }
   }
 
@@ -246,9 +262,25 @@ changeCameraViewSizeBtn.forEach((button) => {
     (event) => {
       const target = event.target as HTMLElement
       const size = target.dataset.size!
-      const container = document.querySelector(".webcamera-view-container")!
+      const container = document.querySelector(
+        ".webcamera-view-container"
+      )! as HTMLElement
+      const prevRect = container.getBoundingClientRect()
       container.classList.remove("sm", "lg", "xl")
       container.classList.add(size)
+      const nextRect = container.getBoundingClientRect()
+
+      const top =
+        size == "xl"
+          ? window.innerHeight / 2 - nextRect.height / 2
+          : prevRect.bottom - nextRect.height
+      const left =
+        size == "xl"
+          ? window.innerWidth / 2 - nextRect.width / 2
+          : prevRect.left + prevRect.width / 2 - nextRect.width / 2
+      const css = `left: ${left}px; top: ${top}px;`
+
+      container.style.cssText = css
 
       if (moveable) {
         moveable.updateRect()

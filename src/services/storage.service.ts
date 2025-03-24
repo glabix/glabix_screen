@@ -391,7 +391,7 @@ class StorageService {
       })
       const config: AxiosRequestConfig = {
         onUploadProgress: (progressEvent) => {
-          console.log(progressEvent)
+          // console.log(progressEvent)
           ProgressResolver.updateChunkData(
             chunk.getDataValue("fileUuid"),
             _chunk.getDataValue("uuid"),

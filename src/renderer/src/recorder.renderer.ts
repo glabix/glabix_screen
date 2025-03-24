@@ -969,7 +969,7 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-function showCountdownScreen(delay = 80): Promise<boolean> {
+function showCountdownScreen(delay = 100): Promise<boolean> {
   return new Promise((resolve) => {
     let timeleft = 2
     countdownContainer.removeAttribute("hidden")
@@ -1001,7 +1001,7 @@ window.electronAPI.ipcRenderer.on(
       currentRecordChunksCount = 0
       isRecording = true
       updateRecorderState("countdown")
-      showCountdownScreen(0).then(() => {
+      showCountdownScreen().then(() => {
         if (data.action == "cropVideo") {
           const screen = document.querySelector(
             "#crop_video_screen"
@@ -1028,14 +1028,14 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     return
   }
 
-  isRecording = state["recordingState"] == "recording"
+  isRecording = ["recording", "paused"].includes(state["recordingState"])
 
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "simpleStore.recordingState",
     body: JSON.stringify({ state: state["recordingState"] }),
   })
 
-  if (["recording", "paused"].includes(state["recordingState"])) {
+  if (isRecording) {
     document.body.classList.add("body--is-recording")
     stopBtn.classList.add("panel-btn--stop")
     controlPanel.classList.add("is-recording")
@@ -1088,9 +1088,12 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 window.electronAPI.ipcRenderer.on("screen:change", (event) => {
+  if (isRecording) {
+    return
+  }
+
   if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
     initView(lastStreamSettings, true)
-    // initRecord(lastStreamSettings)
   }
 })
 
@@ -1102,7 +1105,15 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
+  if (isRecording) {
+    return
+  }
+
   isAppShown = false
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `recorder.renderer.${AppEvents.ON_BEFORE_HIDE}`,
+  })
 
   document.body.classList.add("is-panel-hidden")
   clearView()
@@ -1110,7 +1121,15 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
+  if (isRecording) {
+    return
+  }
+
   isAppShown = true
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `recorder.renderer.${AppEvents.ON_SHOW}`,
+  })
 
   if (skipAppShowEvent) {
     document.body.classList.add("is-panel-hidden")
