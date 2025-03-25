@@ -23,6 +23,7 @@ export class RecordManager {
   static chunksDeleteProcess = false
   static previewsDeleteProcess = false
   static completedAndCanceledRecordsProcess = false
+  static processedRecordUuids: string[] = []
   constructor() {}
 
   static async setTimer() {
@@ -99,18 +100,29 @@ export class RecordManager {
 
   static async resolveUnprocessedRecords() {
     const recorded = await getAllRecordDal({ status: RecordStatus.RECORDED })
-    if (recorded.length) {
-      const record = recorded[0]
-      await this.processRecord(record.getDataValue("uuid"))
+    const recordedCandidate = recorded.find(
+      (r) => !this.processedRecordUuids.includes(r.getDataValue("uuid"))
+    )
+    if (recordedCandidate) {
+      const uuid = recordedCandidate.getDataValue("uuid")
+      this.processedRecordUuids = [...this.processedRecordUuids, uuid]
+      await this.processRecord(uuid)
       return
     }
     const withUnloadedChunks = await getAllRecordDal({
       status: RecordStatus.CREATED_ON_SERVER,
     })
-    if (withUnloadedChunks.length) {
-      const record = withUnloadedChunks[0]
-      await this.processRecord(record.getDataValue("uuid"))
+    const withUnloadedChunksCandidate = withUnloadedChunks.find(
+      (r) => !this.processedRecordUuids.includes(r.getDataValue("uuid"))
+    )
+    if (withUnloadedChunksCandidate) {
+      const uuid = withUnloadedChunksCandidate.getDataValue("uuid")
+      this.processedRecordUuids = [...this.processedRecordUuids, uuid]
+      await this.processRecord(uuid)
       return
+    }
+    if (!withUnloadedChunksCandidate && !recordedCandidate) {
+      this.processedRecordUuids = []
     }
   }
 
