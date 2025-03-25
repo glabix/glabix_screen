@@ -35,33 +35,65 @@ import { PreviewManager } from "./preview-manager"
 import { ICropVideoData } from "../shared/types/types"
 import { ProgressResolver } from "../services/progress-resolver"
 import { AxiosRequestConfig } from "axios"
+import { ChunkQueue } from "@main/helpers/chunk-queue"
+import { showRecordErrorBox } from "@main/helpers/show-record-error-box"
 
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
   static logSender = new LogSender(TokenStorage)
   private static lastChunk: Chunk | null = null // Храним последний чанк в классе
   static canceledRecordsUuids: string[] = []
-
+  static chunkQueue: ChunkQueue
   static async startRecord(): Promise<Record> {
     const title = getTitle(Date.now())
     const version = getVersion()
+    this.chunkQueue = new ChunkQueue()
     this.logSender.sendLog(
       "record.database.create.start",
       stringify({ title, version })
     )
-    return createRecordDal({
+    const record = await createRecordDal({
       title,
       version,
       status: RecordStatus.RECORDING,
     })
+    this.generator(record.getDataValue("uuid"))
+    return record
   }
 
-  static async addChunk(
+  static async generator(fileUuid: string) {
+    this.logSender.sendLog(
+      "record.recording.generator.start",
+      stringify({ fileUuid })
+    )
+    try {
+      for await (const chunk of this.chunkQueue.processChunks()) {
+        await this.processChunk(chunk.fileUuid, chunk.blob, chunk.index) // Ждем завершения обработки перед переходом к следующему чанку
+      }
+      this.logSender.sendLog(
+        "record.recording.generator.end",
+        stringify({ fileUuid })
+      )
+    } catch (e) {
+      this.logSender.sendLog(
+        "record.recording.chunk.received.error",
+        stringify({ fileUuid, e }),
+        true
+      )
+      showRecordErrorBox("Ошибка записи")
+    }
+  }
+
+  static getNextChunk(
     fileUuid: string,
     blob: Blob,
     index: number,
     isLast: boolean
   ) {
+    this.chunkQueue.receiveChunk(index, fileUuid, blob, isLast)
+  }
+
+  static async processChunk(fileUuid: string, blob: Blob, index: number) {
     if (this.canceledRecordsUuids.indexOf(fileUuid) !== -1) {
       this.logSender.sendLog(
         "record.recording.chunk.received.process.canceled_recording",
