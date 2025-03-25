@@ -95,6 +95,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
 import { AppEvents } from "@shared/events/app.events"
+import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -129,7 +130,7 @@ app.commandLine.appendSwitch("disable-software-rasterizer")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
-  logSender.sendLog("app_update.error", JSON.stringify(error))
+  logSender.sendLog(AppUpdaterEvents.ERROR, JSON.stringify(error))
 })
 
 getAutoUpdater().on("update-downloaded", (info) => {
@@ -137,7 +138,7 @@ getAutoUpdater().on("update-downloaded", (info) => {
   //   "app_update.download_complete",
   //   JSON.stringify({ old_version: getVersion(), new_version: info.version })
   // )
-  logSender.sendLog("app_update.update-downloaded", JSON.stringify(info))
+  logSender.sendLog(AppUpdaterEvents.DOWNLOAD_END, JSON.stringify(info))
 })
 
 getAutoUpdater().on("download-progress", (info) => {
@@ -256,8 +257,9 @@ function checkForUpdates() {
     title: "Новое обновление готово к установке",
     body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
   }
-  getAutoUpdater().checkForUpdatesAndNotify(downloadNotification)
-  // getAutoUpdater()
+  // getAutoUpdater().checkForUpdatesAndNotify(downloadNotification)
+  logSender.sendLog("getAutoUpdater().checkForUpdates()")
+  getAutoUpdater().checkForUpdates()
 }
 
 if (!gotTheLock) {
