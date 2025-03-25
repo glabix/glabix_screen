@@ -1560,7 +1560,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, fileUuid, index, isLast } = res
   logSender.sendLog(
     "record.recording.chunk.received",
-    stringify({ fileUuid, byteLength: data.byteLength })
+    stringify({ fileUuid, byteLength: data.byteLength, count: index })
   )
   if (!data.byteLength) {
     logSender.sendLog(
@@ -1572,14 +1572,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     return
   }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  StorageService.addChunk(fileUuid, blob, index, isLast).catch((e) => {
-    logSender.sendLog(
-      "record.recording.chunk.received.error",
-      stringify({ fileUuid, e }),
-      true
-    )
-    showRecordErrorBox("Ошибка записи")
-  })
+  StorageService.getNextChunk(fileUuid, blob, index, isLast)
   const preview = store.get()["lastVideoPreview"]
   if (preview && !PreviewManager.hasPreview(fileUuid)) {
     logSender.sendLog(
