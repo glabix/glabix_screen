@@ -257,7 +257,12 @@ body.is-update-downloading .footer-update-downloading {
 
 body.is-update-exist .footer-update {
 }
-body.is-update-downloading .footer-update-downloading {
+body.is-update-downloading button {
+  pointer-events: none;
+}
+body.is-update-downloading .btn--primary {
+  background-color: var(--gray-400);
+  border-color: var(--gray-400);
 }
 
 body.is-update-exist .footer-content,
