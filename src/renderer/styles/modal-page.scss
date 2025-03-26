@@ -51,7 +51,8 @@ body {
 
 .screen-footer {
   position: absolute;
-  bottom: 16px;
+  bottom: 0;
+  padding-bottom: 1rem;
   left: 0;
   right: 0;
   border-top: solid 1px var(--gray-400);
@@ -248,23 +249,32 @@ body {
   }
 }
 
-body.is-uploading .footer-content,
-.footer-progress {
-  display: none;
-}
-
-body.is-uploading .footer-progress {
+body.is-uploading .footer-progress,
+body.is-update-exist .footer-update,
+body.is-update-downloading .footer-update-downloading {
   display: flex;
 }
 
-body.is-update-exist {
+body.is-update-exist .footer-update {
 }
-body.is-update-downloading {
+body.is-update-downloading .footer-update-downloading {
+}
+
+body.is-update-exist .footer-content,
+body.is-uploading .footer-content,
+body.is-update-downloading .footer-content,
+body.is-uploading .footer-update,
+body.is-update-downloading .footer-progress,
+body.is-update-downloading .footer-update,
+.footer-progress,
+.footer-update,
+.footer-update-downloading {
+  display: none;
 }
 
 .footer-update {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -20px;
+  bottom: 0;
 }

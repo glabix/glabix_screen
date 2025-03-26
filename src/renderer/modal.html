@@ -10,7 +10,7 @@
     <title></title>
   </head>
 
-  <body>
+  <body class="is-update-exist-">
     <div class="windows-toolbar" hidden>
       <button
         type="button"
@@ -516,7 +516,7 @@
       class="text-center screen-footer pt-4 text-xs text-gray-600"
       hidden
     >
-      <div class="footer-update" hidden>
+      <div class="footer-update">
         <button class="btn btn--lg btn--dark border-radius-0">
           Обновить приложение
         </button>
@@ -524,16 +524,15 @@
 
       <div
         class="footer-update-downloading items-center pl-5 pr-5 whitespace-nowrap"
-        hidden
       >
         <div class="mr-2">Закрузка обновления</div>
         <div class="flex-grow-1">
           <div class="progress">
-            <div class="progress-bar js-progress-bar"></div>
+            <div class="progress-bar js-download-bar"></div>
           </div>
         </div>
         <div class="min-w-9 text-primary text-right">
-          <span class="js-progress-value"></span>
+          <span class="js-download-value"></span>
         </div>
       </div>
 
