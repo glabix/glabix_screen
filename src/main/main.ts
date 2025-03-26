@@ -136,64 +136,65 @@ getAutoUpdater().on("error", (error) => {
 })
 
 getAutoUpdater().on("update-downloaded", (info) => {
-  // logSender.sendLog(
-  //   "app_update.download_complete",
-  //   JSON.stringify({ old_version: getVersion(), new_version: info.version })
-  // )
   logSender.sendLog(AppUpdaterEvents.DOWNLOAD_END, JSON.stringify(info))
 
   if (modalWindow) {
-    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD, 100)
-    // modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
-    // modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
+    modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
+    setTimeout(() => {
+      modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
+      getAutoUpdater().quitAndInstall()
+    }, 500)
   }
-
-  getAutoUpdater().quitAndInstall()
 })
 
 getAutoUpdater().on("download-progress", (info) => {
-  // if (info.percent === 0) {
-  //   logSender.sendLog(
-  //     "app_update.download_started",
-  //     JSON.stringify({
-  //       old_version: getVersion(),
-  //       new_version: (info as any).version,
-  //     })
-  //   )
-  // }
-
   logSender.sendLog(AppUpdaterEvents.DOWNLOAD_PROGRESS, JSON.stringify(info))
 
   if (modalWindow) {
-    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD, info.percent)
+    modalWindow.webContents.send(
+      AppUpdaterEvents.DOWNLOAD_PROGRESS,
+      info.percent
+    )
   }
 })
 
-// getAutoUpdater().on("checking-for-update", () => {
-//   logSender.sendLog("app_update.checking-for-update")
-// })
-
 getAutoUpdater().on("update-available", (info) => {
   logSender.sendLog(AppUpdaterEvents.UPDATE_AVAILABLE, JSON.stringify(info))
-
-  if (modalWindow) {
-    modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, true)
-  }
+  modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, true)
 })
 
 getAutoUpdater().on("update-not-available", (info) => {
   logSender.sendLog(AppUpdaterEvents.UPDATE_NOT_AVAILABLE, JSON.stringify(info))
+  modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+})
 
+// let timer
+ipcMain.on(AppUpdaterEvents.DOWNLOAD_START, (event, data) => {
+  logSender.sendLog(AppUpdaterEvents.DOWNLOAD_START)
+  getAutoUpdater().downloadUpdate()
+  modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 0)
+
+  // Emulate
   if (modalWindow) {
-    modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+    // setTimeout(() => { modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 20) }, 1000)
+    // setTimeout(() => {modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 40)}, 2000)
+    // setTimeout(() => {modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 60)}, 3000)
+    // setTimeout(() => {modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 80)}, 4000)
+    // setTimeout(() => {
+    //   modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
+    //   modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+    //   setTimeout(() => {
+    //     modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
+    //   }, 1000)
+    // }, 5000)
   }
 })
 
-ipcMain.on(AppUpdaterEvents.DOWNLOAD, (event, data) => {
-  if (modalWindow) {
-    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD, 0)
-  }
-})
+// Emulate
+setTimeout(() => {
+  // modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, true)
+}, 4000)
 
 loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor

@@ -8,6 +8,6 @@ export enum AppUpdaterEvents {
   UPDATE_NOT_AVAILABLE = "appUpdater:update:notAvailable",
 
   // Renderer events
-  DOWNLOAD = "appUpdater:download", // click download btn
+  DOWNLOAD_START = "appUpdater:download:start", // click download btn
   HAS_UPDATE = "appUpdater:hasUpdate", // show
 }
