@@ -231,6 +231,11 @@ screenshotButtons.forEach((btn) => {
   )
 })
 
+function getLastMediaDevices(): ILastDeviceSettings {
+  const lastDevicesStr = localStorage.getItem(LAST_DEVICE_IDS)
+  return lastDevicesStr ? JSON.parse(lastDevicesStr) : {}
+}
+
 function setLastMediaDevices(
   lastAudioDeviceId?: string,
   lastVideoDeviceId?: string,
@@ -367,6 +372,8 @@ function initVisualAudio() {
 async function setupMediaDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices()
   const prevSettings = { ...streamSettings }
+  const lastDevices = getLastMediaDevices()
+
   hasMicrophone = devices.some((d) => d.kind == "audioinput")
   hasCamera = devices.some((d) => d.kind == "videoinput")
   audioDevicesList = devices.filter((d) => d.kind == "audioinput")
@@ -379,7 +386,7 @@ async function setupMediaDevices() {
 
   if (hasMicrophone) {
     const lastAudioDevice = audioDevicesList.find(
-      (d) => d.deviceId == streamSettings.audioDeviceId
+      (d) => d.deviceId == lastDevices.audioId
     )
     if (lastAudioDevice) {
       activeAudioDevice = lastAudioDevice
@@ -403,7 +410,7 @@ async function setupMediaDevices() {
 
   if (hasCamera) {
     const lastVideoDevice = videoDevicesList.find(
-      (d) => d.deviceId == streamSettings.cameraDeviceId
+      (d) => d.deviceId == lastDevices.videoId
     )
 
     if (lastVideoDevice) {
