@@ -15,6 +15,7 @@ import {
   dialog,
   Rectangle,
   clipboard,
+  powerMonitor,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -96,6 +97,7 @@ import {
 import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
+import { PowerSaveBlocker } from "./helpers/power-blocker"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -308,6 +310,10 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
 
   app.whenReady().then(() => {
+    powerMonitor.on("resume", () => {
+      logSender.sendLog("powerMonitor.resume")
+      StorageService.wakeUp()
+    })
     initializeDatabase().then(() => {
       RecordManager.setTimer()
       const a = new MigrateOldStorageUnprocessed()
@@ -1606,7 +1612,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, fileUuid, index, isLast } = res
   logSender.sendLog(
     "record.recording.chunk.received",
-    stringify({ fileUuid, byteLength: data.byteLength })
+    stringify({ fileUuid, byteLength: data.byteLength, count: index })
   )
   if (!data.byteLength) {
     logSender.sendLog(
@@ -1618,14 +1624,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     return
   }
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  StorageService.addChunk(fileUuid, blob, index, isLast).catch((e) => {
-    logSender.sendLog(
-      "record.recording.chunk.received.error",
-      stringify({ fileUuid, e }),
-      true
-    )
-    showRecordErrorBox("Ошибка записи")
-  })
+  StorageService.getNextChunk(fileUuid, blob, index, isLast)
   const preview = store.get()["lastVideoPreview"]
   if (preview && !PreviewManager.hasPreview(fileUuid)) {
     logSender.sendLog(
@@ -1701,6 +1700,16 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
 
   if (modalWindow) {
     modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  }
+
+  const isRecording = ["recording", "paused"].includes(
+    store.get()["recordingState"]
+  )
+
+  if (isRecording) {
+    PowerSaveBlocker.start()
+  } else {
+    PowerSaveBlocker.stop()
   }
 })
 
@@ -1851,4 +1860,20 @@ ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
     message:
       "Загрузка файла будет повторяться в фоновом процессе, пока он не будет отправлен на сервер. Как только файл будет загружен, вы увидите его в своей библиотеке.",
   })
+})
+
+powerMonitor.on("suspend", () => {
+  StorageService.sleep()
+  const isRecording = ["recording", "paused"].includes(
+    store.get()["recordingState"]
+  )
+  logSender.sendLog("powerMonitor.suspend")
+
+  if (isRecording) {
+    const data: ISimpleStoreData = {
+      key: "recordingState",
+      value: "stopped",
+    }
+    ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
+  }
 })

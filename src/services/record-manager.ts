@@ -23,6 +23,7 @@ export class RecordManager {
   static chunksDeleteProcess = false
   static previewsDeleteProcess = false
   static completedAndCanceledRecordsProcess = false
+  static processedRecordUuids: string[] = []
   constructor() {}
 
   static async setTimer() {
@@ -49,33 +50,7 @@ export class RecordManager {
       await this.deleteUnknownPreviews()
       this.previewsDeleteProcess = false
     }
-
-    this.cronInterval30sec = setInterval(() => {
-      if (!this.currentProcessRecordUuid) {
-        this.resolveUnprocessedRecords()
-      }
-    }, 30 * 1000)
-
-    this.cronInterval3min = setInterval(
-      async () => {
-        if (!this.completedAndCanceledRecordsProcess) {
-          this.completedAndCanceledRecordsProcess = true
-          await this.completedAndCanceledRecordsDelete()
-          this.completedAndCanceledRecordsProcess = false
-        }
-        if (!this.chunksDeleteProcess) {
-          this.chunksDeleteProcess = true
-          await this.deleteUnknownChunks()
-          this.chunksDeleteProcess = false
-        }
-        if (!this.previewsDeleteProcess) {
-          this.previewsDeleteProcess = true
-          await this.deleteUnknownPreviews()
-          this.previewsDeleteProcess = false
-        }
-      },
-      3 * 60 * 1000
-    )
+    this.setIntervals()
   }
 
   static async updateRecordsInProgress() {
@@ -99,18 +74,29 @@ export class RecordManager {
 
   static async resolveUnprocessedRecords() {
     const recorded = await getAllRecordDal({ status: RecordStatus.RECORDED })
-    if (recorded.length) {
-      const record = recorded[0]
-      await this.processRecord(record.getDataValue("uuid"))
+    const recordedCandidate = recorded.find(
+      (r) => !this.processedRecordUuids.includes(r.getDataValue("uuid"))
+    )
+    if (recordedCandidate) {
+      const uuid = recordedCandidate.getDataValue("uuid")
+      this.processedRecordUuids = [...this.processedRecordUuids, uuid]
+      await this.processRecord(uuid)
       return
     }
     const withUnloadedChunks = await getAllRecordDal({
       status: RecordStatus.CREATED_ON_SERVER,
     })
-    if (withUnloadedChunks.length) {
-      const record = withUnloadedChunks[0]
-      await this.processRecord(record.getDataValue("uuid"))
+    const withUnloadedChunksCandidate = withUnloadedChunks.find(
+      (r) => !this.processedRecordUuids.includes(r.getDataValue("uuid"))
+    )
+    if (withUnloadedChunksCandidate) {
+      const uuid = withUnloadedChunksCandidate.getDataValue("uuid")
+      this.processedRecordUuids = [...this.processedRecordUuids, uuid]
+      await this.processRecord(uuid)
       return
+    }
+    if (!withUnloadedChunksCandidate && !recordedCandidate) {
+      this.processedRecordUuids = []
     }
   }
 
@@ -167,6 +153,17 @@ export class RecordManager {
       "record.manager.process.start",
       stringify({ uuid, force })
     )
+    if (this.currentProcessRecordUuid && !force) {
+      this.logSender.sendLog(
+        "record.manager.process.end.reason.record_in_processing",
+        stringify({
+          currentProcessRecordUuid: this.currentProcessRecordUuid,
+          uuid,
+          force,
+        })
+      )
+      return
+    }
     try {
       const record = await getByUuidRecordDal(uuid)
 
@@ -234,6 +231,12 @@ export class RecordManager {
 
   // форсим загрузку только что записанного файла
   static async newRecord(uuid: string) {
+    this.logSender.sendLog(
+      "record.manager.new_record",
+      stringify({
+        fileUuid: uuid,
+      })
+    )
     this.lastRecordUuid = uuid
     await this.processRecord(uuid, true)
   }
@@ -277,11 +280,44 @@ export class RecordManager {
   }
 
   static clearIntervals() {
+    this.logSender.sendLog("record.manager.clear_cron")
     if (this.cronInterval3min) {
       clearInterval(this.cronInterval3min)
+      this.cronInterval3min = null
     }
     if (this.cronInterval30sec) {
       clearInterval(this.cronInterval30sec)
+      this.cronInterval30sec = null
     }
+  }
+
+  static setIntervals() {
+    this.logSender.sendLog("record.manager.set_cron")
+    this.cronInterval30sec = setInterval(() => {
+      if (!this.currentProcessRecordUuid) {
+        this.resolveUnprocessedRecords()
+      }
+    }, 30 * 1000)
+
+    this.cronInterval3min = setInterval(
+      async () => {
+        if (!this.completedAndCanceledRecordsProcess) {
+          this.completedAndCanceledRecordsProcess = true
+          await this.completedAndCanceledRecordsDelete()
+          this.completedAndCanceledRecordsProcess = false
+        }
+        if (!this.chunksDeleteProcess) {
+          this.chunksDeleteProcess = true
+          await this.deleteUnknownChunks()
+          this.chunksDeleteProcess = false
+        }
+        if (!this.previewsDeleteProcess) {
+          this.previewsDeleteProcess = true
+          await this.deleteUnknownPreviews()
+          this.previewsDeleteProcess = false
+        }
+      },
+      3 * 60 * 1000
+    )
   }
 }

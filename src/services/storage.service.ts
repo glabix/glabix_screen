@@ -35,33 +35,69 @@ import { PreviewManager } from "./preview-manager"
 import { ICropVideoData } from "../shared/types/types"
 import { ProgressResolver } from "../services/progress-resolver"
 import { AxiosRequestConfig } from "axios"
+import { ChunkQueue } from "../main/helpers/chunk-queue"
+import { showRecordErrorBox } from "../main/helpers/show-record-error-box"
 
 class StorageService {
   static storagePath = path.join(app.getPath("userData"), "ChunkStorage")
   static logSender = new LogSender(TokenStorage)
   private static lastChunk: Chunk | null = null // Храним последний чанк в классе
   static canceledRecordsUuids: string[] = []
-
+  static chunkQueue: ChunkQueue
+  static currentRecordUuid: string | null = null
+  static isSleeping = false
   static async startRecord(): Promise<Record> {
     const title = getTitle(Date.now())
     const version = getVersion()
+    this.chunkQueue = new ChunkQueue()
     this.logSender.sendLog(
       "record.database.create.start",
       stringify({ title, version })
     )
-    return createRecordDal({
+    const record = await createRecordDal({
       title,
       version,
       status: RecordStatus.RECORDING,
     })
+    const uuid = record.getDataValue("uuid")
+    this.currentRecordUuid = uuid
+    this.generator(uuid)
+    return record
   }
 
-  static async addChunk(
+  static async generator(fileUuid: string) {
+    this.logSender.sendLog(
+      "record.recording.generator.start",
+      stringify({ fileUuid })
+    )
+    try {
+      for await (const chunk of this.chunkQueue.processChunks()) {
+        await this.processChunk(chunk.fileUuid, chunk.blob, chunk.index) // Ждем завершения обработки перед переходом к следующему чанку
+      }
+      this.logSender.sendLog(
+        "record.recording.generator.end",
+        stringify({ fileUuid })
+      )
+    } catch (e) {
+      this.logSender.sendLog(
+        "record.recording.chunk.received.error",
+        stringify({ fileUuid, e }),
+        true
+      )
+      showRecordErrorBox("Ошибка записи")
+    }
+  }
+
+  static getNextChunk(
     fileUuid: string,
     blob: Blob,
     index: number,
     isLast: boolean
   ) {
+    this.chunkQueue.receiveChunk(index, fileUuid, blob, isLast)
+  }
+
+  static async processChunk(fileUuid: string, blob: Blob, index: number) {
     if (this.canceledRecordsUuids.indexOf(fileUuid) !== -1) {
       this.logSender.sendLog(
         "record.recording.chunk.received.process.canceled_recording",
@@ -243,7 +279,21 @@ class StorageService {
       status: RecordStatus.RECORDED,
     }
     const record = await updateRecordDal(fileUuid, update)
-    RecordManager.newRecord(fileUuid)
+    if (!this.isSleeping) {
+      this.logSender.sendLog(
+        "record.new_record.go_to_manager",
+        stringify({ fileUuid })
+      )
+      this.currentRecordUuid = null
+      RecordManager.newRecord(fileUuid)
+    } else {
+      this.logSender.sendLog(
+        "record.new_record.sleep_mode.pass",
+        stringify({
+          fileUuid,
+        })
+      )
+    }
     return record
   }
 
@@ -488,6 +538,7 @@ class StorageService {
 
   static async cancelRecord(uuid: string) {
     this.canceledRecordsUuids.push(uuid)
+    this.currentRecordUuid = null
     const record = await updateRecordDal(uuid, {
       status: RecordStatus.CANCELED,
     })
@@ -503,12 +554,12 @@ class StorageService {
     if (canceled.length) {
       const uuids = canceled.map((c) => c.getDataValue("uuid"))
       this.logSender.sendLog(
-        "manager.cancel_records_delete.start",
+        "storage_service.cancel_records_delete.start",
         stringify({ uuids: uuids })
       )
       await deleteByUuidRecordsDal(uuids)
       this.logSender.sendLog(
-        "manager.cancel_records_delete.success",
+        "storage_service.cancel_records_delete.success",
         stringify({ uuids: uuids })
       )
     }
@@ -523,15 +574,29 @@ class StorageService {
     if (canceled.length) {
       const uuids = canceled.map((c) => c.getDataValue("uuid"))
       this.logSender.sendLog(
-        "manager.complete_records_delete.start",
+        "storage_service.complete_records_delete.start",
         stringify({ uuids: uuids })
       )
       await deleteByUuidRecordsDal(uuids)
       this.logSender.sendLog(
-        "manager.complete_records_delete.success",
+        "storage_service.complete_records_delete.success",
         stringify({ uuids: uuids })
       )
     }
+  }
+
+  static sleep() {
+    if (!this.isSleeping) {
+    }
+    RecordManager.clearIntervals()
+    this.isSleeping = true
+  }
+  static wakeUp() {
+    if (this.currentRecordUuid && this.isSleeping) {
+      this.endRecord(this.currentRecordUuid)
+    }
+    RecordManager.setIntervals()
+    this.isSleeping = false
   }
 }
 
