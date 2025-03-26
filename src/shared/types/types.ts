@@ -20,12 +20,10 @@ export enum ModalWindowWidth {
   SETTINGS = 390,
 }
 export enum ModalWindowHeight {
-  // MODAL_WIN = 480,
-  // MODAL_MAC = 395,
-  MODAL_WIN = 535,
-  MODAL_MAC = 460,
-  MODAL = 460,
-  SCREENSHOT_TAB = 335,
+  // MODAL_WIN = 535,
+  // MODAL_MAC = 460,
+  MODAL = 470,
+  SCREENSHOT_TAB = 345,
   PROFILE = 500,
   SETTINGS = 500,
 }

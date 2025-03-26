@@ -51,9 +51,10 @@ body {
 
 .screen-footer {
   position: absolute;
-  bottom: 20px;
+  bottom: 16px;
   left: 0;
   right: 0;
+  border-top: solid 1px var(--gray-400);
 }
 
 .profile-container {
@@ -254,4 +255,16 @@ body.is-uploading .footer-content,
 
 body.is-uploading .footer-progress {
   display: flex;
+}
+
+body.is-update-exist {
+}
+body.is-update-downloading {
+}
+
+.footer-update {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -20px;
 }

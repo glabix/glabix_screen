@@ -139,6 +139,14 @@ getAutoUpdater().on("update-downloaded", (info) => {
   //   JSON.stringify({ old_version: getVersion(), new_version: info.version })
   // )
   logSender.sendLog(AppUpdaterEvents.DOWNLOAD_END, JSON.stringify(info))
+
+  if (modalWindow) {
+    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD, 100)
+    // modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+    // modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
+  }
+
+  getAutoUpdater().quitAndInstall()
 })
 
 getAutoUpdater().on("download-progress", (info) => {
@@ -152,18 +160,37 @@ getAutoUpdater().on("download-progress", (info) => {
   //   )
   // }
 
-  logSender.sendLog("app_update.download-progress", JSON.stringify(info))
+  logSender.sendLog(AppUpdaterEvents.DOWNLOAD_PROGRESS, JSON.stringify(info))
+
+  if (modalWindow) {
+    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD, info.percent)
+  }
 })
 
-getAutoUpdater().on("checking-for-update", () => {
-  logSender.sendLog("app_update.checking-for-update")
-})
+// getAutoUpdater().on("checking-for-update", () => {
+//   logSender.sendLog("app_update.checking-for-update")
+// })
 
 getAutoUpdater().on("update-available", (info) => {
-  logSender.sendLog("app_update.update-available", JSON.stringify(info))
+  logSender.sendLog(AppUpdaterEvents.UPDATE_AVAILABLE, JSON.stringify(info))
+
+  if (modalWindow) {
+    modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, true)
+  }
 })
+
 getAutoUpdater().on("update-not-available", (info) => {
-  logSender.sendLog("app_update.update-not-available", JSON.stringify(info))
+  logSender.sendLog(AppUpdaterEvents.UPDATE_NOT_AVAILABLE, JSON.stringify(info))
+
+  if (modalWindow) {
+    modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+  }
+})
+
+ipcMain.on(AppUpdaterEvents.DOWNLOAD, (event, data) => {
+  if (modalWindow) {
+    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD, 0)
+  }
 })
 
 loggerInit() // init logger
@@ -784,10 +811,7 @@ function createModal(parentWindow) {
     maximizable: false,
     resizable: false,
     width: ModalWindowWidth.MODAL,
-    height:
-      os.platform() == "win32"
-        ? ModalWindowHeight.MODAL_WIN
-        : ModalWindowHeight.MODAL_MAC,
+    height: ModalWindowHeight.MODAL,
     show: false,
     alwaysOnTop: true,
     parent: parentWindow,

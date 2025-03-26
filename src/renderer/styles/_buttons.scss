@@ -24,6 +24,7 @@
     border-color: var(--light);
     background-color: var(--light);
   }
+
   &:hover,
   &.hover {
     text-decoration: none;
@@ -90,6 +91,17 @@
   &--blank:hover {
     background-color: var(--gray-100);
     border-color: var(--gray-100);
+  }
+  &--dark {
+    background-color: var(--dark);
+    border-color: var(--dark);
+    color: var(--light);
+  }
+
+  &--dark:hover {
+    background-color: var(--gray-600);
+    border-color: var(--gray-600);
+    color: var(--light);
   }
 
   &--sm {
