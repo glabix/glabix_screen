@@ -261,6 +261,10 @@ if (!gotTheLock) {
   // Some APIs can only be used after this event occurs.
 
   app.whenReady().then(() => {
+    powerMonitor.on("resume", () => {
+      logSender.sendLog("powerMonitor.resume")
+      StorageService.wakeUp()
+    })
     initializeDatabase().then(() => {
       RecordManager.setTimer()
       const a = new MigrateOldStorageUnprocessed()
@@ -1813,6 +1817,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
 })
 
 powerMonitor.on("suspend", () => {
+  StorageService.sleep()
   const isRecording = ["recording", "paused"].includes(
     store.get()["recordingState"]
   )
@@ -1823,11 +1828,6 @@ powerMonitor.on("suspend", () => {
       key: "recordingState",
       value: "stopped",
     }
-
     ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
   }
-})
-
-powerMonitor.on("resume", () => {
-  logSender.sendLog("powerMonitor.resume")
 })
