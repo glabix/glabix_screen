@@ -50,33 +50,7 @@ export class RecordManager {
       await this.deleteUnknownPreviews()
       this.previewsDeleteProcess = false
     }
-
-    this.cronInterval30sec = setInterval(() => {
-      if (!this.currentProcessRecordUuid) {
-        this.resolveUnprocessedRecords()
-      }
-    }, 30 * 1000)
-
-    this.cronInterval3min = setInterval(
-      async () => {
-        if (!this.completedAndCanceledRecordsProcess) {
-          this.completedAndCanceledRecordsProcess = true
-          await this.completedAndCanceledRecordsDelete()
-          this.completedAndCanceledRecordsProcess = false
-        }
-        if (!this.chunksDeleteProcess) {
-          this.chunksDeleteProcess = true
-          await this.deleteUnknownChunks()
-          this.chunksDeleteProcess = false
-        }
-        if (!this.previewsDeleteProcess) {
-          this.previewsDeleteProcess = true
-          await this.deleteUnknownPreviews()
-          this.previewsDeleteProcess = false
-        }
-      },
-      3 * 60 * 1000
-    )
+    this.setIntervals()
   }
 
   static async updateRecordsInProgress() {
@@ -257,6 +231,12 @@ export class RecordManager {
 
   // форсим загрузку только что записанного файла
   static async newRecord(uuid: string) {
+    this.logSender.sendLog(
+      "record.manager.new_record",
+      stringify({
+        fileUuid: uuid,
+      })
+    )
     this.lastRecordUuid = uuid
     await this.processRecord(uuid, true)
   }
@@ -300,11 +280,44 @@ export class RecordManager {
   }
 
   static clearIntervals() {
+    this.logSender.sendLog("record.manager.clear_cron")
     if (this.cronInterval3min) {
       clearInterval(this.cronInterval3min)
+      this.cronInterval3min = null
     }
     if (this.cronInterval30sec) {
       clearInterval(this.cronInterval30sec)
+      this.cronInterval30sec = null
     }
+  }
+
+  static setIntervals() {
+    this.logSender.sendLog("record.manager.set_cron")
+    this.cronInterval30sec = setInterval(() => {
+      if (!this.currentProcessRecordUuid) {
+        this.resolveUnprocessedRecords()
+      }
+    }, 30 * 1000)
+
+    this.cronInterval3min = setInterval(
+      async () => {
+        if (!this.completedAndCanceledRecordsProcess) {
+          this.completedAndCanceledRecordsProcess = true
+          await this.completedAndCanceledRecordsDelete()
+          this.completedAndCanceledRecordsProcess = false
+        }
+        if (!this.chunksDeleteProcess) {
+          this.chunksDeleteProcess = true
+          await this.deleteUnknownChunks()
+          this.chunksDeleteProcess = false
+        }
+        if (!this.previewsDeleteProcess) {
+          this.previewsDeleteProcess = true
+          await this.deleteUnknownPreviews()
+          this.previewsDeleteProcess = false
+        }
+      },
+      3 * 60 * 1000
+    )
   }
 }
