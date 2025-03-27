@@ -298,7 +298,6 @@ if (!gotTheLock) {
     }) // Инициализация базы данных
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
-    checkForUpdates()
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -817,6 +816,7 @@ function createModal(parentWindow) {
       getMediaDevicesAccess()
     )
   })
+
   modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
@@ -826,6 +826,11 @@ function createModal(parentWindow) {
     loadAccountData()
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     sendUserSettings()
+
+    getLastStreamSettings(modalWindow).then((settings) => {
+      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
   })
 
   modalWindow.on("show", () => {
@@ -860,7 +865,7 @@ function createModal(parentWindow) {
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
-
+    checkForUpdates()
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)

@@ -204,9 +204,10 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.${AppEvents.ON_BEFORE_HIDE}`,
+    title: `webcamera.renderer.${AppEvents.ON_SHOW}`,
     body: JSON.stringify({ lastStreamSettings }),
   })
+
   if (isRecording || isCountdown) {
     return
   }
