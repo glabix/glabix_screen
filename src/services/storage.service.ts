@@ -94,7 +94,11 @@ class StorageService {
     index: number,
     isLast: boolean
   ) {
-    if (this.currentRecordUuid !== fileUuid) {
+    if (this.canceledRecordsUuids.indexOf(fileUuid) !== -1) {
+      this.logSender.sendLog(
+        "getNextChunk.canceled_recording",
+        stringify({ fileUuid, byteLength: blob.size })
+      )
       return
     }
     this.chunkQueue.receiveChunk(index, fileUuid, blob, isLast)
