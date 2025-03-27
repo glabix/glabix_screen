@@ -138,25 +138,20 @@ getAutoUpdater().on("error", (error) => {
 getAutoUpdater().on("update-downloaded", (info) => {
   logSender.sendLog(AppUpdaterEvents.DOWNLOAD_END, JSON.stringify(info))
 
-  if (modalWindow) {
-    modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
-    modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
-    setTimeout(() => {
-      modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
-      getAutoUpdater().quitAndInstall()
-    }, 500)
-  }
+  modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+  modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
+  getAutoUpdater().quitAndInstall()
+  // setTimeout(() => {
+  //   modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
+  // }, 100)
 })
 
 getAutoUpdater().on("download-progress", (info) => {
   logSender.sendLog(AppUpdaterEvents.DOWNLOAD_PROGRESS, JSON.stringify(info))
-
-  if (modalWindow) {
-    modalWindow.webContents.send(
-      AppUpdaterEvents.DOWNLOAD_PROGRESS,
-      info.percent
-    )
-  }
+  modalWindow?.webContents.send(
+    AppUpdaterEvents.DOWNLOAD_PROGRESS,
+    Math.floor(info.percent)
+  )
 })
 
 getAutoUpdater().on("update-available", (info) => {
@@ -169,32 +164,11 @@ getAutoUpdater().on("update-not-available", (info) => {
   modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
 })
 
-// let timer
 ipcMain.on(AppUpdaterEvents.DOWNLOAD_START, (event, data) => {
   logSender.sendLog(AppUpdaterEvents.DOWNLOAD_START)
   getAutoUpdater().downloadUpdate()
   modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 0)
-
-  // Emulate
-  if (modalWindow) {
-    // setTimeout(() => { modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 20) }, 1000)
-    // setTimeout(() => {modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 40)}, 2000)
-    // setTimeout(() => {modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 60)}, 3000)
-    // setTimeout(() => {modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 80)}, 4000)
-    // setTimeout(() => {
-    //   modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
-    //   modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
-    //   setTimeout(() => {
-    //     modalWindow.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
-    //   }, 1000)
-    // }, 5000)
-  }
 })
-
-// Emulate
-setTimeout(() => {
-  // modalWindow.webContents.send(AppUpdaterEvents.HAS_UPDATE, true)
-}, 4000)
 
 loggerInit() // init logger
 errorsInterceptor() // init req errors interceptor
