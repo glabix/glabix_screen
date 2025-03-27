@@ -94,6 +94,9 @@ class StorageService {
     index: number,
     isLast: boolean
   ) {
+    if (this.currentRecordUuid !== fileUuid) {
+      return
+    }
     this.chunkQueue.receiveChunk(index, fileUuid, blob, isLast)
   }
 
@@ -441,7 +444,6 @@ class StorageService {
       })
       const config: AxiosRequestConfig = {
         onUploadProgress: (progressEvent) => {
-          // console.log(progressEvent)
           ProgressResolver.updateChunkData(
             chunk.getDataValue("fileUuid"),
             _chunk.getDataValue("uuid"),
