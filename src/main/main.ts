@@ -141,9 +141,9 @@ getAutoUpdater().on("update-downloaded", (info) => {
   modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
   modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
   getAutoUpdater().quitAndInstall()
-  // setTimeout(() => {
-  //   modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
-  // }, 100)
+  setTimeout(() => {
+    modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
+  }, 100)
 })
 
 getAutoUpdater().on("download-progress", (info) => {

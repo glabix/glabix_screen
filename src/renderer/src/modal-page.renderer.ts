@@ -1348,8 +1348,8 @@ window.electronAPI.ipcRenderer.on(
     const bar = document.querySelector(".js-download-bar")! as HTMLElement
     const value = document.querySelector(".js-download-value")! as HTMLElement
 
-    bar.style.width = "0%"
-    value.innerHTML = ""
+    bar.style.width = "100%"
+    value.innerHTML = "<span class='i i-check'></span>"
   }
 )
 
