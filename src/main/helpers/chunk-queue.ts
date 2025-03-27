@@ -8,10 +8,13 @@ export class ChunkQueue {
   private isLastReceived = false // Флаг, сигнализирующий о том, что пришел последний чанк
   private emitter = new EventEmitter() // Создаем эмиттер для обработки событий
   private logSender = new LogSender()
+  private eventNameChunk = "chunk" + Date.now()
+  private eventNameNext = "next" + Date.now()
+  uuid = Date.now()
   constructor() {
     // Подписываемся на событие "chunk", которое срабатывает при получении нового чанка
     this.emitter.on(
-      "chunk",
+      this.eventNameChunk,
       (chunk: {
         index: number
         fileUuid: string
@@ -32,7 +35,7 @@ export class ChunkQueue {
           })
         )
         if (chunk.isLast) this.isLastReceived = true // Если это последний чанк, устанавливаем флаг
-        this.emitter.emit("next") // Генерируем событие "next", чтобы пробудить обработчик
+        this.emitter.emit(this.eventNameNext) // Генерируем событие "next", чтобы пробудить обработчик
       }
     )
   }
@@ -54,7 +57,7 @@ export class ChunkQueue {
       "chunk_queue.receive.chunk",
       stringify({ index, fileUuid, isLast, size: blob.size })
     )
-    this.emitter.emit("chunk", { index, fileUuid, blob, isLast }) // Эмитируем событие "chunk" с переданными данными
+    this.emitter.emit(this.eventNameChunk, { index, fileUuid, blob, isLast }) // Эмитируем событие "chunk" с переданными данными
   }
 
   /**
@@ -69,7 +72,9 @@ export class ChunkQueue {
           "chunk_queue.next_chunk.await",
           stringify({ index: this.expectedIndex })
         )
-        await new Promise((resolve) => this.emitter.once("next", resolve)) // Ждем, пока придет нужный чанк
+        await new Promise((resolve) =>
+          this.emitter.once(this.eventNameNext, resolve)
+        ) // Ждем, пока придет нужный чанк
       }
 
       // Если чанк уже есть в очереди, извлекаем его
@@ -84,5 +89,7 @@ export class ChunkQueue {
         this.expectedIndex++ // Переходим к следующему ожидаемому чанку
       }
     }
+    this.emitter.removeAllListeners(this.eventNameChunk)
+    this.emitter.removeAllListeners(this.eventNameNext)
   }
 }
