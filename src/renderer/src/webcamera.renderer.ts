@@ -4,6 +4,7 @@ import {
   ScreenshotActionEvents,
   SimpleStoreEvents,
   IStreamSettings,
+  ILastDeviceSettings,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import {
@@ -36,6 +37,26 @@ let isCountdown = false
 let isScreenshotMode = false
 let isAppShown = false
 let skipAppShowEvent = false
+
+const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
+function getLastMediaDevices() {
+  const lastDevicesStr = localStorage.getItem(LAST_DEVICE_IDS)
+
+  if (lastDevicesStr) {
+    const devices: ILastDeviceSettings = JSON.parse(lastDevicesStr)
+    lastStreamSettings = {
+      action: "fullScreenVideo",
+      cameraDeviceId: devices.videoId,
+    }
+  }
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.getLastMediaDevices`,
+    body: JSON.stringify({ lastStreamSettings }),
+  })
+}
+
+getLastMediaDevices()
 
 function initMovable() {
   moveable = new Moveable(document.body, {
