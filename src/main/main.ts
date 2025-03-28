@@ -96,6 +96,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
 import { AppEvents } from "@shared/events/app.events"
+import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
 
 let activeDisplay: Electron.Display
@@ -130,22 +131,43 @@ app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
+getAutoUpdater().on("error", (error) => {
+  logSender.sendLog(AppUpdaterEvents.ERROR, JSON.stringify(error))
+})
+
 getAutoUpdater().on("update-downloaded", (info) => {
-  logSender.sendLog(
-    "app_update.download_complete",
-    JSON.stringify({ old_version: getVersion(), new_version: info.version })
+  logSender.sendLog(AppUpdaterEvents.DOWNLOAD_END, JSON.stringify(info))
+
+  modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+  modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 100)
+  getAutoUpdater().quitAndInstall()
+  setTimeout(() => {
+    modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_END)
+  }, 100)
+})
+
+getAutoUpdater().on("download-progress", (info) => {
+  logSender.sendLog(AppUpdaterEvents.DOWNLOAD_PROGRESS, JSON.stringify(info))
+  modalWindow?.webContents.send(
+    AppUpdaterEvents.DOWNLOAD_PROGRESS,
+    Math.floor(info.percent)
   )
 })
-getAutoUpdater().on("download-progress", (info) => {
-  if (info.percent === 0) {
-    logSender.sendLog(
-      "app_update.download_started",
-      JSON.stringify({
-        old_version: getVersion(),
-        new_version: (info as any).version,
-      })
-    )
-  }
+
+getAutoUpdater().on("update-available", (info) => {
+  logSender.sendLog(AppUpdaterEvents.UPDATE_AVAILABLE, JSON.stringify(info))
+  modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, true)
+})
+
+getAutoUpdater().on("update-not-available", (info) => {
+  logSender.sendLog(AppUpdaterEvents.UPDATE_NOT_AVAILABLE, JSON.stringify(info))
+  modalWindow?.webContents.send(AppUpdaterEvents.HAS_UPDATE, false)
+})
+
+ipcMain.on(AppUpdaterEvents.DOWNLOAD_START, (event, data) => {
+  logSender.sendLog(AppUpdaterEvents.DOWNLOAD_START)
+  getAutoUpdater().downloadUpdate()
+  modalWindow?.webContents.send(AppUpdaterEvents.DOWNLOAD_PROGRESS, 0)
 })
 
 loggerInit() // init logger
@@ -239,7 +261,9 @@ function checkForUpdates() {
     title: "Новое обновление готово к установке",
     body: "Версия {version} загружена и будет автоматически установлена при выходе из приложения",
   }
-  getAutoUpdater().checkForUpdatesAndNotify(downloadNotification)
+  // getAutoUpdater().checkForUpdatesAndNotify(downloadNotification)
+  logSender.sendLog("getAutoUpdater().checkForUpdates()")
+  getAutoUpdater().checkForUpdates()
 }
 
 if (!gotTheLock) {
@@ -274,7 +298,6 @@ if (!gotTheLock) {
     }) // Инициализация базы данных
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
-    checkForUpdates()
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -768,10 +791,7 @@ function createModal(parentWindow) {
     maximizable: false,
     resizable: false,
     width: ModalWindowWidth.MODAL,
-    height:
-      os.platform() == "win32"
-        ? ModalWindowHeight.MODAL_WIN
-        : ModalWindowHeight.MODAL_MAC,
+    height: ModalWindowHeight.MODAL,
     show: false,
     alwaysOnTop: true,
     parent: parentWindow,
@@ -796,6 +816,7 @@ function createModal(parentWindow) {
       getMediaDevicesAccess()
     )
   })
+
   modalWindow.on("ready-to-show", () => {
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
@@ -805,6 +826,11 @@ function createModal(parentWindow) {
     loadAccountData()
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     sendUserSettings()
+
+    getLastStreamSettings(modalWindow).then((settings) => {
+      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
   })
 
   modalWindow.on("show", () => {
@@ -839,7 +865,7 @@ function createModal(parentWindow) {
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
-
+    checkForUpdates()
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)

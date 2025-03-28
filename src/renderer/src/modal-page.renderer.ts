@@ -33,6 +33,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
+import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 type SettingsTabType = "root" | "shortCuts" | "videoAudio"
 type PageViewType =
   | "modal"
@@ -68,6 +69,8 @@ const settingsContent = document.querySelector(".settings-content")!
 const permissionsContent = document.querySelector(".permissions-content")!
 const limitsContent = document.querySelector(".limits-content")!
 const noMicrophoneContent = document.querySelector(".no-microphone-content")!
+
+const startUpdateBtn = document.querySelector(".js-update-start")!
 
 const audioDeviceContainer = document.querySelector("#audio_device_container")!
 const videoDeviceContainer = document.querySelector("#video_device_container")!
@@ -1310,6 +1313,43 @@ window.electronAPI.ipcRenderer.on(
 
     bar.style.width = `${progress}%`
     value.innerHTML = `${progress}%`
+  }
+)
+
+// App update
+startUpdateBtn.addEventListener(
+  "click",
+  () => {
+    window.electronAPI.ipcRenderer.send(AppUpdaterEvents.DOWNLOAD_START)
+  },
+  false
+)
+window.electronAPI.ipcRenderer.on(
+  AppUpdaterEvents.HAS_UPDATE,
+  (event, hasUpdate: boolean) => {
+    document.body.classList.toggle("is-update-exist", hasUpdate)
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  AppUpdaterEvents.DOWNLOAD_PROGRESS,
+  (event, progress: number) => {
+    document.body.classList.add("is-update-downloading")
+    const bar = document.querySelector(".js-download-bar")! as HTMLElement
+    const value = document.querySelector(".js-download-value")! as HTMLElement
+
+    bar.style.width = `${progress}%`
+    value.innerHTML = `${progress}%`
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  AppUpdaterEvents.DOWNLOAD_END,
+  (event, data) => {
+    document.body.classList.remove("is-update-downloading", "is-update-exist")
+    const bar = document.querySelector(".js-download-bar")! as HTMLElement
+    const value = document.querySelector(".js-download-value")! as HTMLElement
+
+    bar.style.width = "100%"
+    value.innerHTML = "<span class='i i-check'></span>"
   }
 )
 

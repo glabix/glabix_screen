@@ -1492,6 +1492,10 @@
 // -----------------
 
 // Border helpers
+
+.border-radius-0 {
+  border-radius: 0 !important;
+}
 .border-0 {
   border-width: 0px !important;
 }
