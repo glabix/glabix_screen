@@ -364,6 +364,7 @@ if (!gotTheLock) {
             if (os.platform() == "win32") {
               exec("start ms-settings:privacy-broadfilesystem")
             }
+
             throw error
           })
       }
@@ -1388,6 +1389,14 @@ ipcMain.on(
 )
 
 ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
+  if (os.platform() == "darwin") {
+    if (device == "screen") {
+      exec(
+        'open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"'
+      )
+    }
+  }
+
   if (os.platform() == "win32") {
     if (device == "microphone") {
       exec("start ms-settings:privacy-microphone")
