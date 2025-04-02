@@ -9,3 +9,19 @@
   transform: translateY(-50%);
   z-index: 20;
 }
+
+.popover--top {
+  bottom: calc(100% + 8px);
+  top: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.popover--dark {
+  background-color: rgba(47, 47, 47, 0.7);
+  border: 1px solid var(--gray-400);
+}
+
+.popover--dark .tag {
+  background-color: rgba(58, 58, 58, 1);
+}

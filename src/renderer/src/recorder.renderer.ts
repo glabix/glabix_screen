@@ -18,7 +18,6 @@ import {
   ScreenshotActionEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
-import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { captureVideoFrame } from "./helpers/capture-video-frame"
@@ -40,6 +39,7 @@ const countdownContainer = document.querySelector(
 )!
 // const canvasContainer = document.querySelector(".crop-screenshot-container")! as HTMLDivElement
 const countdown = document.querySelector("#fullscreen_countdown")!
+const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
 let startTimer: NodeJS.Timeout
 const timerDisplay = document.getElementById(
   "timerDisplay"
@@ -52,15 +52,12 @@ const pauseBtn = document.getElementById("pauseBtn")! as HTMLButtonElement
 const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
 const deleteBtn = document.getElementById("deleteBtn")! as HTMLButtonElement
 const restartBtn = document.getElementById("restartBtn")! as HTMLButtonElement
-const changeCameraOnlySizeBtn = document.querySelectorAll(
-  ".js-camera-only-size"
-)!
+
 let lastScreenAction: ScreenAction | undefined = "fullScreenVideo"
 let videoRecorder: MediaRecorder | undefined
 let combineStream: MediaStream | undefined
 let audioContext: AudioContext | undefined = undefined
 let cropMoveable: Moveable | undefined
-let cameraMoveable: Moveable | undefined
 let lastStreamSettings: IStreamSettings | undefined
 let desktopStream: MediaStream | undefined = undefined
 let voiceStream: MediaStream | undefined = undefined
@@ -209,24 +206,6 @@ function openRestartRecordingDialog() {
 
   pauseRecording()
 }
-
-changeCameraOnlySizeBtn.forEach((button) => {
-  button.addEventListener(
-    "click",
-    (event) => {
-      const target = event.target as HTMLElement
-      const size = target.dataset.size!
-      const container = document.querySelector(".webcamera-only-container")!
-      container.classList.remove("sm", "lg", "xl")
-      container.classList.add(size)
-
-      if (cameraMoveable) {
-        cameraMoveable.updateRect()
-      }
-    },
-    false
-  )
-})
 
 stopBtn.addEventListener("click", () => {
   stopRecording()
@@ -647,15 +626,12 @@ const clearView = () => {
     screenContainer.setAttribute("hidden", "")
   }
 
+  draggableZone.classList.remove("has-webcamera-only")
+
   if (cropMoveable) {
     cropMoveable.destroy()
     cropMoveable = undefined
     cropVideoData = undefined
-  }
-
-  if (cameraMoveable) {
-    cameraMoveable.destroy()
-    cameraMoveable = undefined
   }
 
   clearCameraOnlyVideoStream()
@@ -723,33 +699,15 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
 
   if (settings.action == "cameraOnly") {
     const videoContainer = document.querySelector(".webcamera-only-container")!
+
     const video = document.querySelector(
       "#webcam_only_video"
     )! as HTMLVideoElement
     videoContainer.removeAttribute("hidden")
+    draggableZone.classList.add("has-webcamera-only")
     const rect = videoContainer.getBoundingClientRect()
     video.width = rect.width
     video.height = rect.height
-
-    cameraMoveable = new Moveable(document.body, {
-      target: videoContainer as MoveableRefTargetType,
-      container: document.body,
-      className: "moveable-invisible-container",
-      draggable: true,
-    })
-
-    cameraMoveable
-      .on("dragStart", () => {
-        window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-      })
-      .on("drag", ({ target, left, top }) => {
-        target!.style.left = `${left}px`
-        target!.style.top = `${top}px`
-        window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-      })
-      .on("dragEnd", () => {
-        window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-      })
   }
 
   if (settings.action == "cropVideo") {
