@@ -1116,6 +1116,8 @@ deviceAccessBtn.forEach((btn) => {
       }
 
       if (target == "screen") {
+        window.electronAPI.ipcRenderer.send("system-settings:open", target)
+
         navigator.mediaDevices
           .getDisplayMedia({
             audio: false,
