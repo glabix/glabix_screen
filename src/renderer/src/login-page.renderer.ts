@@ -11,11 +11,11 @@ document.addEventListener("DOMContentLoaded", () => {
   recorderLogo.classList.add(import.meta.env.VITE_MODE)
   authBtn.addEventListener("click", (event) => {
     event.preventDefault()
-    window.api.openLinkInBrowser(authLink)
+    window.electronAPI.ipcRenderer.send("openLinkInBrowser", authLink)
   })
   registrationBtn.addEventListener("click", (event) => {
     event.preventDefault()
-    window.api.openLinkInBrowser(registrationLink)
+    window.electronAPI.ipcRenderer.send("openLinkInBrowser", registrationLink)
   })
 })
 
