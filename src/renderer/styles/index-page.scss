@@ -27,9 +27,10 @@ body {
 
 /* change width height movable styles */
 .webcamera-view-container {
-  position: fixed;
-  top: 600px;
-  left: 20px;
+  // position: fixed;
+  // top: 600px;
+  // left: 20px;
+  position: relative;
   width: 200px;
   height: 200px;
   background-color: var(--dark);
@@ -50,7 +51,7 @@ body {
   }
 
   &.xl {
-    width: 80%;
+    width: 80vw;
     height: auto;
     aspect-ratio: 16/9;
     border-radius: 10px;
@@ -65,13 +66,13 @@ body {
   }
 }
 
-.webcamera-view-target {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  right: 0;
-}
+// .webcamera-view-target {
+//   position: absolute;
+//   left: 0;
+//   top: 0;
+//   bottom: 0;
+//   right: 0;
+// }
 
 .webcamera-view-error {
   position: absolute;
@@ -148,10 +149,11 @@ body {
 }
 
 .webcamera-only-container {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  // position: fixed;
+  // left: 50%;
+  // top: 50%;
+  // transform: translate(-50%, -50%);
+  position: relative;
   aspect-ratio: 16/9;
   border: 5px solid var(--accent);
   border-radius: 4px;
@@ -172,12 +174,11 @@ body {
 .webcamera-only-container.sm {
   width: 410px;
 }
-
 .webcamera-only-container.lg {
   width: 820px;
 }
 .webcamera-only-container.xl {
-  width: 80%;
+  width: 80vw;
 }
 
 .webcamera-only-error {
@@ -370,3 +371,11 @@ body.no-microphone .microphone-alert-container {
 //   height: 100%;
 //   box-shadow: rgba(0, 0, 0, 0.6) 0px 0px 0px 9999px;
 // }
+
+.draggable-zone {
+  position: fixed;
+  z-index: 15;
+  top: calc(80% - 200px);
+  left: 5%;
+  min-width: 200px;
+}

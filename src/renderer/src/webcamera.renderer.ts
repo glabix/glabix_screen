@@ -28,9 +28,16 @@ const video = document.getElementById("video") as HTMLVideoElement
 const changeCameraViewSizeBtn = document.querySelectorAll(
   ".js-camera-view-size"
 )
+const changeCameraOnlySizeBtn = document.querySelectorAll(
+  ".js-camera-only-size"
+)!
+const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
+const draggableZoneTarget = draggableZone.querySelector(
+  ".draggable-zone-target"
+) as HTMLElement
+let draggable: Moveable | undefined = undefined
 
 let currentStream: MediaStream | undefined = undefined
-let moveable: Moveable | undefined = undefined
 let lastStreamSettings: IStreamSettings | undefined = undefined
 let isRecording = false
 let isCountdown = false
@@ -58,19 +65,21 @@ function getLastMediaDevices() {
 
 getLastMediaDevices()
 
-function initMovable() {
-  moveable = new Moveable(document.body, {
-    target: videoContainer as MoveableRefTargetType,
-    dragTarget: videoContainer.querySelector(
-      "#webcamera-view-target"
-    ) as HTMLElement,
+function initDraggableZone() {
+  // const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
+  // const draggableZoneTarget = draggableZone.querySelector(".draggable-zone-target") as HTMLElement
+
+  draggable = new Moveable(document.body, {
+    target: draggableZone as MoveableRefTargetType,
+    dragTarget: draggableZoneTarget,
+    preventClickEventOnDrag: false,
     container: document.body,
     className: "moveable-invisible-container",
     draggable: true,
   })
 
-  moveable
-    .on("dragStart", ({ target, clientX, clientY }) => {
+  draggable
+    .on("dragStart", ({ target }) => {
       target.classList.add("moveable-dragging")
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     })
@@ -79,16 +88,17 @@ function initMovable() {
       target!.style.top = `${top}px`
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     })
-    .on("dragEnd", ({ target, isDrag, clientX, clientY }) => {
+    .on("dragEnd", ({ target }) => {
       target.classList.remove("moveable-dragging")
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     })
 }
-initMovable()
+initDraggableZone()
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
   video.srcObject = currentStream!
   videoContainer.removeAttribute("hidden")
+  draggableZone.classList.add("has-avatar")
 
   if (hasError) {
     if (errorType == "no-permission") {
@@ -110,10 +120,6 @@ function startStream(deviseId) {
   if (currentStream) {
     showVideo()
     return
-  }
-
-  if (!moveable) {
-    initMovable()
   }
 
   const constraints = {
@@ -144,17 +150,13 @@ function stopStream() {
   videoContainer.setAttribute("hidden", "")
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
+  draggableZone.classList.remove("has-avatar")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
   video.srcObject = null
 
   if (currentStream) {
     currentStream.getTracks().forEach((track) => track.stop())
     currentStream = undefined
-  }
-
-  if (moveable) {
-    moveable.destroy()
-    moveable = undefined
   }
 }
 
@@ -302,15 +304,87 @@ changeCameraViewSizeBtn.forEach((button) => {
           : prevRect.left + prevRect.width / 2 - nextRect.width / 2
       const css = `left: ${left}px; top: ${top}px;`
 
-      container.style.cssText = css
+      draggableZone.style.cssText = css
 
-      if (moveable) {
-        moveable.updateRect()
+      if (draggable) {
+        draggable.updateRect()
       }
+
+      closeWebcameraSize()
     },
     false
   )
 })
+
+changeCameraOnlySizeBtn.forEach((button) => {
+  button.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as HTMLElement
+      const size = target.dataset.size!
+      const container = document.querySelector(".webcamera-only-container")!
+      const prevRect = container.getBoundingClientRect()
+      container.classList.remove("sm", "lg", "xl")
+      container.classList.add(size)
+      const nextRect = container.getBoundingClientRect()
+
+      const top =
+        size == "xl"
+          ? window.innerHeight / 2 - nextRect.height / 2
+          : prevRect.bottom - nextRect.height
+      const left =
+        size == "xl"
+          ? window.innerWidth / 2 - nextRect.width / 2
+          : prevRect.left + prevRect.width / 2 - nextRect.width / 2
+      const css = `left: ${left}px; top: ${top}px;`
+
+      draggableZone.style.cssText = css
+
+      if (draggable) {
+        draggable.updateRect()
+      }
+
+      closeWebcameraSize()
+    },
+    false
+  )
+})
+
+// Toggle webcamera size
+const webcameraSizeBtn = document.querySelector(
+  "#webcamera-size-btn"
+)! as HTMLElement
+const drawToggle = document.querySelector("#draw-btn")! as HTMLElement
+let isWebcameraSizeOpen = false
+function openWebcameraSize() {
+  isWebcameraSizeOpen = true
+  document.body.classList.add("is-webcamera-size-open")
+}
+
+function closeWebcameraSize() {
+  isWebcameraSizeOpen = false
+  document.body.classList.remove("is-webcamera-size-open")
+}
+
+drawToggle.addEventListener(
+  "click",
+  () => {
+    closeWebcameraSize()
+  },
+  false
+)
+
+webcameraSizeBtn.addEventListener(
+  "click",
+  () => {
+    if (isWebcameraSizeOpen) {
+      closeWebcameraSize()
+    } else {
+      openWebcameraSize()
+    }
+  },
+  false
+)
 
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
