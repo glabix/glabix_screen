@@ -1,13 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron"
 import { electronAPI } from "@electron-toolkit/preload"
-import { openExternalLink } from "@shared/helpers/open-external-link"
 
 // Custom APIs for renderer
-export const api = {
-  openLinkInBrowser: (href: string) => {
-    openExternalLink(href)
-  },
-}
+export const api = {}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

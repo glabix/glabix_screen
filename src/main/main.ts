@@ -1718,6 +1718,9 @@ ipcMain.on("invalidate-shadow", (event, data) => {
     mainWindow.invalidateShadow()
   }
 })
+ipcMain.on("openLinkInBrowser", (event, href) => {
+  openExternalLink(href)
+})
 ipcMain.on("redirect:app", (event, route) => {
   const url = route.replace("%orgId%", TokenStorage.organizationId)
   const link = `${import.meta.env.VITE_AUTH_APP_URL}${url}`
