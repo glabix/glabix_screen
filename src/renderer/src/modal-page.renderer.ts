@@ -34,7 +34,12 @@ import {
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
-type SettingsTabType = "root" | "shortCuts" | "videoAudio" | "recordingProcess"
+type SettingsTabType =
+  | "root"
+  | "shortCuts"
+  | "videoAudio"
+  | "recordingProcess"
+  | "common"
 type PageViewType =
   | "modal"
   | "permissions"
@@ -145,6 +150,9 @@ const flipCheckbox = document.querySelector(
 )! as HTMLInputElement
 const panelVisibilityCheckbox = document.querySelector(
   ".js-panel-visibility-checkbox"
+)! as HTMLInputElement
+const autoLaunchCheckbox = document.querySelector(
+  ".js-auto-launch-checkbox"
 )! as HTMLInputElement
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
@@ -1317,6 +1325,29 @@ window.electronAPI.ipcRenderer.on(
       panelVisibilityCheckbox.checked = isPanelVisible
     } else {
       panelVisibilityCheckbox.checked = false
+    }
+  }
+)
+
+// Auto Launch
+autoLaunchCheckbox.addEventListener(
+  "change",
+  (event) => {
+    const checkbox = event.target as HTMLInputElement
+    window.electronAPI.ipcRenderer.send(
+      UserSettingsEvents.AUTO_LAUNCH_SET,
+      checkbox.checked
+    )
+  },
+  false
+)
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.AUTO_LAUNCH_GET,
+  (event, isAutoLaunch: boolean) => {
+    if (typeof isAutoLaunch == "boolean") {
+      autoLaunchCheckbox.checked = isAutoLaunch
+    } else {
+      autoLaunchCheckbox.checked = true
     }
   }
 )

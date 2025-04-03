@@ -125,6 +125,13 @@ const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
 
+app.setLoginItemSettings({
+  openAtLogin: eStore.get(UserSettingsKeys.AUTO_LAUNCH)
+    ? (eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean)
+    : true,
+  path: app.getPath("exe"),
+})
+
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
@@ -782,6 +789,11 @@ function sendUserSettings() {
     modalWindow.webContents.send(
       UserSettingsEvents.PANEL_VISIBILITY_GET,
       eStore.get(UserSettingsKeys.PANEL_VISIBILITY)
+    )
+
+    modalWindow.webContents.send(
+      UserSettingsEvents.AUTO_LAUNCH_GET,
+      eStore.get(UserSettingsKeys.AUTO_LAUNCH)
     )
   }
 
