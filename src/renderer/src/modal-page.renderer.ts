@@ -34,7 +34,7 @@ import {
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
-type SettingsTabType = "root" | "shortCuts" | "videoAudio"
+type SettingsTabType = "root" | "shortCuts" | "videoAudio" | "recordingProcess"
 type PageViewType =
   | "modal"
   | "permissions"
@@ -142,6 +142,9 @@ let streamSettings: IStreamSettings = {
 let isScreenshotTab = false
 const flipCheckbox = document.querySelector(
   ".js-flip-camera-checkbox"
+)! as HTMLInputElement
+const panelVisibilityCheckbox = document.querySelector(
+  ".js-panel-visibility-checkbox"
 )! as HTMLInputElement
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
@@ -1271,6 +1274,7 @@ organizationContainer.addEventListener(
   },
   false
 )
+
 // FlipCamera
 flipCheckbox.addEventListener(
   "change",
@@ -1283,7 +1287,6 @@ flipCheckbox.addEventListener(
   },
   false
 )
-
 window.electronAPI.ipcRenderer.on(
   UserSettingsEvents.FLIP_CAMERA_GET,
   (event, isFlip: boolean) => {
@@ -1291,6 +1294,29 @@ window.electronAPI.ipcRenderer.on(
       flipCheckbox.checked = isFlip
     } else {
       flipCheckbox.checked = true
+    }
+  }
+)
+
+// Panel Visibility
+panelVisibilityCheckbox.addEventListener(
+  "change",
+  (event) => {
+    const checkbox = event.target as HTMLInputElement
+    window.electronAPI.ipcRenderer.send(
+      UserSettingsEvents.PANEL_VISIBILITY_SET,
+      checkbox.checked
+    )
+  },
+  false
+)
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.PANEL_VISIBILITY_GET,
+  (event, isPanelVisible: boolean) => {
+    if (typeof isPanelVisible == "boolean") {
+      panelVisibilityCheckbox.checked = isPanelVisible
+    } else {
+      panelVisibilityCheckbox.checked = false
     }
   }
 )

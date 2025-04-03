@@ -755,6 +755,14 @@ function createWindow() {
   mainWindow.on("focus", () => {
     mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   })
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    getLastStreamSettings(mainWindow).then((settings) => {
+      modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
+  })
+
   createModal(mainWindow)
   createLoginWindow()
 }
@@ -770,6 +778,11 @@ function sendUserSettings() {
       UserSettingsEvents.FLIP_CAMERA_GET,
       eStore.get(UserSettingsKeys.FLIP_CAMERA)
     )
+
+    modalWindow.webContents.send(
+      UserSettingsEvents.PANEL_VISIBILITY_GET,
+      eStore.get(UserSettingsKeys.PANEL_VISIBILITY)
+    )
   }
 
   if (mainWindow) {
@@ -781,6 +794,11 @@ function sendUserSettings() {
     mainWindow.webContents.send(
       UserSettingsEvents.FLIP_CAMERA_GET,
       eStore.get(UserSettingsKeys.FLIP_CAMERA)
+    )
+
+    mainWindow.webContents.send(
+      UserSettingsEvents.PANEL_VISIBILITY_GET,
+      eStore.get(UserSettingsKeys.PANEL_VISIBILITY)
     )
   }
 }
@@ -1195,6 +1213,11 @@ function createMenu() {
     const state = store.get()
 
     if (["recording", "paused"].includes(state["recordingState"])) {
+      const data: ISimpleStoreData = {
+        key: "recordingState",
+        value: "stopped",
+      }
+      ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
       return
     }
 
@@ -1301,6 +1324,12 @@ ipcMain.on("change-organization", (event, orgId: number) => {
 ipcMain.on(UserSettingsEvents.FLIP_CAMERA_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.FLIP_CAMERA, data)
   logSender.sendLog("settings.flip_camera.update", `${data}`)
+  sendUserSettings()
+})
+
+ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
+  eStore.set(UserSettingsKeys.PANEL_VISIBILITY, data)
+  logSender.sendLog("settings.panel_visibility.update", `${data}`)
   sendUserSettings()
 })
 

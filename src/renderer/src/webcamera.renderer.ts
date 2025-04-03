@@ -31,12 +31,13 @@ const changeCameraViewSizeBtn = document.querySelectorAll(
 const changeCameraOnlySizeBtn = document.querySelectorAll(
   ".js-camera-only-size"
 )!
+const controlPanel = document.querySelector(".panel-wrapper")!
 const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
 const draggableZoneTarget = draggableZone.querySelector(
   ".draggable-zone-target"
 ) as HTMLElement
 let draggable: Moveable | undefined = undefined
-
+let stopStreamInterval: NodeJS.Timeout | undefined = undefined
 let currentStream: MediaStream | undefined = undefined
 let lastStreamSettings: IStreamSettings | undefined = undefined
 let isRecording = false
@@ -44,6 +45,7 @@ let isCountdown = false
 let isScreenshotMode = false
 let isAppShown = false
 let skipAppShowEvent = false
+let isControlsHidden = false
 
 const LAST_DEVICE_IDS = "LAST_DEVICE_IDS"
 function getLastMediaDevices() {
@@ -62,8 +64,6 @@ function getLastMediaDevices() {
     body: JSON.stringify({ lastStreamSettings }),
   })
 }
-
-getLastMediaDevices()
 
 function initDraggableZone() {
   // const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
@@ -93,7 +93,6 @@ function initDraggableZone() {
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
     })
 }
-initDraggableZone()
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
   video.srcObject = currentStream!
@@ -146,6 +145,13 @@ function startStream(deviseId) {
 function flipCamera(isFlip: boolean) {
   videoContainer.classList.toggle("is-flip", isFlip)
 }
+
+function togglePanelVisibility(_isControlsHidden: boolean) {
+  isControlsHidden = _isControlsHidden
+  draggableZone.classList.toggle("is-controls-hidden", isControlsHidden)
+  closeWebcameraSize()
+}
+
 function stopStream() {
   videoContainer.setAttribute("hidden", "")
   videoContainerError.setAttribute("hidden", "")
@@ -213,9 +219,6 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.${AppEvents.ON_BEFORE_HIDE}`,
-  })
   if (isRecording || isCountdown) {
     return
   }
@@ -223,6 +226,10 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
   isAppShown = false
 
   stopStream()
+
+  if (!stopStreamInterval) {
+    stopStreamInterval = setInterval(stopStream, 1000)
+  }
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
@@ -244,6 +251,11 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   }
 
   skipAppShowEvent = false
+
+  if (stopStreamInterval) {
+    clearInterval(stopStreamInterval)
+    stopStreamInterval = undefined
+  }
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
@@ -276,6 +288,15 @@ window.electronAPI.ipcRenderer.on(
   (event, isFlip: boolean) => {
     if (typeof isFlip == "boolean") {
       flipCamera(isFlip)
+    }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.PANEL_VISIBILITY_GET,
+  (event, isPanelHidden: boolean) => {
+    if (typeof isPanelHidden == "boolean") {
+      togglePanelVisibility(isPanelHidden)
     }
   }
 )
@@ -385,6 +406,40 @@ webcameraSizeBtn.addEventListener(
   },
   false
 )
+
+draggableZone.addEventListener(
+  "mouseenter",
+  () => {
+    draggableZone.classList.add("is-mouseenter")
+  },
+  false
+)
+
+controlPanel.addEventListener(
+  "mouseenter",
+  () => {
+    draggableZone.classList.add("is-panel-mouseenter")
+  },
+  false
+)
+
+draggableZone.addEventListener(
+  "mouseleave",
+  () => {
+    draggableZone.classList.remove("is-mouseenter", "is-panel-mouseenter")
+    if (isControlsHidden && draggableZone.classList.contains("has-avatar")) {
+      closeWebcameraSize()
+    }
+  },
+  false
+)
+
+getLastMediaDevices()
+initDraggableZone()
+
+document.addEventListener("DOMContentLoaded", () => {
+  getLastMediaDevices()
+})
 
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
