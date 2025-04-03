@@ -126,9 +126,10 @@ const appState = new AppState()
 const store = new SimpleStore()
 
 app.setLoginItemSettings({
-  openAtLogin: eStore.get(UserSettingsKeys.AUTO_LAUNCH)
-    ? (eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean)
-    : true,
+  openAtLogin:
+    typeof eStore.get(UserSettingsKeys.AUTO_LAUNCH) == "boolean"
+      ? (eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean)
+      : true,
   path: app.getPath("exe"),
 })
 
@@ -1342,6 +1343,11 @@ ipcMain.on(UserSettingsEvents.FLIP_CAMERA_SET, (event, data: boolean) => {
 ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.PANEL_VISIBILITY, data)
   logSender.sendLog("settings.panel_visibility.update", `${data}`)
+  sendUserSettings()
+})
+ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
+  eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
+  logSender.sendLog("settings.auto_launch.update", `${data}`)
   sendUserSettings()
 })
 
