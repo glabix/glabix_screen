@@ -88,9 +88,12 @@ function initDraggableZone() {
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
-  video.srcObject = currentStream!
   videoContainer.removeAttribute("hidden")
   draggableZone.classList.add("has-avatar")
+
+  if (currentStream) {
+    video.srcObject = currentStream!
+  }
 
   if (hasError) {
     if (errorType == "no-permission") {
@@ -105,7 +108,7 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
 }
 
 function startStream(deviseId) {
-  if (!deviseId) {
+  if (!deviseId || deviseId == "no-camera") {
     return
   }
 
@@ -188,7 +191,7 @@ window.electronAPI.ipcRenderer.on(
 
     if (!isScreenshotMode) {
       if (!isRecording) {
-        stopStream()
+        // stopStream()
         checkStream(data)
       }
     } else {
@@ -208,7 +211,7 @@ window.electronAPI.ipcRenderer.on(
     })
 
     if (isAppShown) {
-      checkStream(lastStreamSettings)
+      startStream(lastStreamSettings.cameraDeviceId)
     }
   }
 )
@@ -424,7 +427,12 @@ getLastMediaDevices()
 initDraggableZone()
 
 document.addEventListener("DOMContentLoaded", () => {
-  getLastMediaDevices()
+  if (
+    lastStreamSettings?.cameraDeviceId &&
+    lastStreamSettings.cameraDeviceId != "no-camera"
+  ) {
+    startStream(lastStreamSettings?.cameraDeviceId)
+  }
 })
 
 window.addEventListener("error", (event) => {
