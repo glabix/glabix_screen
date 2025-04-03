@@ -75,6 +75,9 @@ body.is-drawing
 body.is-drawing
   .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
   .panel-recording-preview,
+body.is-paused
+  .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
+  .panel-recording-preview,
 .draggable-zone .panel-recording-preview,
 .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter.is-panel-mouseenter
   .panel-recording-preview {
@@ -96,6 +99,7 @@ body.is-drawing .draggable-zone.has-avatar.is-controls-hidden .panel-recording,
 body.is-drawing
   .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
   .panel-recording,
+body.is-paused .draggable-zone.has-avatar.is-controls-hidden .panel-recording,
 .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter.is-panel-mouseenter
   .panel-recording {
   display: flex;
@@ -108,6 +112,9 @@ body.is-drawing
   display: none;
 }
 
+body.is-paused
+  .draggable-zone.has-avatar.is-controls-hidden
+  .panel-settings-container,
 body.is-drawing
   .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
   .panel-settings-container,
