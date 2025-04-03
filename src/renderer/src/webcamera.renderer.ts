@@ -7,10 +7,7 @@ import {
   ILastDeviceSettings,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
-import {
-  RecordEvents,
-  RecordSettingsEvents,
-} from "../../shared/events/record.events"
+import { RecordSettingsEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
@@ -37,7 +34,6 @@ const draggableZoneTarget = draggableZone.querySelector(
   ".draggable-zone-target"
 ) as HTMLElement
 let draggable: Moveable | undefined = undefined
-let stopStreamInterval: NodeJS.Timeout | undefined = undefined
 let currentStream: MediaStream | undefined = undefined
 let lastStreamSettings: IStreamSettings | undefined = undefined
 let isRecording = false
@@ -66,9 +62,6 @@ function getLastMediaDevices() {
 }
 
 function initDraggableZone() {
-  // const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
-  // const draggableZoneTarget = draggableZone.querySelector(".draggable-zone-target") as HTMLElement
-
   draggable = new Moveable(document.body, {
     target: draggableZone as MoveableRefTargetType,
     dragTarget: draggableZoneTarget,
@@ -129,8 +122,11 @@ function startStream(deviseId) {
     .getUserMedia(constraints)
     .then((stream) => {
       if (lastStreamSettings?.action != "cameraOnly") {
+        stopStreamTracks()
         currentStream = stream
         showVideo()
+      } else {
+        stream.getTracks().forEach((track) => track.stop())
       }
     })
     .catch((e) => {
@@ -152,6 +148,13 @@ function togglePanelVisibility(_isControlsHidden: boolean) {
   closeWebcameraSize()
 }
 
+function stopStreamTracks() {
+  if (currentStream) {
+    currentStream.getTracks().forEach((track) => track.stop())
+    currentStream = undefined
+  }
+}
+
 function stopStream() {
   videoContainer.setAttribute("hidden", "")
   videoContainerError.setAttribute("hidden", "")
@@ -160,10 +163,7 @@ function stopStream() {
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
   video.srcObject = null
 
-  if (currentStream) {
-    currentStream.getTracks().forEach((track) => track.stop())
-    currentStream = undefined
-  }
+  stopStreamTracks()
 }
 
 function checkStream(data: IStreamSettings) {
@@ -226,18 +226,9 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
   isAppShown = false
 
   stopStream()
-
-  if (!stopStreamInterval) {
-    stopStreamInterval = setInterval(stopStream, 1000)
-  }
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.${AppEvents.ON_SHOW}`,
-    body: JSON.stringify({ lastStreamSettings }),
-  })
-
   if (isRecording || isCountdown) {
     return
   }
@@ -251,11 +242,6 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   }
 
   skipAppShowEvent = false
-
-  if (stopStreamInterval) {
-    clearInterval(stopStreamInterval)
-    stopStreamInterval = undefined
-  }
 })
 
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
