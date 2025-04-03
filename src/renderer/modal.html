@@ -82,6 +82,23 @@
                   </div>
                 </div>
               </button>
+              <button
+                type="button"
+                class="settings-tab"
+                data-settings-tab="recordingProcess"
+              >
+                <div class="flex items-center pointer-events-none">
+                  <div class="flex-center-5 mr-3 min-w-5">
+                    <i class="i i--md i-computer-speaker"></i>
+                  </div>
+                  <div class="flex-grow-1 text-overflow fw-500">
+                    Управление процессом записи
+                  </div>
+                  <div class="flex-center-5">
+                    <i class="i i--lg i-chevron-right"></i>
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -116,6 +133,7 @@
           </div>
         </div>
       </template>
+
       <div class="h-full" data-settings-container="shortCuts" hidden>
         <div class="flex flex-col no-drag h-full">
           <div class="mb-4">
@@ -191,6 +209,49 @@
                   <div class="form-toggle ml-2">
                     <input
                       class="form-toggle-input js-flip-camera-checkbox"
+                      type="checkbox"
+                    />
+                    <span class="form-toggle-label"></span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Recording Process -->
+      <div class="h-full" data-settings-container="recordingProcess" hidden>
+        <div class="flex flex-col no-drag h-full">
+          <div class="mb-4">
+            <div class="flex gap-2 items-center">
+              <div
+                class="flex-center-5 min-w-5 cursor-pointer"
+                data-settings-tab="root"
+              >
+                <i class="i i--lg i-chevron-left pointer-events-none"></i>
+              </div>
+              <div class="flex-grow-1 text-center text-overflow fw-500 text-lg">
+                Управление процессом записи
+              </div>
+              <div class="flex-center-5"></div>
+            </div>
+          </div>
+          <div class="flex-grow-1">
+            <div class="settings-scrollbox">
+              <div class="settings-section">
+                <label class="flex items-center">
+                  <div class="flex-grow-1">
+                    <div class="font-weight-600 text-md">
+                      Видимость панели управления
+                    </div>
+                    <div class="text-xs text-gray-600">
+                      Отображать панель управления записи только при наведении
+                      на аватар
+                    </div>
+                  </div>
+                  <div class="form-toggle ml-2">
+                    <input
+                      class="form-toggle-input js-panel-visibility-checkbox"
                       type="checkbox"
                     />
                     <span class="form-toggle-label"></span>

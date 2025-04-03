@@ -53,6 +53,7 @@ const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
 const deleteBtn = document.getElementById("deleteBtn")! as HTMLButtonElement
 const restartBtn = document.getElementById("restartBtn")! as HTMLButtonElement
 
+let stopStreamInterval: NodeJS.Timeout | undefined = undefined
 let lastScreenAction: ScreenAction | undefined = "fullScreenVideo"
 let videoRecorder: MediaRecorder | undefined
 let combineStream: MediaStream | undefined
@@ -1076,6 +1077,10 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
   document.body.classList.add("is-panel-hidden")
   clearView()
   stopStreamTracks()
+
+  if (!stopStreamInterval) {
+    stopStreamInterval = setInterval(stopStreamTracks, 1000)
+  }
 })
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
@@ -1106,6 +1111,11 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   }
 
   skipAppShowEvent = false
+
+  if (stopStreamInterval) {
+    clearInterval(stopStreamInterval)
+    stopStreamInterval = undefined
+  }
 })
 
 window.electronAPI.ipcRenderer.on(RecordEvents.REQUEST_DATA, (event, data) => {

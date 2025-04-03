@@ -364,17 +364,9 @@ body.no-microphone .microphone-alert-container {
   cursor: crosshair;
 }
 
-// .crop-screenshot-rect {
-//   pointer-events: none;
-//   position: absolute;
-//   width: 100%;
-//   height: 100%;
-//   box-shadow: rgba(0, 0, 0, 0.6) 0px 0px 0px 9999px;
-// }
-
 .draggable-zone {
   position: fixed;
-  z-index: 15;
+  z-index: 1001;
   top: calc(80% - 200px);
   left: 5%;
   min-width: 200px;
