@@ -155,6 +155,7 @@ function stopStreamTracks() {
   if (currentStream) {
     currentStream.getTracks().forEach((track) => track.stop())
     currentStream = undefined
+    video.srcObject = null
   }
 }
 
@@ -164,7 +165,6 @@ function stopStream() {
   videoContainerPermissionError.setAttribute("hidden", "")
   draggableZone.classList.remove("has-avatar")
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-  video.srcObject = null
 
   stopStreamTracks()
 }
