@@ -127,9 +127,9 @@ const store = new SimpleStore()
 
 app.setLoginItemSettings({
   openAtLogin:
-    typeof eStore.get(UserSettingsKeys.AUTO_LAUNCH) == "boolean"
-      ? (eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean)
-      : true,
+    typeof eStore.get(UserSettingsKeys.AUTO_LAUNCH) == "undefined"
+      ? true
+      : (eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean),
   path: app.getPath("exe"),
 })
 
@@ -1349,17 +1349,22 @@ ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
   logSender.sendLog("settings.auto_launch.update", `${data}`)
 
-  const currentSettings = app.getLoginItemSettings()
-  logSender.sendLog(
-    "settings.auto_launch.newSettings",
-    `${JSON.stringify({
-      ...currentSettings,
-      openAtLogin: data,
-    })}`
-  )
+  // const currentSettings = app.getLoginItemSettings()
+  // logSender.sendLog(
+  //   "settings.auto_launch.newSettings",
+  //   `${JSON.stringify({
+  //     ...currentSettings,
+  //     openAtLogin: data,
+  //   })}`
+  // )
+  // app.setLoginItemSettings({
+  //   ...currentSettings,
+  //   openAtLogin: data,
+  // })
+
   app.setLoginItemSettings({
-    ...currentSettings,
     openAtLogin: data,
+    path: app.getPath("exe"),
   })
 
   sendUserSettings()
