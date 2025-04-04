@@ -1348,6 +1348,13 @@ ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
 ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
   logSender.sendLog("settings.auto_launch.update", `${data}`)
+
+  const currentSettings = app.getLoginItemSettings()
+  app.setLoginItemSettings({
+    ...currentSettings,
+    openAtLogin: data,
+  })
+
   sendUserSettings()
 })
 
