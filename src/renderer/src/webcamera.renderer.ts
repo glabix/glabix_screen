@@ -92,11 +92,11 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   draggableZone.classList.add("has-avatar")
 
   if (currentStream) {
+    video.srcObject = null
     video.srcObject = currentStream
   }
 
   if (hasError) {
-    stopStreamTracks()
     if (errorType == "no-permission") {
       videoContainerPermissionError.removeAttribute("hidden")
     } else {
@@ -113,10 +113,10 @@ function startStream(deviseId) {
     return
   }
 
-  // if (currentStream) {
-  //   showVideo()
-  //   return
-  // }
+  if (currentStream) {
+    showVideo()
+    return
+  }
 
   const constraints = {
     video: { deviceId: { exact: deviseId } },
@@ -125,12 +125,12 @@ function startStream(deviseId) {
   navigator.mediaDevices
     .getUserMedia(constraints)
     .then((stream) => {
-      if (lastStreamSettings?.action != "cameraOnly") {
+      if (lastStreamSettings?.action == "cameraOnly") {
+        stream.getTracks().forEach((track) => track.stop())
+      } else {
         stopStreamTracks()
         currentStream = stream
         showVideo()
-      } else {
-        stream.getTracks().forEach((track) => track.stop())
       }
     })
     .catch((e) => {
@@ -210,7 +210,7 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings) => {
     lastStreamSettings = settings
 
-    if (isAppShown) {
+    if (isAppShown && !currentStream) {
       startStream(lastStreamSettings.cameraDeviceId)
     }
   }
@@ -437,7 +437,8 @@ initDraggableZone()
 document.addEventListener("DOMContentLoaded", () => {
   if (
     lastStreamSettings?.cameraDeviceId &&
-    lastStreamSettings.cameraDeviceId != "no-camera"
+    lastStreamSettings.cameraDeviceId != "no-camera" &&
+    isAppShown
   ) {
     startStream(lastStreamSettings?.cameraDeviceId)
   }
