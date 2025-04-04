@@ -92,7 +92,7 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   draggableZone.classList.add("has-avatar")
 
   if (currentStream) {
-    video.srcObject = currentStream!
+    video.srcObject = currentStream
   }
 
   if (hasError) {
@@ -191,7 +191,6 @@ window.electronAPI.ipcRenderer.on(
 
     if (!isScreenshotMode) {
       if (!isRecording) {
-        // stopStream()
         checkStream(data)
       }
     } else {
@@ -227,6 +226,14 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
   }
 
   isAppShown = false
+
+  stopStream()
+})
+
+window.electronAPI.ipcRenderer.on(AppEvents.ON_HIDE, () => {
+  if (isRecording || isCountdown) {
+    return
+  }
 
   stopStream()
 })
