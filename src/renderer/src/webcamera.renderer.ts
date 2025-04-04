@@ -96,7 +96,6 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   }
 
   if (hasError) {
-    stopStreamTracks()
     if (errorType == "no-permission") {
       videoContainerPermissionError.removeAttribute("hidden")
     } else {
@@ -113,10 +112,10 @@ function startStream(deviseId) {
     return
   }
 
-  // if (currentStream) {
-  //   showVideo()
-  //   return
-  // }
+  if (currentStream) {
+    showVideo()
+    return
+  }
 
   const constraints = {
     video: { deviceId: { exact: deviseId } },
@@ -210,7 +209,7 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings) => {
     lastStreamSettings = settings
 
-    if (isAppShown) {
+    if (isAppShown && !currentStream) {
       startStream(lastStreamSettings.cameraDeviceId)
     }
   }
@@ -437,7 +436,8 @@ initDraggableZone()
 document.addEventListener("DOMContentLoaded", () => {
   if (
     lastStreamSettings?.cameraDeviceId &&
-    lastStreamSettings.cameraDeviceId != "no-camera"
+    lastStreamSettings.cameraDeviceId != "no-camera" &&
+    isAppShown
   ) {
     startStream(lastStreamSettings?.cameraDeviceId)
   }

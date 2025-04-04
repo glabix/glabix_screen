@@ -1350,6 +1350,10 @@ ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   logSender.sendLog("settings.auto_launch.update", `${data}`)
 
   const currentSettings = app.getLoginItemSettings()
+  logSender.sendLog(
+    "settings.auto_launch.currentSettings",
+    `${JSON.stringify({ currentSettings })}`
+  )
   app.setLoginItemSettings({
     ...currentSettings,
     openAtLogin: data,
