@@ -437,8 +437,7 @@ initDraggableZone()
 document.addEventListener("DOMContentLoaded", () => {
   if (
     lastStreamSettings?.cameraDeviceId &&
-    lastStreamSettings.cameraDeviceId != "no-camera" &&
-    isAppShown
+    lastStreamSettings.cameraDeviceId != "no-camera"
   ) {
     startStream(lastStreamSettings?.cameraDeviceId)
   }

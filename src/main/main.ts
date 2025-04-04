@@ -126,10 +126,6 @@ const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
 
-AutoLaunch.setup(
-  eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean | undefined
-)
-
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
@@ -1342,11 +1338,26 @@ ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
   logSender.sendLog("settings.panel_visibility.update", `${data}`)
   sendUserSettings()
 })
-ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
-  eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
-  logSender.sendLog("settings.auto_launch.update", `${data}`)
-  AutoLaunch.setup(data)
-})
+
+ipcMain.emit(
+  UserSettingsEvents.AUTO_LAUNCH_SET,
+  null,
+  eStore.get(UserSettingsKeys.AUTO_LAUNCH)
+)
+ipcMain.on(
+  UserSettingsEvents.AUTO_LAUNCH_SET,
+  (event, data: boolean | undefined) => {
+    const notSettings = typeof data == "undefined"
+    const isAutoLaunch = notSettings ? true : data
+
+    if (!notSettings) {
+      eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
+      logSender.sendLog("settings.auto_launch.update", `${data}`)
+    }
+
+    AutoLaunch.setup(isAutoLaunch)
+  }
+)
 
 ipcMain.on(
   UserSettingsEvents.SHORTCUTS_SET,

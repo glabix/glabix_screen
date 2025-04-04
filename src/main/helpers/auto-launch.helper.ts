@@ -1,8 +1,8 @@
 import { app } from "electron"
 export default class AutoLaunch {
-  static setup(flag: boolean | undefined): void {
+  static setup(flag: boolean): void {
     app.setLoginItemSettings({
-      openAtLogin: typeof flag == "undefined" ? true : flag,
+      openAtLogin: flag,
       path: app.getPath("exe"),
     })
   }
