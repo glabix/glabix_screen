@@ -92,6 +92,7 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   draggableZone.classList.add("has-avatar")
 
   if (currentStream) {
+    video.srcObject = null
     video.srcObject = currentStream
   }
 
@@ -124,12 +125,12 @@ function startStream(deviseId) {
   navigator.mediaDevices
     .getUserMedia(constraints)
     .then((stream) => {
-      if (lastStreamSettings?.action != "cameraOnly") {
+      if (lastStreamSettings?.action == "cameraOnly") {
+        stream.getTracks().forEach((track) => track.stop())
+      } else {
         stopStreamTracks()
         currentStream = stream
         showVideo()
-      } else {
-        stream.getTracks().forEach((track) => track.stop())
       }
     })
     .catch((e) => {
