@@ -96,6 +96,7 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   }
 
   if (hasError) {
+    stopStreamTracks()
     if (errorType == "no-permission") {
       videoContainerPermissionError.removeAttribute("hidden")
     } else {
@@ -112,10 +113,10 @@ function startStream(deviseId) {
     return
   }
 
-  if (currentStream) {
-    showVideo()
-    return
-  }
+  // if (currentStream) {
+  //   showVideo()
+  //   return
+  // }
 
   const constraints = {
     video: { deviceId: { exact: deviseId } },
@@ -133,6 +134,11 @@ function startStream(deviseId) {
       }
     })
     .catch((e) => {
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `webcamera.renderer.startStream.catch(e)`,
+        body: JSON.stringify({ e }),
+        error: true,
+      })
       if (e.toString().toLowerCase().includes("permission denied")) {
         showVideo(true, "no-permission")
       } else {
@@ -203,11 +209,6 @@ window.electronAPI.ipcRenderer.on(
   RecordSettingsEvents.INIT,
   (event, settings: IStreamSettings) => {
     lastStreamSettings = settings
-
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: `webcamera.renderer.${RecordSettingsEvents.INIT}`,
-      body: JSON.stringify({ lastStreamSettings }),
-    })
 
     if (isAppShown) {
       startStream(lastStreamSettings.cameraDeviceId)
