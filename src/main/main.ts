@@ -98,6 +98,7 @@ import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
+import AutoLaunch from "./helpers/auto-launch.helper"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -125,13 +126,9 @@ const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
 
-app.setLoginItemSettings({
-  openAtLogin:
-    typeof eStore.get(UserSettingsKeys.AUTO_LAUNCH) == "undefined"
-      ? true
-      : (eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean),
-  path: app.getPath("exe"),
-})
+AutoLaunch.setup(
+  eStore.get(UserSettingsKeys.AUTO_LAUNCH) as boolean | undefined
+)
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -1348,26 +1345,7 @@ ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
 ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
   logSender.sendLog("settings.auto_launch.update", `${data}`)
-
-  // const currentSettings = app.getLoginItemSettings()
-  // logSender.sendLog(
-  //   "settings.auto_launch.newSettings",
-  //   `${JSON.stringify({
-  //     ...currentSettings,
-  //     openAtLogin: data,
-  //   })}`
-  // )
-  // app.setLoginItemSettings({
-  //   ...currentSettings,
-  //   openAtLogin: data,
-  // })
-
-  app.setLoginItemSettings({
-    openAtLogin: data,
-    path: app.getPath("exe"),
-  })
-
-  sendUserSettings()
+  AutoLaunch.setup(data)
 })
 
 ipcMain.on(
