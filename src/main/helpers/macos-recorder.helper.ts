@@ -13,7 +13,6 @@ const packageDir = app.isPackaged
   : join(import.meta.dirname, "../../extra-resources/swift-recorder/prod")
 // const extraPackageDir = join(app.getAppPath(), '..', "extra-resources");
 // path.join(electronUtil.fixPathForAsarUnpack(__dirname), 'audio-devices')
-logSender.sendLog("extraPackageDir dir", `${extraPackageDir}`)
 logSender.sendLog("packageDir dir", `${packageDir}`)
 
 const toolPath = join(packageDir, "GlabixScreenRecorder")
