@@ -385,6 +385,7 @@ function initVisualAudio() {
 
 async function setupMediaDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices()
+  console.log("devices", devices)
   const prevSettings = { ...streamSettings }
   const lastDevices = getLastMediaDevices()
 

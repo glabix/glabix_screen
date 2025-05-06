@@ -38,6 +38,13 @@ const options: Configuration = {
     "!{.env,.env.*,electron-builder.env,electron-builder.env.*,.npmrc,pnpmlock.yaml}",
     "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}",
   ],
+  extraResources: [
+    {
+      from: "extra-resources",
+      to: "extra-resources",
+      filter: ["**/*"],
+    },
+  ],
   artifactName: "${name}-${os}-${arch}.${ext}",
   executableName: process.env.PRODUCT_NAME,
   nativeRebuilder: "legacy",

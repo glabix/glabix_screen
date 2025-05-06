@@ -99,6 +99,7 @@ import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
+import "./helpers/macos-recorder.helper"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
