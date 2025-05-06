@@ -1339,11 +1339,14 @@ ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
   sendUserSettings()
 })
 
-ipcMain.emit(
-  UserSettingsEvents.AUTO_LAUNCH_SET,
-  null,
-  eStore.get(UserSettingsKeys.AUTO_LAUNCH)
-)
+if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
+  ipcMain.emit(
+    UserSettingsEvents.AUTO_LAUNCH_SET,
+    null,
+    eStore.get(UserSettingsKeys.AUTO_LAUNCH)
+  )
+}
+
 ipcMain.on(
   UserSettingsEvents.AUTO_LAUNCH_SET,
   (event, data: boolean | undefined) => {
