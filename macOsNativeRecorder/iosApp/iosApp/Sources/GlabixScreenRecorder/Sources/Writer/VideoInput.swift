@@ -57,7 +57,7 @@ struct VideoInput {
         let h = source.height * Double(scaleFactor)
         let r = max(w / maxSize.width, h / maxSize.height)
         
-        debugPrint("source", source, "scale", scaleFactor, "r", r, "->", (width: Int(w / r), height: Int(h / r), "; ", (width: Int(w), height: Int(h))))
+//        debugPrint("source", source, "scale", scaleFactor, "r", r, "->", (width: Int(w / r), height: Int(h / r), "; ", (width: Int(w), height: Int(h))))
         return r > 1
         ? (width: Int(w / r), height: Int(h / r))
         : (width: Int(w), height: Int(h))

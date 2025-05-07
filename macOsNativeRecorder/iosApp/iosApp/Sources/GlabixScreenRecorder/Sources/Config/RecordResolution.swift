@@ -13,12 +13,13 @@ enum RecordResolution: String, Codable {
     case qhdPlus // 3200x1800
     case uhd4k // 3840x2160
     case uhd5k // 5120x2880
-    // max 7680x4320
+    case uhd8k // 7680x4320
     
     var recordMode: RecordMode {
         return switch self {
             case .fhd2k, .qhd, .qhdPlus, .uhd4k: .h264_sRGB
-            case .uhd5k: .hevc_displayP3
+//            case .uhd5k: .hevc_displayP3
+            case .uhd5k, .uhd8k: .h264_sRGB
         }
     }
     
@@ -36,6 +37,8 @@ enum RecordResolution: String, Codable {
                 3840
             case .uhd5k:
                 5120
+            case .uhd8k:
+                7680
         }
     }
     

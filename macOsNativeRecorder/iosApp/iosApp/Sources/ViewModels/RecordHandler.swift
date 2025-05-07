@@ -11,6 +11,7 @@ import Combine
 
 class RecordHandler: ObservableObject {
     @Published var recording: Bool = false
+    @Published var paused: Bool = false
     
     private let screenRecorder: ScreenRecorder = .init()
     
@@ -34,21 +35,46 @@ class RecordHandler: ObservableObject {
     func start() async throws {
         try checkPermissions()
         
-        DispatchQueue.main.async { [weak self] in
-            self?.recording = true
+        DispatchQueue.main.async {
+            self.recording = true
+            self.paused = false
         }
         
-        try await screenRecorder.startFullScreen()
+        try await screenRecorder
+            .start(
+                config: .init(
+                    displayId: nil,
+                    resolution: .uhd4k,
+                    fps: 25,
+                    cropRect: nil,
+                    chunksDirectoryPath: nil,
+                    showCursor: true,
+                    captureSystemAudio: true,
+                    captureMicrophone: false,
+                    microphoneUniqueID: nil
+                )
+            )
         
 //        DispatchQueue.main.async {
 //            NSWorkspace.shared.open(folder)
 //        }
     }
     
+    func pause() {
+        screenRecorder.chunksManager?.pause()
+        self.paused = true
+    }
+    
+    func resume() {
+        screenRecorder.chunksManager?.resume()
+        self.paused = false
+    }
+    
     func stop() async throws {
         try await screenRecorder.stop()
         DispatchQueue.main.async {
             self.recording = false
+            self.paused = false
         }
         
 //        DispatchQueue.main.async {

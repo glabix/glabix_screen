@@ -28,13 +28,19 @@
 		B31B38B82DC5006C0001C7EB /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A92DC5006C0001C7EB /* ScreenRecorder.swift */; };
 		B31B38B92DC5006C0001C7EB /* RecordingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A52DC5006C0001C7EB /* RecordingError.swift */; };
 		B31B38BA2DC5006C0001C7EB /* Screens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B389E2DC5006C0001C7EB /* Screens.swift */; };
-		B31B38BB2DC5006C0001C7EB /* RecordConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A42DC5006C0001C7EB /* RecordConfiguration.swift */; };
 		B31B38BC2DC5006C0001C7EB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B389D2DC5006C0001C7EB /* Extensions.swift */; };
-		B31B38BD2DC5006C0001C7EB /* ScreenConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A82DC5006C0001C7EB /* ScreenConfigurator.swift */; };
 		B31B38BE2DC5006C0001C7EB /* ScreenWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38AA2DC5006C0001C7EB /* ScreenWriter.swift */; };
 		B31B38C02DC5006C0001C7EB /* StreamOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38AB2DC5006C0001C7EB /* StreamOutput.swift */; };
 		B31B38C12DC5006C0001C7EB /* SystemAudioInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38AC2DC5006C0001C7EB /* SystemAudioInput.swift */; };
 		B31B38C32DC5006C0001C7EB /* MicInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A32DC5006C0001C7EB /* MicInput.swift */; };
+		B3C095F42DC9EFC600ED3CB7 /* RecordConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F02DC9EFC600ED3CB7 /* RecordConfiguration.swift */; };
+		B3C095F52DC9EFC600ED3CB7 /* CommandAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */; };
+		B3C095F62DC9EFC600ED3CB7 /* ScreenConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F22DC9EFC600ED3CB7 /* ScreenConfigurator.swift */; };
+		B3C095F72DC9EFC600ED3CB7 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095EE2DC9EFC600ED3CB7 /* Config.swift */; };
+		B3C095F82DC9EFC600ED3CB7 /* RecordResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F12DC9EFC600ED3CB7 /* RecordResolution.swift */; };
+		B3C095F92DC9EFC600ED3CB7 /* Command.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095EC2DC9EFC600ED3CB7 /* Command.swift */; };
+		B3C095FA2DC9EFC600ED3CB7 /* CropRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095EF2DC9EFC600ED3CB7 /* CropRect.swift */; };
+		B3C095FC2DC9F06500ED3CB7 /* ScreenRecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095FB2DC9F06500ED3CB7 /* ScreenRecorderService.swift */; };
 		B3F39F312DAD61970054A07B /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39F302DAD61970054A07B /* CameraManager.swift */; };
 		B3F39F332DAD61D30054A07B /* CameraInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39F322DAD61D30054A07B /* CameraInputManager.swift */; };
 		B3F39F352DADA0800054A07B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39F342DADA0800054A07B /* AppDelegate.swift */; };
@@ -74,16 +80,22 @@
 		B31B38A02DC5006C0001C7EB /* AudioMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioMixer.swift; sourceTree = "<group>"; };
 		B31B38A12DC5006C0001C7EB /* AudioQuality.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioQuality.swift; sourceTree = "<group>"; };
 		B31B38A32DC5006C0001C7EB /* MicInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicInput.swift; sourceTree = "<group>"; };
-		B31B38A42DC5006C0001C7EB /* RecordConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConfiguration.swift; sourceTree = "<group>"; };
 		B31B38A52DC5006C0001C7EB /* RecordingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingError.swift; sourceTree = "<group>"; };
 		B31B38A62DC5006C0001C7EB /* RecordMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordMode.swift; sourceTree = "<group>"; };
 		B31B38A72DC5006C0001C7EB /* ScreenChunksManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenChunksManager.swift; sourceTree = "<group>"; };
-		B31B38A82DC5006C0001C7EB /* ScreenConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenConfigurator.swift; sourceTree = "<group>"; };
 		B31B38A92DC5006C0001C7EB /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
 		B31B38AA2DC5006C0001C7EB /* ScreenWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenWriter.swift; sourceTree = "<group>"; };
 		B31B38AB2DC5006C0001C7EB /* StreamOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamOutput.swift; sourceTree = "<group>"; };
 		B31B38AC2DC5006C0001C7EB /* SystemAudioInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioInput.swift; sourceTree = "<group>"; };
 		B31B38AD2DC5006C0001C7EB /* VideoInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoInput.swift; sourceTree = "<group>"; };
+		B3C095EC2DC9EFC600ED3CB7 /* Command.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Command.swift; sourceTree = "<group>"; };
+		B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandAction.swift; sourceTree = "<group>"; };
+		B3C095EE2DC9EFC600ED3CB7 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		B3C095EF2DC9EFC600ED3CB7 /* CropRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropRect.swift; sourceTree = "<group>"; };
+		B3C095F02DC9EFC600ED3CB7 /* RecordConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConfiguration.swift; sourceTree = "<group>"; };
+		B3C095F12DC9EFC600ED3CB7 /* RecordResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordResolution.swift; sourceTree = "<group>"; };
+		B3C095F22DC9EFC600ED3CB7 /* ScreenConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenConfigurator.swift; sourceTree = "<group>"; };
+		B3C095FB2DC9F06500ED3CB7 /* ScreenRecorderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorderService.swift; sourceTree = "<group>"; };
 		B3F39F2E2DACEF9D0054A07B /* iosApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iosApp.entitlements; sourceTree = "<group>"; };
 		B3F39F302DAD61970054A07B /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		B3F39F322DAD61D30054A07B /* CameraInputManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraInputManager.swift; sourceTree = "<group>"; };
@@ -197,14 +209,13 @@
 		B31B38AE2DC5006C0001C7EB /* Writer */ = {
 			isa = PBXGroup;
 			children = (
+				B3C095FB2DC9F06500ED3CB7 /* ScreenRecorderService.swift */,
 				B31B38A02DC5006C0001C7EB /* AudioMixer.swift */,
 				B31B38A12DC5006C0001C7EB /* AudioQuality.swift */,
 				B31B38A32DC5006C0001C7EB /* MicInput.swift */,
-				B31B38A42DC5006C0001C7EB /* RecordConfiguration.swift */,
 				B31B38A52DC5006C0001C7EB /* RecordingError.swift */,
 				B31B38A62DC5006C0001C7EB /* RecordMode.swift */,
 				B31B38A72DC5006C0001C7EB /* ScreenChunksManager.swift */,
-				B31B38A82DC5006C0001C7EB /* ScreenConfigurator.swift */,
 				B31B38A92DC5006C0001C7EB /* ScreenRecorder.swift */,
 				B31B38AA2DC5006C0001C7EB /* ScreenWriter.swift */,
 				B31B38AB2DC5006C0001C7EB /* StreamOutput.swift */,
@@ -217,10 +228,25 @@
 		B31B38B12DC5006C0001C7EB /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				B3C095F32DC9EFC600ED3CB7 /* Config */,
 				B31B389F2DC5006C0001C7EB /* Utils */,
 				B31B38AE2DC5006C0001C7EB /* Writer */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		B3C095F32DC9EFC600ED3CB7 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				B3C095EC2DC9EFC600ED3CB7 /* Command.swift */,
+				B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */,
+				B3C095EE2DC9EFC600ED3CB7 /* Config.swift */,
+				B3C095EF2DC9EFC600ED3CB7 /* CropRect.swift */,
+				B3C095F02DC9EFC600ED3CB7 /* RecordConfiguration.swift */,
+				B3C095F12DC9EFC600ED3CB7 /* RecordResolution.swift */,
+				B3C095F22DC9EFC600ED3CB7 /* ScreenConfigurator.swift */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		B3F39F242DAC0E580054A07B /* Sources */ = {
@@ -352,13 +378,19 @@
 				B31B38B82DC5006C0001C7EB /* ScreenRecorder.swift in Sources */,
 				B31B38B92DC5006C0001C7EB /* RecordingError.swift in Sources */,
 				B31B38BA2DC5006C0001C7EB /* Screens.swift in Sources */,
-				B31B38BB2DC5006C0001C7EB /* RecordConfiguration.swift in Sources */,
+				B3C095F42DC9EFC600ED3CB7 /* RecordConfiguration.swift in Sources */,
+				B3C095F52DC9EFC600ED3CB7 /* CommandAction.swift in Sources */,
+				B3C095F62DC9EFC600ED3CB7 /* ScreenConfigurator.swift in Sources */,
+				B3C095F72DC9EFC600ED3CB7 /* Config.swift in Sources */,
+				B3C095F82DC9EFC600ED3CB7 /* RecordResolution.swift in Sources */,
+				B3C095F92DC9EFC600ED3CB7 /* Command.swift in Sources */,
+				B3C095FA2DC9EFC600ED3CB7 /* CropRect.swift in Sources */,
 				B31B38BC2DC5006C0001C7EB /* Extensions.swift in Sources */,
-				B31B38BD2DC5006C0001C7EB /* ScreenConfigurator.swift in Sources */,
 				B31B38BE2DC5006C0001C7EB /* ScreenWriter.swift in Sources */,
 				B31B38C02DC5006C0001C7EB /* StreamOutput.swift in Sources */,
 				B31B38C12DC5006C0001C7EB /* SystemAudioInput.swift in Sources */,
 				B31B38C32DC5006C0001C7EB /* MicInput.swift in Sources */,
+				B3C095FC2DC9F06500ED3CB7 /* ScreenRecorderService.swift in Sources */,
 				B303A5A62DB779D400487002 /* SelectAreaPanel.swift in Sources */,
 				2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */,
 				B303A5AF2DB788D000487002 /* ReverseMask.swift in Sources */,

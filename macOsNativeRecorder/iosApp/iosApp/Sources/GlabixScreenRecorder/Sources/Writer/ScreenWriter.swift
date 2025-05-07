@@ -18,8 +18,6 @@ class ScreenWriter {
     var systemAudioWriterInput: AVAssetWriterInput?
     var micWriterInput: AVAssetWriterInput?
     
-//    var isPaused: Bool = false
-    
     init(
         outputURL: URL,
         micOutputURL: URL?,
@@ -55,17 +53,24 @@ class ScreenWriter {
         micAssetWriter?.startSession(atSourceTime: startTime)
     }
     
-    func finalize(endTime: CMTime) {
-        assetWriter.endSession(atSourceTime: endTime)
-        assetWriter.finishWriting {
-            debugPrint("(\(self.chunkIndex)) finalized writing screen. now:", CMClock.hostTimeClock.time.seconds)
-            ScreenRecorderService.printCallback("chunk screen finalized #\(self.chunkIndex)")
+    func finalize(endTime: CMTime) async {
+        debugPrint("\(chunkIndex) finalizing status", assetWriter.status.rawValue)
+        if assetWriter.status == .writing {
+            assetWriter.endSession(atSourceTime: endTime)
         }
+        await assetWriter.finishWriting()
+//        {
+//            debugPrint("(\(self.chunkIndex)) finalized writing screen. now:", CMClock.hostTimeClock.time.seconds)
+//            ScreenRecorderService.printCallback("chunk screen finalized #\(self.chunkIndex)")
+//        }
         
-        micAssetWriter?.endSession(atSourceTime: endTime)
-        micAssetWriter?.finishWriting {
-            debugPrint("(\(self.chunkIndex)) finalized writing mic. now:", CMClock.hostTimeClock.time.seconds)
-            ScreenRecorderService.printCallback("chunk mic finalized #\(self.chunkIndex)")
+        if micAssetWriter?.status == .writing {
+            micAssetWriter?.endSession(atSourceTime: endTime)
         }
+        await micAssetWriter?.finishWriting()
+//        {
+//            debugPrint("(\(self.chunkIndex)) finalized writing mic. now:", CMClock.hostTimeClock.time.seconds)
+//            ScreenRecorderService.printCallback("chunk mic finalized #\(self.chunkIndex)")
+//        }
     }
 }

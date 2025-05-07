@@ -99,14 +99,14 @@ class ScreenRecorder: NSObject {
         microphoneSession?.startRunning()
     }
     
-    func stop() {
-        screenCaptureQueue.async { [weak self] in
+    func stop() async throws {
+//        screenCaptureQueue.async { [weak self] in
             // Stop capturing, wait for stream to stop
-            self?.stream?.stopCapture()
+        try await stream?.stopCapture()
             
-            self?.chunksManager?.stop()
-            
-            self?.microphoneSession?.stopRunning()
-        }
+        await chunksManager?.stop()
+        
+        microphoneSession?.stopRunning()
+//        }
     }
 }
