@@ -50,8 +50,8 @@ class RecordHandler: ObservableObject {
                     chunksDirectoryPath: nil,
                     showCursor: true,
                     captureSystemAudio: true,
-                    captureMicrophone: false,
-                    microphoneUniqueID: nil
+                    captureMicrophone: true,
+                    microphoneUniqueID: "6A08AC30-F752-4660-82B0-F72A00000003"
                 )
             )
         
