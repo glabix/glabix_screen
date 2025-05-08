@@ -50,14 +50,10 @@ class ScreenRecorder: NSObject {
         } else {
             discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
         }
-        let devices = discoverySession.devices.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
+        let devices = discoverySession.devices//.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
         devices.forEach {
-//            debugPrint($0.deviceType.rawValue)
-//            debugPrint($0.linkedDevices.map { $0.localizedName })
-//            debugPrint($0.manufacturer)
-            debugPrint("mic", $0.uniqueID, $0.localizedName, $0.position.rawValue, $0.modelID, $0.deviceType.rawValue)
+            debugPrint("mic", $0.uniqueID, $0.localizedName, $0.modelID)
         }
-//        
         
         guard let microphone: AVCaptureDevice = devices.first(where: { $0.uniqueID == uniqueID }) ?? AVCaptureDevice.default(for: .audio) else {
             return
