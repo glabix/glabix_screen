@@ -20,6 +20,7 @@ class ScreenChunksManager {
     private let chunkDuration: CMTime = CMTime(seconds: 3, preferredTimescale: 1)
     private var chunkIndex = 0
     private var lastSampleTime: CMTime?
+    private var lastSampleBuffers: [ScreenRecorderSourceType: CMSampleBuffer] = [:]
     
     private let queue = DispatchQueue(label: "com.glabix.screen.chunksManager")
     private let chunksDir: String
@@ -70,6 +71,7 @@ class ScreenChunksManager {
         }()
 
         writer?.startSession(atSourceTime: startTime)
+//        writer?.startSession(atSourceTime: startTime - CMTime(value: 1, timescale: 1))
         
         chunkStartTime = startTime
         
@@ -102,6 +104,9 @@ class ScreenChunksManager {
                 
                 debugPrint("Pause", "timestamp", timestamp.seconds, "chunk start", chunkStartTime.seconds)
                 appendSampleBuffer(buildAdditionalSampleBuffer(from: sampleBuffer, at: timestamp), type: type, to: writer)
+                appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.systemAudio], at: timestamp), type: type, to: writer)
+                appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.mic], at: timestamp), type: type, to: writer)
+                
                 asyncFinalizeCurrentChunk(endTime: timestamp)
                 
                 pausedAt = timestamp
@@ -111,14 +116,19 @@ class ScreenChunksManager {
                 if writer == nil {
                     try? createNewChunk(startTime: timestamp)
                 } else if timestamp - chunkStartTime >= chunkDuration {
-                    debugPrint("should Start new on timer", "start", timestamp.seconds, "chunk start", chunkStartTime.seconds)
+                    debugPrint("should Start new on timer", "start", timestamp.seconds, "chunk start", chunkStartTime.seconds, "duration", (timestamp - chunkStartTime).seconds)
                     
                     appendSampleBuffer(buildAdditionalSampleBuffer(from: sampleBuffer, at: timestamp), type: type, to: writer)
+                    appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.systemAudio], at: timestamp), type: type, to: writer)
+                    appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.mic], at: timestamp), type: type, to: writer)
+                    
                     asyncFinalizeCurrentChunk(endTime: timestamp)
                     try? createNewChunk(startTime: timestamp)
                 }
             }
         }
+        
+        lastSampleBuffers[type] = sampleBuffer
         
         guard let writer = if timestamp < chunkStartTime {
             previousChunkWriters.first(where: {
@@ -164,13 +174,14 @@ class ScreenChunksManager {
         assetWriterInput.append(sampleBuffer)
     }
     
-    private func buildAdditionalSampleBuffer(from originalBuffer: CMSampleBuffer, at additionalSampleTime: CMTime) -> CMSampleBuffer? {
+    private func buildAdditionalSampleBuffer(from originalBuffer: CMSampleBuffer?, at additionalSampleTime: CMTime) -> CMSampleBuffer? {
+        guard let sampleBuffer = originalBuffer else { return nil }
         let timing = CMSampleTimingInfo(
-            duration: originalBuffer.duration,
+            duration: sampleBuffer.duration,
             presentationTimeStamp: additionalSampleTime,
-            decodeTimeStamp: originalBuffer.decodeTimeStamp
+            decodeTimeStamp: sampleBuffer.decodeTimeStamp
         )
-        if let additionalSampleBuffer = try? CMSampleBuffer(copying: originalBuffer, withNewTiming: [timing]) {
+        if let additionalSampleBuffer = try? CMSampleBuffer(copying: sampleBuffer, withNewTiming: [timing]) {
             return additionalSampleBuffer
         } else {
             return nil
@@ -220,29 +231,21 @@ class ScreenChunksManager {
         }
     }
     
-    private func createNewOutputURL() -> URL? {
+    private func getOrCreateOutputDirectory() -> URL? {
         let fileManager = FileManager.default
         
         guard let pathURL = outputDirectory,
               let _ = try? fileManager.createDirectory(atPath: pathURL.path(), withIntermediateDirectories: true, attributes: nil) else { return nil }
-        
-        let outputURL = pathURL.appendingPathComponent("chunk_\(chunkIndex).mp4")
-        
-//        try? fileManager.removeItem(at: outputURL)
-        return outputURL
+        return pathURL
+    }
+    
+    private func createNewOutputURL() -> URL? {
+        getOrCreateOutputDirectory()?.appendingPathComponent("chunk_\(chunkIndex).mp4")
     }
     
     private func createNewMicOutputURL() -> URL? {
         guard recordConfiguration.captureMicrophone else { return nil }
-        
-        let fileManager = FileManager.default
-        
-        guard let pathURL = outputDirectory,
-              let _ = try? fileManager.createDirectory(atPath: pathURL.path(), withIntermediateDirectories: true, attributes: nil) else { return nil }
-        
-        let outputURL = pathURL.appendingPathComponent("chunk_\(chunkIndex).m4a")
-        
-//        try? fileManager.removeItem(at: outputURL)
-        return outputURL
+
+        return getOrCreateOutputDirectory()?.appendingPathComponent("chunk_\(chunkIndex).m4a")
     }
 }

@@ -27,6 +27,10 @@ class ScreenWriter {
     ) throws {
         self.chunkIndex = chunkIndex
         
+        let fileManager = FileManager.default
+        try? fileManager.removeItem(at: outputURL)
+        try? micOutputURL.map { try fileManager.removeItem(at: $0) }
+        
         assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
         micAssetWriter = try micOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .m4a) }
         
@@ -39,6 +43,7 @@ class ScreenWriter {
         }
         if let systemAudioWriterInput = systemAudioWriterInput {
             assetWriter.add(systemAudioWriterInput)
+//            micAssetWriter?.add(systemAudioWriterInput)
         }
         if let micWriterInput = micWriterInput {
             micAssetWriter?.add(micWriterInput)
@@ -46,11 +51,13 @@ class ScreenWriter {
     }
     
     func startSession(atSourceTime startTime: CMTime) {
+        debugPrint("(\(chunkIndex)) startSession now:", CMClock.hostTimeClock.time.seconds)
         assetWriter.startWriting()
         assetWriter.startSession(atSourceTime: startTime)
-        
+        debugPrint("(\(chunkIndex)) startSession 1 now:", CMClock.hostTimeClock.time.seconds)
         micAssetWriter?.startWriting()
         micAssetWriter?.startSession(atSourceTime: startTime)
+        debugPrint("(\(chunkIndex)) startSession 2 now:", CMClock.hostTimeClock.time.seconds)
     }
     
     func finalize(endTime: CMTime) async {

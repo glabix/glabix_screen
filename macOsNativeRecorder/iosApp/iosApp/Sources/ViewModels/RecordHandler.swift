@@ -12,6 +12,7 @@ import Combine
 class RecordHandler: ObservableObject {
     @Published var recording: Bool = false
     @Published var paused: Bool = false
+    @AppStorage("micDeviceName") var micDeviceName: String = ""
     
     private let screenRecorder: ScreenRecorder = .init()
     

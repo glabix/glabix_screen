@@ -52,13 +52,13 @@ class ScreenRecorder: NSObject {
         }
         let devices = discoverySession.devices//.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
         devices.forEach {
-            debugPrint("mic", $0.uniqueID, $0.localizedName, $0.modelID)
+            print("mic", $0.uniqueID, $0.localizedName, $0.modelID)
         }
         
         guard let microphone: AVCaptureDevice = devices.first(where: { $0.uniqueID == uniqueID }) ?? AVCaptureDevice.default(for: .audio) else {
             return
         }
-        debugPrint("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
+        print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
         
         do {
             let micInput = try AVCaptureDeviceInput(device: microphone)
