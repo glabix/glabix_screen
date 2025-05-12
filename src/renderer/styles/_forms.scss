@@ -29,7 +29,7 @@ label,
   }
 
   &-input:checked + &-label {
-    background: var(--accent-3);
+    background: var(--primary);
   }
 
   &-input:disabled + &-label {

@@ -333,8 +333,8 @@ function initVisualAudio() {
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
 
             canvasCtx.lineWidth = 0
-            canvasCtx.strokeStyle = "#b3e0d1"
-            canvasCtx.fillStyle = "#b3e0d1"
+            canvasCtx.strokeStyle = "#A7EBBB"
+            canvasCtx.fillStyle = "#A7EBBB"
 
             canvasCtx.beginPath()
 
