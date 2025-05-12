@@ -16,6 +16,9 @@ export enum UserSettingsEvents {
   PANEL_VISIBILITY_GET = "settings:panel_visibility:get",
   PANEL_VISIBILITY_SET = "settings:panel_visibility:set",
 
+  PANEL_HIDDEN_GET = "settings:panel_hidden:get",
+  PANEL_HIDDEN_SET = "settings:panel_hidden:set",
+
   AUTO_LAUNCH_GET = "settings:auto_launch:get",
   AUTO_LAUNCH_SET = "settings:auto_launch:set",
 }
@@ -24,6 +27,7 @@ export enum UserSettingsKeys {
   SHORT_CUTS = "shortcuts",
   FLIP_CAMERA = "flip_camera",
   PANEL_VISIBILITY = "panel_visibility",
+  PANEL_HIDDEN = "panel_hidden",
   AUTO_LAUNCH = "auto_launch",
 }
 
