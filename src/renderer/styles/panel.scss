@@ -126,14 +126,14 @@ body.is-drawing
 body.body--is-countdown
   .draggable-zone.is-recording-panel-hidden
   .panel-settings-container,
-body.body--is-recording
+body.body--is-recording:not(.is-paused)
   .draggable-zone.is-recording-panel-hidden
   .panel-settings-container,
 body.body--is-countdown
   .draggable-zone.is-recording-panel-hidden
   .draggable-zone-target
   .panel-wrapper,
-body.body--is-recording
+body.body--is-recording:not(.is-paused)
   .draggable-zone.is-recording-panel-hidden
   .draggable-zone-target
   .panel-wrapper {
