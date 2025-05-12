@@ -714,6 +714,8 @@ function createWindow() {
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
   activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
 
+  console.log("activeDisplay", activeDisplay)
+
   if (os.platform() == "darwin") {
     mainWindow.setWindowButtonVisibility(false)
   }

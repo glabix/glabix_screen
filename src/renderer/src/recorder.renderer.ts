@@ -24,6 +24,7 @@ import { captureVideoFrame } from "./helpers/capture-video-frame"
 import {
   RecordEvents,
   RecordSettingsEvents,
+  SwiftRecorderEvents,
 } from "../../shared/events/record.events"
 import { Rectangle } from "electron"
 import {
@@ -131,6 +132,7 @@ function stopRecording() {
     clearView()
   }
 
+  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
   stopStreamTracks()
 }
 
@@ -139,6 +141,8 @@ function pauseRecording() {
     videoRecorder.pause()
     timer.pause()
   }
+
+  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.PAUSE)
 }
 
 function resumeRecording() {
@@ -146,6 +150,8 @@ function resumeRecording() {
     videoRecorder.resume()
     timer.start(true)
   }
+
+  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.RESUME)
 }
 
 function cancelRecording() {
@@ -595,6 +601,7 @@ const startRecording = () => {
     timer.start(true)
 
     createPreview()
+    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.START)
   } else {
     window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.start().missing_videoRecorder",
