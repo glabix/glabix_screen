@@ -151,6 +151,9 @@ const flipCheckbox = document.querySelector(
 const panelVisibilityCheckbox = document.querySelector(
   ".js-panel-visibility-checkbox"
 )! as HTMLInputElement
+const panelHiddenCheckbox = document.querySelector(
+  ".js-panel-hidden-checkbox"
+)! as HTMLInputElement
 const autoLaunchCheckbox = document.querySelector(
   ".js-auto-launch-checkbox"
 )! as HTMLInputElement
@@ -911,6 +914,7 @@ window.electronAPI.ipcRenderer.on(
           event.stopPropagation()
           setPageView("settings")
           showSettingsTab("root")
+          window.electronAPI.ipcRenderer.send("dropdown:close", {})
           window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
             alwaysOnTop: true,
             width: ModalWindowWidth.SETTINGS,
@@ -1265,6 +1269,7 @@ profileToggleBtn.forEach((btn) => {
           height: height,
         })
       }
+      window.electronAPI.ipcRenderer.send("dropdown:close", {})
     },
     false
   )
@@ -1325,6 +1330,28 @@ window.electronAPI.ipcRenderer.on(
       panelVisibilityCheckbox.checked = isPanelVisible
     } else {
       panelVisibilityCheckbox.checked = false
+    }
+  }
+)
+// Panel Hidden
+panelHiddenCheckbox.addEventListener(
+  "change",
+  (event) => {
+    const checkbox = event.target as HTMLInputElement
+    window.electronAPI.ipcRenderer.send(
+      UserSettingsEvents.PANEL_HIDDEN_SET,
+      checkbox.checked
+    )
+  },
+  false
+)
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.PANEL_HIDDEN_GET,
+  (event, isPanelHidden: boolean) => {
+    if (typeof isPanelHidden == "boolean") {
+      panelHiddenCheckbox.checked = isPanelHidden
+    } else {
+      panelHiddenCheckbox.checked = false
     }
   }
 )

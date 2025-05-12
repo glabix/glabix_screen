@@ -123,6 +123,24 @@ body.is-drawing
   display: flex;
 }
 
+body.body--is-countdown
+  .draggable-zone.is-recording-panel-hidden
+  .panel-settings-container,
+body.body--is-recording
+  .draggable-zone.is-recording-panel-hidden
+  .panel-settings-container,
+body.body--is-countdown
+  .draggable-zone.is-recording-panel-hidden
+  .draggable-zone-target
+  .panel-wrapper,
+body.body--is-recording
+  .draggable-zone.is-recording-panel-hidden
+  .draggable-zone-target
+  .panel-wrapper {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .panel-btn {
   display: flex;
   align-items: center;

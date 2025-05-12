@@ -156,6 +156,10 @@ function togglePanelVisibility(_isControlsHidden: boolean) {
   draggableZone.classList.toggle("is-controls-hidden", isControlsHidden)
   closeWebcameraSize()
 }
+function togglePanelHidden(isPanelHidden: boolean) {
+  draggableZone.classList.toggle("is-recording-panel-hidden", isPanelHidden)
+  closeWebcameraSize()
+}
 
 function stopStreamTracks() {
   if (currentStream) {
@@ -294,6 +298,15 @@ window.electronAPI.ipcRenderer.on(
   (event, isPanelHidden: boolean) => {
     if (typeof isPanelHidden == "boolean") {
       togglePanelVisibility(isPanelHidden)
+    }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.PANEL_HIDDEN_GET,
+  (event, isPanelHidden: boolean) => {
+    if (typeof isPanelHidden == "boolean") {
+      togglePanelHidden(isPanelHidden)
     }
   }
 )
