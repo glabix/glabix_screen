@@ -123,6 +123,21 @@ struct ContentView: View {
                 }
                 .disabled(!handler.recording)
             }
+            HStack {
+                Button(action: {
+                    handler.pause()
+                }) {
+                    Text("pause")
+                }
+                .disabled(!handler.recording || handler.paused)
+                
+                Button(action: {
+                    handler.resume()
+                }) {
+                    Text("resume")
+                }
+                .disabled(!handler.recording || !handler.paused)
+            }
         }
 //        .onAppear {
 //            Task {

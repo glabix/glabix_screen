@@ -13,13 +13,14 @@ class ScreenChunksManager {
     private let recordConfiguration: RecordConfiguration
     
     private var writer: ScreenWriter?
-    private var previousChunkWriter: ScreenWriter?
+    private var previousChunkWriters: [CMTime: ScreenWriter] = [:]
     private var nextChunkWriter: ScreenWriter?
     private var chunkStartTime: CMTime = .zero
     
-    private let chunkDuration: CMTime = CMTime(seconds: 5, preferredTimescale: 1)
+    private let chunkDuration: CMTime = CMTime(seconds: 3, preferredTimescale: 1)
     private var chunkIndex = 0
     private var lastSampleTime: CMTime?
+    private var lastSampleBuffers: [ScreenRecorderSourceType: CMSampleBuffer] = [:]
     
     private let queue = DispatchQueue(label: "com.glabix.screen.chunksManager")
     private let chunksDir: String
@@ -55,17 +56,22 @@ class ScreenChunksManager {
     
     private func createNewChunk(startTime: CMTime) throws {
         defer { fflush(stdout) }
-        debugPrint("createNewChunk start:", startTime.seconds, "next exists?", nextChunkWriter != nil)
+        debugPrint("createNewChunk #\(chunkIndex) start:", startTime.seconds, "next exists?", nextChunkWriter != nil)
         
-        writer = try nextChunkWriter ?? ScreenWriter(
-            outputURL: createNewOutputURL()!,
-            micOutputURL: createNewMicOutputURL(),
-            chunkIndex: chunkIndex,
-            screenConfigurator: screenConfigurator,
-            recordConfiguration: recordConfiguration
-        )
+        writer = try nextChunkWriter ?? {
+            let outputURL = createNewOutputURL()
+            debugPrint("chunk #\(chunkIndex) path: ", outputURL?.absoluteString ?? "-")
+            return try ScreenWriter(
+                outputURL: outputURL!,
+                micOutputURL: createNewMicOutputURL(),
+                chunkIndex: chunkIndex,
+                screenConfigurator: screenConfigurator,
+                recordConfiguration: recordConfiguration
+            )
+        }()
 
         writer?.startSession(atSourceTime: startTime)
+//        writer?.startSession(atSourceTime: startTime - CMTime(value: 1, timescale: 1))
         
         chunkStartTime = startTime
         
@@ -96,11 +102,11 @@ class ScreenChunksManager {
             if shouldPause {
                 shouldPause = false
                 
-                if let videoInput = writer?.videoWriterInput,
-                   videoInput.isReadyForMoreMediaData,
-                   let additionalSampleBuffer = buildAdditionalSampleBuffer(from: sampleBuffer, at: timestamp) {
-                    videoInput.append(additionalSampleBuffer)
-                }
+                debugPrint("Pause", "timestamp", timestamp.seconds, "chunk start", chunkStartTime.seconds)
+                appendSampleBuffer(buildAdditionalSampleBuffer(from: sampleBuffer, at: timestamp), type: type, to: writer)
+                appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.systemAudio], at: timestamp), type: type, to: writer)
+                appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.mic], at: timestamp), type: type, to: writer)
+                
                 asyncFinalizeCurrentChunk(endTime: timestamp)
                 
                 pausedAt = timestamp
@@ -110,13 +116,11 @@ class ScreenChunksManager {
                 if writer == nil {
                     try? createNewChunk(startTime: timestamp)
                 } else if timestamp - chunkStartTime >= chunkDuration {
-                    debugPrint("should Start new on timer", "start", timestamp.seconds, "chunk start", chunkStartTime.seconds)
+                    debugPrint("should Start new on timer", "start", timestamp.seconds, "chunk start", chunkStartTime.seconds, "duration", (timestamp - chunkStartTime).seconds)
                     
-                    if let videoInput = writer?.videoWriterInput,
-                       videoInput.isReadyForMoreMediaData,
-                       let additionalSampleBuffer = buildAdditionalSampleBuffer(from: sampleBuffer, at: timestamp) {
-                        videoInput.append(additionalSampleBuffer)
-                    }
+                    appendSampleBuffer(buildAdditionalSampleBuffer(from: sampleBuffer, at: timestamp), type: type, to: writer)
+                    appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.systemAudio], at: timestamp), type: type, to: writer)
+                    appendSampleBuffer(buildAdditionalSampleBuffer(from: lastSampleBuffers[.mic], at: timestamp), type: type, to: writer)
                     
                     asyncFinalizeCurrentChunk(endTime: timestamp)
                     try? createNewChunk(startTime: timestamp)
@@ -124,21 +128,37 @@ class ScreenChunksManager {
             }
         }
         
-        guard let writer = sampleBuffer.presentationTimeStamp < chunkStartTime ? previousChunkWriter : writer else {
+        lastSampleBuffers[type] = sampleBuffer
+        
+        guard let writer = if timestamp < chunkStartTime {
+            previousChunkWriters.first(where: {
+                $0.key > timestamp
+            }).map({
+                let diff = $0.key - timestamp
+                debugPrint("writing \(type) to prev #\($0.value.chunkIndex) diff \(diff.seconds)")
+                return $0.value
+            })
+        } else {
+            writer
+        } else {
             if pausedAt == nil {
                 debugPrint("(\(writer?.chunkIndex ?? -1)) no writer found \(type)")
             }
             return
         }
         
-        if sampleBuffer.presentationTimeStamp < chunkStartTime {
-            debugPrint("writing \(type) to prev #\(writer.chunkIndex)")
+        appendSampleBuffer(sampleBuffer, type: type, to: writer)
+    }
+    
+    private func appendSampleBuffer(_ sampleBuffer: CMSampleBuffer?, type: ScreenRecorderSourceType, to writer: ScreenWriter?) {
+        guard let sampleBuffer = sampleBuffer else {
+            debugPrint("(\(writer?.chunkIndex ?? -1)) \(type) sample buffer is nil")
+            return
         }
-        
-//        if writer.isPaused {
-//            debugPrint("skipping \(type) (paused)")
-//            return
-//        }
+        guard let writer = writer else {
+            debugPrint("(\(writer?.chunkIndex ?? -1)) no writer found \(type)")
+            return
+        }
         
         let assetWriterInput = switch type {
             case .systemAudio: writer.systemAudioWriterInput
@@ -154,13 +174,14 @@ class ScreenChunksManager {
         assetWriterInput.append(sampleBuffer)
     }
     
-    private func buildAdditionalSampleBuffer(from originalBuffer: CMSampleBuffer, at additionalSampleTime: CMTime) -> CMSampleBuffer? {
+    private func buildAdditionalSampleBuffer(from originalBuffer: CMSampleBuffer?, at additionalSampleTime: CMTime) -> CMSampleBuffer? {
+        guard let sampleBuffer = originalBuffer else { return nil }
         let timing = CMSampleTimingInfo(
-            duration: originalBuffer.duration,
+            duration: sampleBuffer.duration,
             presentationTimeStamp: additionalSampleTime,
-            decodeTimeStamp: originalBuffer.decodeTimeStamp
+            decodeTimeStamp: sampleBuffer.decodeTimeStamp
         )
-        if let additionalSampleBuffer = try? CMSampleBuffer(copying: originalBuffer, withNewTiming: [timing]) {
+        if let additionalSampleBuffer = try? CMSampleBuffer(copying: sampleBuffer, withNewTiming: [timing]) {
             return additionalSampleBuffer
         } else {
             return nil
@@ -168,27 +189,33 @@ class ScreenChunksManager {
     }
     
     private func asyncFinalizeCurrentChunk(endTime: CMTime) {
-        previousChunkWriter = writer
+        previousChunkWriters[endTime] = writer
         guard let writer = writer else { return }
         
-        queue.asyncAfter(deadline: .now() + 0.3) { [weak self] in // wait for next processed samples
-            debugPrint("(\(writer.chunkIndex)) asyncFinalizePendingChunk", "end", endTime.seconds, "now:", CMClock.hostTimeClock.time.seconds)
-//            guard writer.assetWriter.status == .writing else { return }
-            writer.finalize(endTime: endTime)
-            self?.previousChunkWriter = nil
+        queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in // wait for next processed samples
+            Task { [writer, weak self] in
+                debugPrint("(\(writer.chunkIndex)) asyncFinalizePendingChunk", "end", endTime.seconds, "now:", CMClock.hostTimeClock.time.seconds)
+                //            guard writer.assetWriter.status == .writing else { return }
+                await writer.finalize(endTime: endTime)
+                self?.previousChunkWriters.removeValue(forKey: endTime)
+                
+                ScreenRecorderService.printCallback("chunk screen finalized #\(writer.chunkIndex)")
+            }
         }
     }
     
-    func stop() {
+    func stop() async {
         guard let writer = writer else { return }
         let endTime = lastSampleTime ?? CMClock.hostTimeClock.time
         debugPrint("stop", endTime.seconds, "now:", CMClock.hostTimeClock.time.seconds)
 //        guard writer.assetWriter.status == .writing else { return }
         
-        writer.finalize(endTime: endTime)
+        await writer.finalize(endTime: endTime)
+        
+        ScreenRecorderService.printCallback("chunk screen finalized on stop #\(writer.chunkIndex)")
         
         self.writer = nil
-        self.previousChunkWriter = nil
+        self.previousChunkWriters = [:]
         self.nextChunkWriter = nil
         self.chunkIndex = 0
     }
@@ -204,29 +231,21 @@ class ScreenChunksManager {
         }
     }
     
-    private func createNewOutputURL() -> URL? {
+    private func getOrCreateOutputDirectory() -> URL? {
         let fileManager = FileManager.default
         
         guard let pathURL = outputDirectory,
               let _ = try? fileManager.createDirectory(atPath: pathURL.path(), withIntermediateDirectories: true, attributes: nil) else { return nil }
-        
-        let outputURL = pathURL.appendingPathComponent("chunk_\(chunkIndex).mp4")
-        debugPrint("Preparing ouput file: ", outputURL.absoluteString)
-        try? fileManager.removeItem(at: outputURL)
-        return outputURL
+        return pathURL
+    }
+    
+    private func createNewOutputURL() -> URL? {
+        getOrCreateOutputDirectory()?.appendingPathComponent("chunk_\(chunkIndex).mp4")
     }
     
     private func createNewMicOutputURL() -> URL? {
         guard recordConfiguration.captureMicrophone else { return nil }
-        
-        let fileManager = FileManager.default
-        
-        guard let pathURL = outputDirectory,
-              let _ = try? fileManager.createDirectory(atPath: pathURL.path(), withIntermediateDirectories: true, attributes: nil) else { return nil }
-        
-        let outputURL = pathURL.appendingPathComponent("chunk_\(chunkIndex).m4a")
-        debugPrint("Preparing ouput file: ", outputURL.absoluteString)
-        try? fileManager.removeItem(at: outputURL)
-        return outputURL
+
+        return getOrCreateOutputDirectory()?.appendingPathComponent("chunk_\(chunkIndex).m4a")
     }
 }

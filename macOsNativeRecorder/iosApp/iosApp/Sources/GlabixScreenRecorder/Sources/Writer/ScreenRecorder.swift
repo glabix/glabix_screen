@@ -50,18 +50,15 @@ class ScreenRecorder: NSObject {
         } else {
             discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
         }
-        let devices = discoverySession.devices.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
-//        devices.forEach {
-//            debugPrint($0.deviceType.rawValue)
-//            debugPrint($0.linkedDevices.map { $0.localizedName })
-//            debugPrint($0.manufacturer)
-//            debugPrint("mic", $0.uniqueID, $0.localizedName, $0.position.rawValue, $0.modelID, $0.deviceType.rawValue)
-//        }
-//        
+        let devices = discoverySession.devices//.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
+        devices.forEach {
+            print("mic", $0.uniqueID, $0.localizedName, $0.modelID)
+        }
         
         guard let microphone: AVCaptureDevice = devices.first(where: { $0.uniqueID == uniqueID }) ?? AVCaptureDevice.default(for: .audio) else {
             return
         }
+        print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
         
         do {
             let micInput = try AVCaptureDeviceInput(device: microphone)
@@ -99,14 +96,14 @@ class ScreenRecorder: NSObject {
         microphoneSession?.startRunning()
     }
     
-    func stop() {
-        screenCaptureQueue.async { [weak self] in
+    func stop() async throws {
+//        screenCaptureQueue.async { [weak self] in
             // Stop capturing, wait for stream to stop
-            self?.stream?.stopCapture()
+        try await stream?.stopCapture()
             
-            self?.chunksManager?.stop()
-            
-            self?.microphoneSession?.stopRunning()
-        }
+        await chunksManager?.stop()
+        
+        microphoneSession?.stopRunning()
+//        }
     }
 }

@@ -509,9 +509,13 @@ function unregisterUserShortCutsOnShow() {
   userShortcuts.forEach((us) => {
     globalShortcut.unregister(us.keyCodes)
   })
+
+  globalShortcut.unregister("Escape")
 }
 
 function registerUserShortCutsOnShow() {
+  globalShortcut.register("Escape", () => {})
+
   const userShortcuts = getUserShortcutsSettings(
     eStore.get(UserSettingsKeys.SHORT_CUTS)
   ).filter((s) => s.actionState == "app:visible")
@@ -789,6 +793,11 @@ function sendUserSettings() {
     )
 
     modalWindow.webContents.send(
+      UserSettingsEvents.PANEL_HIDDEN_GET,
+      eStore.get(UserSettingsKeys.PANEL_HIDDEN)
+    )
+
+    modalWindow.webContents.send(
       UserSettingsEvents.AUTO_LAUNCH_GET,
       eStore.get(UserSettingsKeys.AUTO_LAUNCH)
     )
@@ -808,6 +817,11 @@ function sendUserSettings() {
     mainWindow.webContents.send(
       UserSettingsEvents.PANEL_VISIBILITY_GET,
       eStore.get(UserSettingsKeys.PANEL_VISIBILITY)
+    )
+
+    mainWindow.webContents.send(
+      UserSettingsEvents.PANEL_HIDDEN_GET,
+      eStore.get(UserSettingsKeys.PANEL_HIDDEN)
     )
   }
 }
@@ -1339,6 +1353,11 @@ ipcMain.on(UserSettingsEvents.FLIP_CAMERA_SET, (event, data: boolean) => {
 ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.PANEL_VISIBILITY, data)
   logSender.sendLog("settings.panel_visibility.update", `${data}`)
+  sendUserSettings()
+})
+ipcMain.on(UserSettingsEvents.PANEL_HIDDEN_SET, (event, data: boolean) => {
+  eStore.set(UserSettingsKeys.PANEL_HIDDEN, data)
+  logSender.sendLog("settings.panel_hidden.update", `${data}`)
   sendUserSettings()
 })
 

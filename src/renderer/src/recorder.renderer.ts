@@ -990,9 +990,11 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
   const isCountdown = state["recordingState"] == "countdown"
 
   if (isCountdown) {
+    document.body.classList.add("body--is-countdown")
     return
   }
 
+  document.body.classList.remove("body--is-countdown")
   isRecording = ["recording", "paused"].includes(state["recordingState"])
 
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
