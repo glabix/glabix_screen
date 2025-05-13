@@ -1930,3 +1930,16 @@ powerMonitor.on("suspend", () => {
     ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
   }
 })
+
+import mediaDevicesUtil from "media-devices-util"
+
+const videoDevices = mediaDevicesUtil.getVideoDevices()
+const audioDevices = mediaDevicesUtil.getAudioDevices()
+
+console.log(
+  `
+  ===================  
+  mediaDevicesUtil
+`,
+  { audioDevices, videoDevices }
+)

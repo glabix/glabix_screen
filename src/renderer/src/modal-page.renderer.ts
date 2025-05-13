@@ -386,6 +386,15 @@ function initVisualAudio() {
 async function setupMediaDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices()
   console.log("devices", devices)
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `
+      =====================
+      navigator.mediaDevices.enumerateDevices()
+      =====================
+    `,
+    body: JSON.stringify(devices),
+  })
   const prevSettings = { ...streamSettings }
   const lastDevices = getLastMediaDevices()
 
