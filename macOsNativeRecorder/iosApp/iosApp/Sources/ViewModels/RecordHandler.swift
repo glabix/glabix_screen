@@ -46,13 +46,14 @@ class RecordHandler: ObservableObject {
                 config: .init(
                     displayId: nil,
                     resolution: .uhd4k,
-                    fps: 25,
+                    fps: 30,
                     cropRect: nil,
-                    chunksDirectoryPath: nil,
+//                    chunksDirectoryPath: nil,
+                    chunksDirectoryPath: "/Users/pavelfeklistov/Library/Containers/com.glabix.screenMac/Data/Documents/chunks",
                     showCursor: true,
                     captureSystemAudio: true,
                     captureMicrophone: true,
-                    microphoneUniqueID: "6A08AC30-F752-4660-82B0-F72A00000003"
+                    microphoneUniqueID: nil//"6A08AC30-F752-4660-82B0-F72A00000003"
                 )
             )
         

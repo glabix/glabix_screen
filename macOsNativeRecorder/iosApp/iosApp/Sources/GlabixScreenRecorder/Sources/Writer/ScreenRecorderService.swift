@@ -44,6 +44,7 @@ class ScreenRecorderService {
                     try await recorder.start(config: config)
                     let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
                     ScreenRecorderService.printCallback("recording started at `\(path)`")
+                    debugPrint("recording started at `\(path)`")
                 } catch {
                     print("Error starting capture: \(error)")
 //                    self.completionGroup.leave()

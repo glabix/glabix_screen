@@ -87,6 +87,7 @@ class ScreenRecorder: NSObject {
         let recordConfiguration = RecordConfiguration(config: config)
         
         try await setupStream(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration)
+        print("config.captureMicrophone", config.captureMicrophone)
         if config.captureMicrophone {
             configureMicrophoneCapture(uniqueID: config.microphoneUniqueID)
         }
@@ -100,10 +101,10 @@ class ScreenRecorder: NSObject {
 //        screenCaptureQueue.async { [weak self] in
             // Stop capturing, wait for stream to stop
         try await stream?.stopCapture()
+        microphoneSession?.stopRunning()
             
         await chunksManager?.stop()
         
-        microphoneSession?.stopRunning()
 //        }
     }
 }
