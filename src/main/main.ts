@@ -99,6 +99,13 @@ import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
+import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
+import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
+import {
+  RecordDataEventV3,
+  RecordStartEventV3,
+} from "@main/v3/events/record-v3-types"
+import { CleanupScheduler } from "@main/v3/cleanup-scheduler"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -121,6 +128,8 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
   microphone: false,
   screen: false,
 }
+let recorderFacadeV3: RecorderFacadeV3
+let cleanupScheduler: CleanupScheduler
 
 const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
@@ -187,6 +196,7 @@ function clearAllIntervals() {
     checkForUpdatesInterval = undefined
   }
   RecordManager.clearIntervals()
+  cleanupScheduler.stop()
 }
 
 // Инициализация базы данных
@@ -300,6 +310,9 @@ if (!gotTheLock) {
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
+    recorderFacadeV3 = new RecorderFacadeV3()
+    cleanupScheduler = new CleanupScheduler()
+    cleanupScheduler.start()
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
@@ -1612,16 +1625,27 @@ ipcMain.on(
 )
 
 ipcMain.on(RecordEvents.START, (event, data) => {
-  if (mainWindow) {
-    StorageService.startRecord().then((r) => {
-      mainWindow.webContents.send(
-        RecordEvents.START,
-        data,
-        r.getDataValue("uuid")
-      )
-    })
-  }
+  // if (mainWindow) {
+  //   StorageService.startRecord().then((r) => {
+  //     mainWindow.webContents.send(
+  //       RecordEvents.START,
+  //       data,
+  //       r.getDataValue("uuid")
+  //     )
+  //   })
+  // }
+  modalWindow.hide()
+})
 
+// V3 Record Start
+ipcMain.on(RecordEvents.START, async (event, data) => {
+  if (mainWindow) {
+    const startEventV3: RecordStartEventV3 = {
+      type: RecordEventsV3.START,
+    }
+    const uuid = await recorderFacadeV3.handleEvent(startEventV3)
+    mainWindow.webContents.send(RecordEvents.START, data, uuid)
+  }
   modalWindow.hide()
 })
 
@@ -1670,6 +1694,14 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     showRecordErrorBox("Ошибка записи")
     return
   }
+  const sendDataEvent: RecordDataEventV3 = {
+    type: RecordEventsV3.SEND_DATA,
+    data,
+    innerFileUuid: fileUuid,
+    timestamp: Date.now(),
+    isLast,
+  }
+  recorderFacadeV3.handleEvent(sendDataEvent)
   const blob = new Blob([data], { type: "video/webm;codecs=h264" })
   StorageService.getNextChunk(fileUuid, blob, index, isLast)
   const preview = store.get()["lastVideoPreview"]
