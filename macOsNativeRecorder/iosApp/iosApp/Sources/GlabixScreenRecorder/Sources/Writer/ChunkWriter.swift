@@ -29,7 +29,7 @@ class ChunkWriter {
     private let fileManager = FileManager.default
     private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
-    var isActive: Bool { writer != nil && status == .active }
+    var isActive: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
     
     init(
@@ -68,10 +68,9 @@ class ChunkWriter {
         } else {
             .finalizing
         }
-        
         queue.asyncAfter(deadline: .now() + 0.3) { [weak self] in // wait for next processed samples
             Task { [weak self] in
-                debugPrint("(\(self?.chunkIndex ?? -1)) asyncFinalizePendingChunk", status, "end", endTime.seconds, "endTime", endTime.seconds, "now:", CMClock.hostTimeClock.time.seconds)
+                debugPrint("(\(self?.chunkIndex ?? -1)) asyncFinalizePendingChunk", self?.status, "end", endTime.seconds, "endTime", endTime.seconds, "now:", CMClock.hostTimeClock.time.seconds)
                 await self?.finalizeOrCancel(endTime: endTime)
             }
         }
