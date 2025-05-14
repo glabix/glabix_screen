@@ -29,7 +29,8 @@ class ChunkWriter {
     private let fileManager = FileManager.default
     private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
-    var isActive: Bool { writer != nil && (status == .active || status == .finalizing) }
+    var isActive: Bool { writer != nil && (status == .active) }
+    var isActiveOrFinalizing: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
     
     init(

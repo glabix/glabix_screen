@@ -24,6 +24,9 @@ class ScreenChunksManager {
     private var activeChunkWriters: [ChunkWriter] {
         _chunkWriters.filter(\.isActive)
     }
+    private var activeOrFinalizingChunkWriters: [ChunkWriter] {
+        _chunkWriters.filter(\.isActiveOrFinalizing)
+    }
     private var chunkWritersDebugInfo: [[Any]] {
         _chunkWriters.map { [$0.chunkIndex, $0.endTime.seconds, "haswr?", $0.writer != nil, "fin?", $0.status] }
     }
@@ -156,7 +159,7 @@ class ScreenChunksManager {
             appendSampleBuffer(additionalSampleBuffer, type: type, to: chunkWriter)
             
             if type == .screen,
-                let prevChunkWriter = activeChunkWriters.first(where: { $0.chunkIndex == lastSampleBuffer.chunkIndex })
+                let prevChunkWriter = activeOrFinalizingChunkWriters.first(where: { $0.chunkIndex == lastSampleBuffer.chunkIndex })
             {
                 debugPrint("(\(prevChunkWriter.chunkIndex)) @@@@@@ writing as last \(type)", lastSampleBuffer.chunkIndex, lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", chunkWriter.startTime.seconds, "duration", lastSampleBuffer.sampleBuffer.duration.seconds)
                 appendSampleBuffer(additionalSampleBuffer, type: type, to: prevChunkWriter)
