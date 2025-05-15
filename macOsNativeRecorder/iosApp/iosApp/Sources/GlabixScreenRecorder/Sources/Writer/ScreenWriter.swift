@@ -8,20 +8,23 @@
 
 import AVFoundation
 
-class ScreenWriter {
+final class ScreenWriter {
     private var assetWriter: AVAssetWriter?
     private var micAssetWriter: AVAssetWriter?
-    
+    private let chunkIndex: Int
     var videoWriterInput: AVAssetWriterInput?
     var systemAudioWriterInput: AVAssetWriterInput?
     var micWriterInput: AVAssetWriterInput?
+//    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
     init(
         outputURL: URL?,
         micOutputURL: URL?,
         screenConfigurator: ScreenConfigurator,
-        recordConfiguration: RecordConfiguration
+        recordConfiguration: RecordConfiguration,
+        chunkIndex: Int
     ) throws {
+        self.chunkIndex = chunkIndex
         assetWriter = try outputURL.map { try AVAssetWriter(outputURL: $0, fileType: .mp4) }
         micAssetWriter = try micOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .m4a) }
         
@@ -51,13 +54,19 @@ class ScreenWriter {
     
     func finalize(endTime: CMTime) async {
         if assetWriter?.status == .writing {
-            assetWriter?.endSession(atSourceTime: endTime)
+        } else {
+            debugPrint("💀💀💀", "(\(chunkIndex)) screen assetWriter is not writing \(assetWriter?.status.rawValue)")
         }
+        assetWriter?.endSession(atSourceTime: endTime)
         await assetWriter?.finishWriting()
+//        assetWriter?.finishWriting {}
 
         if micAssetWriter?.status == .writing {
-            micAssetWriter?.endSession(atSourceTime: endTime)
+        } else {
+            debugPrint("💀💀💀", "(\(chunkIndex)) mic assetWriter is not writing \(micAssetWriter?.status.rawValue)")
         }
+        micAssetWriter?.endSession(atSourceTime: endTime)
         await micAssetWriter?.finishWriting()
+//        micAssetWriter?.finishWriting {}
     }
 }

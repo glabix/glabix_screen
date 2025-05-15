@@ -16,22 +16,24 @@ enum ChunkWriterStatus {
     case finalized
 }
 
-class ChunkWriter {
-    var writer: ScreenWriter?
+final class ChunkWriter {
+    private var writer: ScreenWriter?
     let startTime: CMTime
     var endTime: CMTime
     let chunkIndex: Int
     
-    var status: ChunkWriterStatus = .active
+    private var status: ChunkWriterStatus = .active
     
     private let screenChunkURL: URL?
     private let micChunkURL: URL?
     private let fileManager = FileManager.default
-    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
-    var isActive: Bool { writer != nil && (status == .active) }
+    var isActive: Bool { writer != nil && status == .active }
     var isActiveOrFinalizing: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
+    var debugInfo: [Any] {
+        [chunkIndex, endTime.seconds, "hasWr?", writer != nil, "s:", status]
+    }
     
     init(
         screenConfigurator: ScreenConfigurator,
@@ -51,7 +53,8 @@ class ChunkWriter {
             outputURL: screenChunkURL,
             micOutputURL: micChunkURL,
             screenConfigurator: screenConfigurator,
-            recordConfiguration: recordConfiguration
+            recordConfiguration: recordConfiguration,
+            chunkIndex: index
         )
         
         self.startTime = startTime
@@ -62,19 +65,24 @@ class ChunkWriter {
         writer?.startSession(atSourceTime: startTime)
     }
     
-    func asyncFinalizeOrCancel(endTime: CMTime) {
-//        guard status == .active else { return }
-        status = if self.startTime > endTime {
-            .cancelling
+    func updateStatusOnFinalizeOrCancel(endTime: CMTime) {
+        if self.startTime > endTime {
+            status = .cancelling
         } else {
-            .finalizing
+            status = .finalizing
         }
-        queue.asyncAfter(deadline: .now() + 0.3) { [weak self] in // wait for next processed samples
-            Task { [weak self] in
-                debugPrint("(\(self?.chunkIndex ?? -1)) asyncFinalizePendingChunk", self?.status, "end", endTime.seconds, "endTime", endTime.seconds, "now:", CMClock.hostTimeClock.time.seconds)
-                await self?.finalizeOrCancel(endTime: endTime)
-            }
+    }
+    
+    func finalizeOrCancelWithDelay(endTime: CMTime) async {
+//        guard status == .active else { return }
+        if self.startTime > endTime {
+            status = .cancelling
+        } else {
+            status = .finalizing
+            try? await Task.sleep(for: .seconds(0.3))
         }
+        
+        await finalizeOrCancel(endTime: endTime)
     }
     
     func finalizeOrCancel(endTime: CMTime) async {
@@ -88,11 +96,12 @@ class ChunkWriter {
     private func finalize(endTime: CMTime) async {
         status = .finalized
         self.endTime = endTime
-
+        
         await writer?.finalize(endTime: endTime)
         writer = nil
         
         ScreenRecorderService.printCallback("chunk writer finalized #\(chunkIndex) at \(endTime.seconds)")
+        Callback.print(Callback.ChunkFinalized(index: chunkIndex))
     }
     
     private func cancel() async {
@@ -108,5 +117,30 @@ class ChunkWriter {
     private func removeOutputFiles() {
         try? screenChunkURL.map { try fileManager.removeItem(at: $0) }
         try? micChunkURL.map { try fileManager.removeItem(at: $0) }
+    }
+    
+    func appendSampleBuffer(_ sampleBuffer: CMSampleBuffer?, type: ScreenRecorderSourceType) {
+        guard let sampleBuffer = sampleBuffer else {
+            debugPrint("(\(chunkIndex)) \(type) sample buffer is nil")
+            return
+        }
+        
+        guard let writer = writer else {
+            debugPrint("(\(chunkIndex)) no writer found \(type)")
+            return
+        }
+        
+        let assetWriterInput = switch type {
+            case .systemAudio: writer.systemAudioWriterInput
+            case .screen: writer.videoWriterInput
+            case .mic: writer.micWriterInput
+        }
+        
+        guard let assetWriterInput = assetWriterInput, assetWriterInput.isReadyForMoreMediaData else {
+            debugPrint("(\(chunkIndex)) no input or not ready for \(type)", "isReady", assetWriterInput?.isReadyForMoreMediaData ?? "no AssetWriterInput at \(sampleBuffer.presentationTimeStamp.seconds)")
+            return
+        }
+        
+        assetWriterInput.append(sampleBuffer)
     }
 }

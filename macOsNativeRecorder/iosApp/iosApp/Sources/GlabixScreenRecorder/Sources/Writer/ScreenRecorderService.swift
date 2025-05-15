@@ -7,6 +7,52 @@
 
 import Foundation
 
+struct Callback {
+    static func print(_ data: any Codable) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        if let prettyPrintedData = try? encoder.encode(data) {
+            let prettyPrintedString = String(data: prettyPrintedData, encoding: .utf8)!
+            fflush(stdout)
+            Swift.print("[glabix-screen.callback] \(prettyPrintedString)")
+            fflush(stdout)
+        } else {
+            debugPrint("cannot encode", data)
+        }
+    }
+}
+
+extension Callback {
+    struct MicrophoneDevice: Codable {
+        let id: String
+        let name: String
+        let isDefault: Bool
+    }
+}
+
+extension Callback {
+    enum RecordingAction: String, Codable {
+        case chunkFinalized
+        case started
+        case stopped
+    }
+    
+    struct ChunkFinalized: Codable {
+        var action = RecordingAction.chunkFinalized
+        let index: Int
+    }
+    
+    struct RecordingStarted: Codable {
+        var action = RecordingAction.started
+        let path: String?
+    }
+    
+    struct RecordingStopped: Codable {
+        var action = RecordingAction.stopped
+        let lastChunkIndex: Int?
+    }
+}
+
 class ScreenRecorderService {
     private let recorder = ScreenRecorder()
     private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
@@ -45,6 +91,7 @@ class ScreenRecorderService {
                     let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
                     ScreenRecorderService.printCallback("recording started at `\(path)`")
                     debugPrint("recording started at `\(path)`")
+                    
                 } catch {
                     print("Error starting capture: \(error)")
 //                    self.completionGroup.leave()
@@ -67,6 +114,10 @@ class ScreenRecorderService {
                 }
             }
         }
+    }
+    
+    func printAudioInputDevices() {
+        recorder.printAudioInputDevices()
     }
     
 //    func waitForCompletion() {

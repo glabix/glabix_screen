@@ -41,9 +41,7 @@ class ScreenRecorder: NSObject {
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: screenCaptureQueue)
     }
     
-    private func configureMicrophoneCapture(uniqueID: String?) {
-        microphoneSession = AVCaptureSession()
-        
+    private func inputDevices() -> [AVCaptureDevice] {
         var discoverySession: AVCaptureDevice.DiscoverySession
         if #available(macOS 15.0, *) {
             discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified)
@@ -51,9 +49,27 @@ class ScreenRecorder: NSObject {
             discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
         }
         let devices = discoverySession.devices//.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
-        devices.forEach {
-            print("mic", $0.uniqueID, $0.localizedName, $0.modelID)
+        return devices
+    }
+    
+    func printAudioInputDevices() {
+        let defaultAudioInputDevice = AVCaptureDevice.default(for: .audio)
+        
+        let devices = inputDevices()
+        let devicesData = devices.map {
+            Callback.MicrophoneDevice(
+                id: $0.uniqueID,
+                name: $0.localizedName,
+                isDefault: $0.uniqueID == defaultAudioInputDevice?.uniqueID
+            )
         }
+        Callback.print(devicesData)
+    }
+    
+    private func configureMicrophoneCapture(uniqueID: String?) {
+        microphoneSession = AVCaptureSession()
+        
+        let devices = inputDevices()
         
         guard let microphone: AVCaptureDevice = devices.first(where: { $0.uniqueID == uniqueID }) ?? AVCaptureDevice.default(for: .audio) else {
             return
@@ -93,8 +109,10 @@ class ScreenRecorder: NSObject {
         }
         
         // Start capturing, wait for stream to start
-        try await stream?.startCapture()
         microphoneSession?.startRunning()
+        try await stream?.startCapture()
+        
+        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
     }
     
     func stop() async throws {
@@ -104,6 +122,7 @@ class ScreenRecorder: NSObject {
         microphoneSession?.stopRunning()
             
         await chunksManager?.stop()
+        
         
 //        }
     }

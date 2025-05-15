@@ -10,4 +10,5 @@ enum CommandAction: String, Codable {
     case stop
     case pause
     case resume
+    case printAudioInputDevices
 }

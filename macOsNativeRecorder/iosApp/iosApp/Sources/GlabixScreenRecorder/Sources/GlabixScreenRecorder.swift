@@ -29,6 +29,8 @@ struct GlabixScreenRecorder: ParsableCommand {
                         recorder.pause()
                     case .resume:
                         recorder.resume()
+                    case .printAudioInputDevices:
+                        recorder.printAudioInputDevices()
                 }
             } catch {
                 let action = commandJSON
