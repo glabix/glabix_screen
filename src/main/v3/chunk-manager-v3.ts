@@ -1,6 +1,9 @@
 import { StorageManagerV3 } from "./storage-manager-v3"
 import path from "path"
-import { RecordDataEventV3 } from "@main/v3/events/record-v3-types"
+import {
+  IRecordV3Status,
+  RecordDataEventV3,
+} from "@main/v3/events/record-v3-types"
 import { app } from "electron"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
 import { v4 as uuidv4 } from "uuid"
@@ -56,12 +59,17 @@ export class ChunkManagerV3 {
     this.activeRecordings.add(innerUuid)
   }
 
-  cancelRecording(uuid: string): void {
-    // if (this.activeRecordings.has(uuid)) {
-    //   this.activeRecordings.delete(uuid)
-    //   this.storage.cleanup(uuid).catch((error) => {
-    //     console.error(`Cleanup failed for ${uuid}:`, error)
-    //   })
-    // }
+  cancelRecording(recordingLocalUuid: string): void {
+    const recording = this.store.getRecording(recordingLocalUuid)
+    if (!recording) {
+      throw new Error(`Recording ${recordingLocalUuid} not found`)
+    }
+    console.log({ canceledAt: Date.now() })
+    this.store.updateRecording(recordingLocalUuid, {
+      canceledAt: Date.now(),
+    })
+    if (this.activeRecordings.has(recordingLocalUuid)) {
+      this.activeRecordings.delete(recordingLocalUuid)
+    }
   }
 }

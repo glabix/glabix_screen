@@ -2,16 +2,12 @@ import { v4 as uuidv4 } from "uuid"
 import { ChunkManagerV3 } from "./chunk-manager-v3"
 import { StorageManagerV3 } from "./storage-manager-v3"
 import {
-  IRecordV3,
-  IRecordV3Status,
   RecordCancelEventV3,
   RecordDataEventV3,
   RecordEventV3,
+  RecordSetCropDataEventV3,
 } from "./events/record-v3-types"
 import { RecordEventsV3 } from "./events/record-v3-events"
-import eStore from "@main/helpers/electron-store.helper"
-import { getTitle } from "@shared/helpers/get-title"
-import { getVersion } from "@main/helpers/get-version"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
 import { ServerUploadManager } from "@main/v3/server-upload-manager"
 
@@ -26,7 +22,9 @@ export class RecorderFacadeV3 {
 
     // Автоматическая проверка очереди при изменениях
     this.store.store.onDidAnyChange(() => {
-      this.uploadManager.processQueue()
+      setTimeout(() => {
+        this.uploadManager.processQueue()
+      })
     })
   }
   async handleEvent(event: RecordEventV3): Promise<string | void> {
@@ -39,6 +37,8 @@ export class RecorderFacadeV3 {
       case RecordEventsV3.CANCEL:
         await this.handleCancel(event)
         break
+      case RecordEventsV3.SET_CROP_DATA:
+        return this.handleCropData(event)
       default:
         throw new Error("Unknown event type")
     }
@@ -72,5 +72,16 @@ export class RecorderFacadeV3 {
       // Пробрасываем ошибку дальше, если нужно
       throw error
     }
+  }
+
+  private async handleCropData(event: RecordSetCropDataEventV3) {
+    const { innerFileUuid, cropVideoData } = event
+    try {
+      const recording = this.store.getRecording(innerFileUuid)
+      if (!recording) {
+        throw new Error(`Recording ${innerFileUuid} not found`)
+      }
+      this.store.updateRecording(innerFileUuid, { cropData: cropVideoData })
+    } catch (error) {}
   }
 }

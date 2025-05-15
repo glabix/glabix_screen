@@ -1,4 +1,5 @@
 import { IRecordV3 } from "@main/v3/events/record-v3-types"
+import { ICropVideoData } from "@shared/types/types"
 
 export interface RecordStoreSchema {
   recordings: {

@@ -1,6 +1,6 @@
 import axios from "axios"
 
-export function UploadCompleteCommandV3(
+export function uploadCompleteCommandV3(
   token: string,
   orgId: number,
   uploadUuid: string

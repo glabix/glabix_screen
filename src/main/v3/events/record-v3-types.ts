@@ -1,7 +1,14 @@
 import { RecordEventsV3 } from "./record-v3-events"
+import { ICropVideoData } from "@shared/types/types"
 
 export interface RecordStartEventV3 {
   type: RecordEventsV3.START
+}
+
+export interface RecordSetCropDataEventV3 {
+  type: RecordEventsV3.SET_CROP_DATA
+  innerFileUuid: string
+  cropVideoData: ICropVideoData
 }
 
 export interface RecordDataEventV3 {
@@ -21,6 +28,7 @@ export type RecordEventV3 =
   | RecordStartEventV3
   | RecordDataEventV3
   | RecordCancelEventV3
+  | RecordSetCropDataEventV3
 
 export enum IRecordV3Status {
   PENDING = "pending",
@@ -28,16 +36,12 @@ export enum IRecordV3Status {
   CREATING_ON_SERVER = "creating_on_server",
   CREATED_ON_SERVER = "created_on_server",
 
-  CANCELED = "canceled",
-  CANCELED_ON_SERVER = "canceled_on_server",
-  CANCELING_ON_SERVER = "canceling_on_server",
-
   COMPLETE = "complete",
   COMPLETING_ON_SERVER = "completing_on_server",
   COMPLETED_ON_SERVER = "completed_on_server",
 }
 
-export enum IChunkStatusV3 {
+export enum ChunkStatusV3 {
   RECORDED = "recorded",
   SENDING_TO_SERVER = "sending_to_server",
   SENT_TO_SERVER = "sent_to_server",
@@ -54,7 +58,7 @@ export interface IChunkV3 {
   createdAt: number
   updatedAt: number
   source: string
-  status: IChunkStatusV3
+  status: ChunkStatusV3
   type: ChunkTypeV3
   isLast: boolean
 }
@@ -64,6 +68,7 @@ export interface IRecordV3 {
   serverUuid?: string
   createdAt: number
   updatedAt: number
+  canceledAt?: number
   title: string
   version: string
   status: IRecordV3Status
@@ -77,6 +82,7 @@ export interface IRecordV3 {
   chunks: {
     [uuid: string]: IChunkV3
   }
+  cropData?: ICropVideoData
 }
 
 export interface ChunkPart {

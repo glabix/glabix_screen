@@ -1,7 +1,7 @@
 import Store from "electron-store"
 import {
   ChunkTypeV3,
-  IChunkStatusV3,
+  ChunkStatusV3,
   IChunkV3,
   IRecordV3,
   IRecordV3Status,
@@ -9,6 +9,7 @@ import {
 import { RecordStoreSchema } from "@main/v3/store/record-store-schema"
 import { getTitle } from "@shared/helpers/get-title"
 import { getVersion } from "@main/helpers/get-version"
+import { ChunkStatus } from "@database/models/Chunk"
 
 const LAST_CREATED_RECORD = "last_created_record"
 const RECORDINGS = "recordings"
@@ -72,7 +73,7 @@ export class RecordStoreManager {
       uuid: chunkUuid,
       source,
       type: ChunkTypeV3.VIDEO,
-      status: IChunkStatusV3.RECORDED,
+      status: ChunkStatusV3.RECORDED,
       isLast,
     }
   }
@@ -117,7 +118,7 @@ export class RecordStoreManager {
   }
 
   // Получение записей для загрузки
-  getUploadQueue(): IRecordV3[] {
+  getRecordings(): IRecordV3[] {
     return Object.values(this.store.get(RECORDINGS))
   }
 
@@ -125,7 +126,11 @@ export class RecordStoreManager {
   getPriorityRecording(): IRecordV3 | null {
     const recordings = Object.values(this.store.get(RECORDINGS) || [])
 
-    return recordings.sort((a, b) => b.createdAt - a.createdAt)[0] || null
+    return (
+      recordings
+        .filter((a) => !a.canceledAt)
+        .sort((a, b) => b.createdAt - a.createdAt)[0] || null
+    )
   }
 
   getCompletedRecordings(): IRecordV3[] {
@@ -134,9 +139,9 @@ export class RecordStoreManager {
     )
   }
 
-  getCanceledOnServerRecords(): IRecordV3[] {
+  getCanceledRecords(): IRecordV3[] {
     return Object.values(this.store.get(RECORDINGS) || []).filter(
-      (r) => r.status === IRecordV3Status.CANCELED_ON_SERVER
+      (r) => r.canceledAt
     )
   }
 
@@ -153,5 +158,23 @@ export class RecordStoreManager {
 
   getLastCreatedRecordCache() {
     return this.store.get(LAST_CREATED_RECORD)
+  }
+
+  getSendingChunks() {
+    const allRecordings = this.store.get("recordings") || {}
+    const chunks: IChunkV3[] = []
+
+    for (const [recordingLocalUuid, recording] of Object.entries(
+      allRecordings
+    )) {
+      if (!recording.chunks) continue
+
+      for (const [chunkUuid, chunk] of Object.entries(recording.chunks)) {
+        if (chunk.status === ChunkStatusV3.SENDING_TO_SERVER) {
+          chunks.push(chunk)
+        }
+      }
+    }
+    return chunks
   }
 }

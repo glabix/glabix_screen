@@ -1,21 +1,21 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   desktopCapturer,
+  dialog,
   globalShortcut,
   ipcMain,
   MediaAccessPermissionRequest,
   Menu,
   nativeImage,
   nativeTheme,
+  powerMonitor,
+  Rectangle,
   screen,
   session,
   systemPreferences,
   Tray,
-  dialog,
-  Rectangle,
-  clipboard,
-  powerMonitor,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -24,30 +24,30 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { TokenStorage } from "./storages/token-storage"
 import {
+  DialogWindowEvents,
+  HotkeysEvents,
+  IAccountData,
   IAuthData,
+  IAvatarData,
+  ICropVideoData,
+  IDialogWindowCallbackData,
+  IDialogWindowData,
   IDropdownPageData,
   IDropdownPageSelectData,
-  IOrganizationLimits,
   IMediaDevicesAccess,
+  IModalWindowTabData,
+  IOrganizationLimits,
+  IRecordUploadProgressData,
+  IScreenshotImageData,
   ISimpleStoreData,
   IUser,
   MediaDeviceType,
-  SimpleStoreEvents,
-  ModalWindowHeight,
-  IScreenshotImageData,
-  ICropVideoData,
-  IAccountData,
-  IAvatarData,
-  DialogWindowEvents,
-  IDialogWindowData,
-  IDialogWindowCallbackData,
-  HotkeysEvents,
   ModalWindowEvents,
-  IModalWindowTabData,
-  ScreenshotWindowEvents,
-  ScreenshotActionEvents,
+  ModalWindowHeight,
   ModalWindowWidth,
-  IRecordUploadProgressData,
+  ScreenshotActionEvents,
+  ScreenshotWindowEvents,
+  SimpleStoreEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -63,7 +63,7 @@ import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
-import { optimizer, is } from "@electron-toolkit/utils"
+import { is, optimizer } from "@electron-toolkit/utils"
 import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
 import {
@@ -102,10 +102,12 @@ import AutoLaunch from "./helpers/auto-launch.helper"
 import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
 import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
 import {
+  RecordCancelEventV3,
   RecordDataEventV3,
+  RecordSetCropDataEventV3,
   RecordStartEventV3,
 } from "@main/v3/events/record-v3-types"
-import { CleanupScheduler } from "@main/v3/cleanup-scheduler"
+import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -129,7 +131,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
   screen: false,
 }
 let recorderFacadeV3: RecorderFacadeV3
-let cleanupScheduler: CleanupScheduler
+let cleanupScheduler: RecorderSchedulerV3
 
 const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
@@ -311,7 +313,7 @@ if (!gotTheLock) {
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
     recorderFacadeV3 = new RecorderFacadeV3()
-    cleanupScheduler = new CleanupScheduler()
+    cleanupScheduler = new RecorderSchedulerV3()
     cleanupScheduler.start()
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -1652,10 +1654,15 @@ ipcMain.on(RecordEvents.START, async (event, data) => {
 ipcMain.on(RecordEvents.CANCEL, (event, data) => {
   const { fileUuid } = data as { fileUuid: string }
   logSender.sendLog("record.recording.cancel", stringify({ fileUuid }))
-  StorageService.cancelRecord(fileUuid)
+  const cancelEvent: RecordCancelEventV3 = {
+    type: RecordEventsV3.CANCEL,
+    innerFileUuid: fileUuid,
+  }
+  recorderFacadeV3.handleEvent(cancelEvent)
 })
 
 ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
+  console.log(data)
   const { fileUuid, cropVideoData } = data as {
     fileUuid: string
     cropVideoData: ICropVideoData
@@ -1670,7 +1677,12 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
           out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
           out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
         }
-
+  const cropEvent: RecordSetCropDataEventV3 = {
+    type: RecordEventsV3.SET_CROP_DATA,
+    innerFileUuid: fileUuid,
+    cropVideoData: cropData,
+  }
+  recorderFacadeV3.handleEvent(cropEvent)
   logSender.sendLog(
     "record.recording.set_crop.data.received",
     stringify({ fileUuid, cropData })

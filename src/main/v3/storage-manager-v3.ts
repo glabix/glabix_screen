@@ -1,6 +1,6 @@
 import fs from "fs/promises"
 import path from "path"
-import { ChunkPart, IChunkStatusV3 } from "@main/v3/events/record-v3-types"
+import { ChunkPart, ChunkStatusV3 } from "@main/v3/events/record-v3-types"
 import { app } from "electron"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
 
@@ -57,12 +57,13 @@ export class StorageManagerV3 {
 
   async cleanupRecord(recordingUuid: string): Promise<void> {
     const recording = this.store.getRecording(recordingUuid)
-    if (!recording?.dirPath) return
-
-    try {
-      await fs.rm(recording.dirPath, { recursive: true, force: true })
-    } catch (error) {
-      console.error(`Cleanup failed for ${recordingUuid}:`, error)
+    console.log(recording.localUuid)
+    if (recording?.dirPath) {
+      try {
+        await fs.rm(recording.dirPath, { recursive: true, force: true })
+      } catch (error) {
+        console.error(`Cleanup failed for ${recordingUuid}:`, error)
+      }
     }
     this.store.deleteRecord(recordingUuid)
   }
