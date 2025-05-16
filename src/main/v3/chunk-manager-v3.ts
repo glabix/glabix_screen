@@ -8,6 +8,8 @@ import { app } from "electron"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
 import { v4 as uuidv4 } from "uuid"
 import { OpenLibraryPageHandler } from "@main/v3/open-library-page-handler"
+import { stringify } from "@main/helpers/stringify"
+import { LogSender } from "@main/helpers/log-sender"
 
 //ChunkManager отвечает ТОЛЬКО за логику записи
 export class ChunkManagerV3 {
@@ -16,10 +18,13 @@ export class ChunkManagerV3 {
   private baseDir = path.join(app.getPath("userData"), "recordsV3")
   private store: RecordStoreManager
   private openLibraryPageHandler = new OpenLibraryPageHandler()
+  private logSender = new LogSender()
+
   constructor() {
     this.store = new RecordStoreManager()
   }
   async handleDataEvent(event: RecordDataEventV3): Promise<void> {
+    this.logSender.sendLog("chunks.handle.start", stringify(event))
     if (!this.activeRecordings.has(event.innerFileUuid)) {
       throw new Error(
         `Recording ${event.innerFileUuid} not found or already completed`
@@ -40,11 +45,13 @@ export class ChunkManagerV3 {
           ? part.partIndex === chunkParts.length - 1
           : false
         this.store.createChunk(event.innerFileUuid, chunkUuid, source, isLast)
+        this.store.updateRecording(event.innerFileUuid, { failCounter: 0 })
         this.openLibraryPageHandler.checkToOpenLibraryPage(event.innerFileUuid)
       }
     } catch (error) {
       // Пробрасываем ошибку с дополнительным контекстом
       // @ts-ignore
+      this.logSender.sendLog("chunks.handle.start", stringify(error), true)
       throw new Error(
         `Chunk save failed for recording ${event.innerFileUuid}: ${error.message}`
       )
@@ -52,7 +59,13 @@ export class ChunkManagerV3 {
 
     if (event.isLast) {
       this.activeRecordings.delete(event.innerFileUuid)
+      this.logSender.sendLog(
+        "chunks.handle.last_chunk_handled_and_created",
+        stringify({ chunkUuid })
+      )
     }
+
+    this.logSender.sendLog("chunks.handle.complete", stringify({ chunkUuid }))
   }
 
   startNewRecording(innerUuid: string): void {
@@ -64,7 +77,6 @@ export class ChunkManagerV3 {
     if (!recording) {
       throw new Error(`Recording ${recordingLocalUuid} not found`)
     }
-    console.log({ canceledAt: Date.now() })
     this.store.updateRecording(recordingLocalUuid, {
       canceledAt: Date.now(),
     })

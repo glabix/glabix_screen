@@ -1,12 +1,11 @@
 import axios from "axios"
-import { ICropVideoData } from "@shared/types/types"
-
 export function initUploadCommandV3(
   token: string,
   orgId: number,
   filename: string,
   title: string,
   version: string,
+  preview: File | null,
   crop?: ICropVideoData
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads/init`
@@ -21,11 +20,13 @@ export function initUploadCommandV3(
     formData.append("crop[x]", Math.round(crop.x).toString())
     formData.append("crop[y]", Math.round(crop.y).toString())
   }
-  // if (preview) {
-  //   formData.append("preview", preview)
-  // }
+  if (preview) {
+    formData.append("preview", preview)
+  }
 
   return axios.post<{
     uuid: string
   }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
 }
+
+import { ICropVideoData } from "@shared/types/types"

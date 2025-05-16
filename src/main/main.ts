@@ -1662,7 +1662,6 @@ ipcMain.on(RecordEvents.CANCEL, (event, data) => {
 })
 
 ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
-  console.log(data)
   const { fileUuid, cropVideoData } = data as {
     fileUuid: string
     cropVideoData: ICropVideoData
@@ -1691,6 +1690,11 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
   StorageService.setCropData(fileUuid, cropData)
 })
 
+ipcMain.on(RecordEvents.SEND_PREVIEW, (event, res) => {
+  const { preview, fileUuid } = res
+  recorderFacadeV3.handlePreview(fileUuid, preview)
+})
+
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, fileUuid, index, isLast } = res
   logSender.sendLog(
@@ -1712,35 +1716,9 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     innerFileUuid: fileUuid,
     timestamp: Date.now(),
     isLast,
+    byteLength: data.byteLength,
   }
   recorderFacadeV3.handleEvent(sendDataEvent)
-  const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  StorageService.getNextChunk(fileUuid, blob, index, isLast)
-  const preview = store.get()["lastVideoPreview"]
-  if (preview && !PreviewManager.hasPreview(fileUuid)) {
-    logSender.sendLog(
-      "record.recording.preview.received",
-      stringify({ fileUuid })
-    )
-    PreviewManager.savePreview(fileUuid, preview)
-  }
-
-  // unprocessedFilesService
-  //   .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
-  //   .then((rawFileName) => {
-  //     logSender.sendLog(
-  //       "record.raw_file_chunk.save.success",
-  //       stringify({ byteLength: data.byteLength })
-  //     )
-  //   })
-  //   .catch((e) => {
-  //     logSender.sendLog(
-  //       "record.raw_file.save.error",
-  //       stringify({ err: e }),
-  //       true
-  //     )
-  //     showRecordErrorBox("Ошибка записи")
-  //   })
 })
 
 ipcMain.on("stop-recording", (event, data) => {

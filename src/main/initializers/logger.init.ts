@@ -8,7 +8,7 @@ const logSender = new LogSender()
 
 export const loggerInit = () => {
   log.initialize()
-  log.transports.console.level = LogLevel.ERROR
+  log.transports.console.level = LogLevel.SILLY
   log.transports.file.level = LogLevel.DEBUG
   log.transports.file.maxSize = 5 * 1024 * 1024 // 5 MB
   log.transports.file.fileName = "main-log.log"

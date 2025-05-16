@@ -3,6 +3,7 @@ import { StorageManagerV3 } from "@main/v3/storage-manager-v3"
 import { TokenStorage } from "@main/storages/token-storage"
 import { deleteUploadCommand } from "@main/commands/v3/delete-upload.command"
 import { ChunkStatusV3, IRecordV3Status } from "@main/v3/events/record-v3-types"
+import axios, { AxiosError } from "axios"
 
 export class RecorderSchedulerV3 {
   private interval: NodeJS.Timeout
@@ -74,14 +75,12 @@ export class RecorderSchedulerV3 {
     const filteredCanceledRecords = canceledOnServerRecords.filter(
       (c) => Date.now() - c.canceledAt! > 1000 * 30
     ) // записи отмененные больше 30 секунд назад
-    console.log(filteredCanceledRecords)
     await Promise.all(
       // Удаляем с сервера
       filteredCanceledRecords
         .filter((r) => r.serverUuid)
         .map((recording) => this.cancelRecordOnServer(recording.localUuid))
     )
-    console.log(123)
     await Promise.all(
       // Удалям с диска и из стора
       filteredCanceledRecords.map((recording) =>
@@ -105,14 +104,23 @@ export class RecorderSchedulerV3 {
     }
     if (!recording.serverUuid) {
       // log
-      return
+      return recordingLocalUuid
     }
     const token = TokenStorage.token!.access_token
     const orgId = TokenStorage.organizationId!
     try {
       const data = await deleteUploadCommand(token, orgId, recording.serverUuid)
     } catch (error) {
+      if (!axios.isAxiosError(error)) throw error
+      const typedError = error as AxiosError
+      if (
+        typedError.response?.status === 404 &&
+        typedError.response?.data?.code === "upload_not_found"
+      ) {
+        return recordingLocalUuid
+      }
       throw error
     }
+    return recordingLocalUuid
   }
 }

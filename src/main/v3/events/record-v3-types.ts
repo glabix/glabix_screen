@@ -17,6 +17,7 @@ export interface RecordDataEventV3 {
   innerFileUuid: string
   timestamp: number // Добавляем timestamp вместо index
   isLast: boolean
+  byteLength: number
 }
 
 export interface RecordCancelEventV3 {
@@ -73,8 +74,10 @@ export interface IRecordV3 {
   version: string
   status: IRecordV3Status
   dirPath: string
+  previewPath?: string | null
+  previewGeneratedAt?: number
+  failCounter: number
   upload?: {
-    uploadId?: string
     status: "pending" | "uploading" | "completed" | "failed"
     startedAt?: number
     completedAt?: number

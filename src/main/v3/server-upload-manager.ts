@@ -10,21 +10,22 @@ import { submitUploadPartCommandV3 } from "@main/commands/v3/submit-upload-part.
 import fs from "fs"
 import { uploadCompleteCommandV3 } from "@main/commands/v3/upload-complete.command"
 import { OpenLibraryPageHandler } from "@main/v3/open-library-page-handler"
-import { deleteUploadCommand } from "@main/commands/v3/delete-upload.command"
+import { StorageManagerV3 } from "@main/v3/storage-manager-v3"
 
 export class ServerUploadManager {
   private store: RecordStoreManager
+  private storage: StorageManagerV3
   private isProcessing = false
   private openLibraryPageHandler = new OpenLibraryPageHandler()
 
-  constructor(store: RecordStoreManager) {
+  constructor(store: RecordStoreManager, storage: StorageManagerV3) {
     this.store = store
+    this.storage = storage
 
     setInterval(() => this.processQueue(), 5000) // Проверка каждые 5 сек
   }
 
   async processQueue(): Promise<void> {
-    console.log("processQueue")
     if (this.isProcessing) return
     this.isProcessing = true
     try {
@@ -38,6 +39,7 @@ export class ServerUploadManager {
   }
 
   private async processRecording(recording: IRecordV3): Promise<void> {
+    if (!TokenStorage.token?.access_token) return
     try {
       // 1. Инициализация загрузки
       if (!recording.upload) {
@@ -47,7 +49,7 @@ export class ServerUploadManager {
         return
       }
 
-      // 2. Создание мультипарт загрузкиs
+      // 2. Создание мультипарт загрузку
       if (
         recording.status === IRecordV3Status.PENDING &&
         Object.keys(recording.chunks).length
@@ -103,33 +105,38 @@ export class ServerUploadManager {
 
   private async initUpload(recordingLocalUuid: string): Promise<void> {
     const recording = this.store.getRecording(recordingLocalUuid)
-    console.log("initUpload")
     if (!recording) {
       throw new Error(`Recording ${recordingLocalUuid} not found`)
     }
     if (recording.canceledAt) {
-      console.log(recording.canceledAt)
       return
     }
     const token = TokenStorage.token!.access_token
     const orgId = TokenStorage.organizationId
     const filename = recording.title + ".mp4"
+    const preview = await this.storage.readPreview(recordingLocalUuid)
+    try {
+      const { data } = await initUploadCommandV3(
+        token,
+        orgId!,
+        filename,
+        recording.title,
+        recording.version,
+        preview,
+        recording.cropData
+      )
+      this.store.updateRecording(recordingLocalUuid, {
+        status: IRecordV3Status.CREATED_ON_SERVER,
+        serverUuid: data.uuid,
+      })
+    } catch (error) {
+      this.store.updateRecording(recordingLocalUuid, {
+        status: IRecordV3Status.PENDING,
+        failCounter: (recording.failCounter || 0) + 1,
+      })
+      throw error
+    }
 
-    this.store.updateRecording(recordingLocalUuid, {
-      status: IRecordV3Status.CREATING_ON_SERVER,
-    })
-    const { data } = await initUploadCommandV3(
-      token,
-      orgId!,
-      filename,
-      recording.title,
-      recording.version,
-      recording.cropData
-    )
-    this.store.updateRecording(recordingLocalUuid, {
-      status: IRecordV3Status.CREATED_ON_SERVER,
-      serverUuid: data.uuid,
-    })
     this.openLibraryPageHandler.checkToOpenLibraryPage(recording.localUuid)
   }
 
@@ -150,10 +157,6 @@ export class ServerUploadManager {
     await Promise.all(
       chunksToUpload.map(async ([chunkUuid, chunk]) => {
         try {
-          const formData = new FormData()
-          // formData.append('file', fs.createReadStream(chunk.source));
-
-          formData.append("uploadId", recording.upload!.uploadId!)
           const token = TokenStorage.token!.access_token
           const orgId = TokenStorage.organizationId!
           const buffer = await fs.promises.readFile(chunk.source)
@@ -173,6 +176,9 @@ export class ServerUploadManager {
         } catch (error) {
           this.store.updateChunk(recordingLocalUuid, chunkUuid, {
             status: ChunkStatusV3.RECORDED,
+          })
+          this.store.updateRecording(recordingLocalUuid, {
+            failCounter: (recording.failCounter || 0) + 1,
           })
           throw error
         }
@@ -214,7 +220,9 @@ export class ServerUploadManager {
     } catch (error) {
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.COMPLETE,
+        failCounter: (recording.failCounter || 0) + 1,
       })
+
       throw error
     }
   }

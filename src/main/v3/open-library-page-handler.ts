@@ -24,7 +24,6 @@ export class OpenLibraryPageHandler {
         "/" +
         "library/" +
         recording.serverUuid
-      console.log(recording.serverUuid)
       openExternalLink(shared)
     }
   }

@@ -3,6 +3,7 @@ export enum RecordEvents {
   SET_CROP_DATA = "set_crop_data",
   REQUEST_DATA = "request_data",
   SEND_DATA = "send_data",
+  SEND_PREVIEW = "send_preview",
   STOP = "stop",
   PAUSE = "pause",
   ERROR = "error",

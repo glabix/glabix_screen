@@ -6,7 +6,6 @@ export function uploadCompleteCommandV3(
   uploadUuid: string
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads/${uploadUuid}/complete`
-  const formData = new FormData()
 
   return axios.post<{
     uuid: string

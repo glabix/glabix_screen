@@ -10,15 +10,19 @@ import {
 import { RecordEventsV3 } from "./events/record-v3-events"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
 import { ServerUploadManager } from "@main/v3/server-upload-manager"
+import { stringify } from "@main/helpers/stringify"
+import { LogSender } from "@main/helpers/log-sender"
 
 export class RecorderFacadeV3 {
   private chunkManager = new ChunkManagerV3()
   private storage = new StorageManagerV3()
   private store: RecordStoreManager
   private uploadManager: ServerUploadManager
+  private logSender = new LogSender()
+
   constructor() {
     this.store = new RecordStoreManager()
-    this.uploadManager = new ServerUploadManager(this.store)
+    this.uploadManager = new ServerUploadManager(this.store, this.storage)
 
     // Автоматическая проверка очереди при изменениях
     this.store.store.onDidAnyChange(() => {
@@ -32,7 +36,7 @@ export class RecorderFacadeV3 {
       case RecordEventsV3.START:
         return this.handleStart()
       case RecordEventsV3.SEND_DATA:
-        await this.handleData(event)
+        await this.handleChunk(event)
         break
       case RecordEventsV3.CANCEL:
         await this.handleCancel(event)
@@ -45,20 +49,35 @@ export class RecorderFacadeV3 {
   }
 
   private async handleStart(): Promise<string> {
-    const innerRecordUuid = uuidv4()
+    const innerRecordingUuid = uuidv4()
+    const dirPath = await this.storage.prepareDirectory(innerRecordingUuid)
+    this.logSender.sendLog(
+      "records.create.started",
+      stringify({ innerRecordUuid: innerRecordingUuid })
+    )
 
-    const dirPath = await this.storage.prepareDirectory(innerRecordUuid)
-    this.store.createRecording(innerRecordUuid, dirPath)
-    this.chunkManager.startNewRecording(innerRecordUuid)
-    return innerRecordUuid
+    this.store.createRecording(innerRecordingUuid, dirPath)
+
+    this.logSender.sendLog(
+      "records.create.completed",
+      stringify({ innerRecordUuid: innerRecordingUuid })
+    )
+    this.chunkManager.startNewRecording(innerRecordingUuid)
+    return innerRecordingUuid
   }
 
-  private async handleData(event: RecordDataEventV3): Promise<void> {
+  private async handleChunk(event: RecordDataEventV3): Promise<void> {
+    this.logSender.sendLog("records.chunks.handle.start", stringify(event))
     try {
       await this.chunkManager.handleDataEvent(event)
     } catch (error) {
       // Добавляем дополнительный контекст к ошибке
       // @ts-ignore
+      this.logSender.sendLog(
+        "records.chunks.handle.error",
+        stringify(error),
+        true
+      )
       throw new Error(`Failed to process data event: ${error.message}`)
     }
   }
@@ -83,5 +102,20 @@ export class RecorderFacadeV3 {
       }
       this.store.updateRecording(innerFileUuid, { cropData: cropVideoData })
     } catch (error) {}
+  }
+
+  async handlePreview(
+    recordingInnerUuid: string,
+    previewData: ArrayBuffer
+  ): Promise<void> {
+    try {
+      await this.storage.savePreview(recordingInnerUuid, previewData)
+    } catch (error) {
+      console.error("Failed to save preview:", error)
+    }
+  }
+
+  async getPreview(recordingId: string): Promise<string | null> {
+    return this.storage.readPreview(recordingId)
   }
 }
