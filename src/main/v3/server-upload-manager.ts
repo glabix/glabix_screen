@@ -127,12 +127,14 @@ export class ServerUploadManager {
       )
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.CREATED_ON_SERVER,
+        failCounter: 0,
         serverUuid: data.uuid,
       })
     } catch (error) {
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.PENDING,
         failCounter: (recording.failCounter || 0) + 1,
+        lastUploadAttemptAt: Date.now(),
       })
       throw error
     }
@@ -169,9 +171,11 @@ export class ServerUploadManager {
             recording.serverUuid!,
             buffer
           )
-
           this.store.updateChunk(recordingLocalUuid, chunkUuid, {
             status: ChunkStatusV3.SENT_TO_SERVER,
+          })
+          this.store.updateRecording(recordingLocalUuid, {
+            failCounter: 0,
           })
         } catch (error) {
           this.store.updateChunk(recordingLocalUuid, chunkUuid, {
@@ -179,6 +183,7 @@ export class ServerUploadManager {
           })
           this.store.updateRecording(recordingLocalUuid, {
             failCounter: (recording.failCounter || 0) + 1,
+            lastUploadAttemptAt: Date.now(),
           })
           throw error
         }
@@ -211,16 +216,17 @@ export class ServerUploadManager {
       )
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.COMPLETED_ON_SERVER,
+        failCounter: 0,
         upload: {
           ...recording.upload,
           status: "completed",
-          completedAt: Date.now(),
         },
       })
     } catch (error) {
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.COMPLETE,
         failCounter: (recording.failCounter || 0) + 1,
+        lastUploadAttemptAt: Date.now(),
       })
 
       throw error

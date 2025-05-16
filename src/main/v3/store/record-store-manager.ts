@@ -163,7 +163,7 @@ export class RecordStoreManager {
 
       const attempts = recording.failCounter || 0
       const delay = getUploadDelay(attempts)
-      const updatedAt = recording.updatedAt || recording.createdAt
+      const updatedAt = recording.lastUploadAttemptAt || recording.createdAt
       const priority = now - updatedAt - delay
       console.log(priority)
       if (priority > 0) {
@@ -226,7 +226,7 @@ export class RecordStoreManager {
 export function getUploadDelay(attempt: number): number {
   const delays = [
     0, // Первая попытка (0 сек)
-    1000 * 20, // 20 сек
+    1000 * 10, // 10 сек
     1000 * 20, // 20 сек
     1000 * 20, // 20 сек
     1000 * 40, // 40 сек

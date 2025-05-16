@@ -30,6 +30,10 @@ export class ChunkManagerV3 {
         `Recording ${event.innerFileUuid} not found or already completed`
       )
     }
+    const recording = this.store.getRecording(event.innerFileUuid)
+    if (!recording) {
+      throw new Error(`Recording ${event.innerFileUuid} not found`)
+    }
     const chunkUuid = uuidv4()
     const dirPath = path.join(this.baseDir, event.innerFileUuid)
     try {
@@ -45,7 +49,10 @@ export class ChunkManagerV3 {
           ? part.partIndex === chunkParts.length - 1
           : false
         this.store.createChunk(event.innerFileUuid, chunkUuid, source, isLast)
-        this.store.updateRecording(event.innerFileUuid, { failCounter: 0 })
+        this.store.updateRecording(event.innerFileUuid, {
+          failCounter: recording.failCounter ? 1 : 0,
+          lastUploadAttemptAt: undefined,
+        })
         this.openLibraryPageHandler.checkToOpenLibraryPage(event.innerFileUuid)
       }
     } catch (error) {

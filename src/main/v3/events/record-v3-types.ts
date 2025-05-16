@@ -76,11 +76,10 @@ export interface IRecordV3 {
   dirPath: string
   previewPath?: string | null
   previewGeneratedAt?: number
-  failCounter: number
+  failCounter?: number
+  lastUploadAttemptAt?: number
   upload?: {
     status: "pending" | "uploading" | "completed" | "failed"
-    startedAt?: number
-    completedAt?: number
   }
   chunks: {
     [uuid: string]: IChunkV3
