@@ -22,11 +22,27 @@ struct Callback {
     }
 }
 
+protocol CallbackActionContainable: Codable {
+    var action: Callback.RecordingAction { get }
+}
+
 extension Callback {
-    struct MicrophoneDevice: Codable {
+    struct CaptureDevice: Codable {
         let id: String
         let name: String
         let isDefault: Bool
+    }
+    
+    struct MicrophoneDevices: CallbackActionContainable {
+        let devices: [CaptureDevice]
+        
+        var action: RecordingAction = .audioInputDevices
+    }
+    
+    struct CameraDevices: CallbackActionContainable {
+        let devices: [CaptureDevice]
+        
+        var action: RecordingAction = .videoInputDevices
     }
 }
 
@@ -35,26 +51,29 @@ extension Callback {
         case chunkFinalized
         case started
         case stopped
+        case audioInputDevices
+        case videoInputDevices
     }
     
-    struct ChunkFinalized: Codable {
-        var action = RecordingAction.chunkFinalized
+    struct ChunkFinalized: CallbackActionContainable {
+        var action: RecordingAction = .chunkFinalized
         let index: Int
     }
     
     struct RecordingStarted: Codable {
-        var action = RecordingAction.started
+        var action: RecordingAction = .started
         let path: String?
     }
     
     struct RecordingStopped: Codable {
-        var action = RecordingAction.stopped
+        var action: RecordingAction = .stopped
         let lastChunkIndex: Int?
     }
 }
 
 class ScreenRecorderService {
     private let recorder = ScreenRecorder()
+    private let captureDevicesObserver = CaptureDevicesObserver()
     private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
 //    private let completionGroup = DispatchGroup()
     
@@ -80,14 +99,14 @@ class ScreenRecorderService {
         }
     }
             
-    func startRecording(config: Config) {
+    func startRecording(withConfig config: Config) {
 //        completionGroup.enter()
         commandQueue.async { [recorder] in
             Task { [recorder] in
                 defer { fflush(stdout) }
                 do {
 //                    try await self.recorder.startCapture(configJSON: configJSON)
-                    try await recorder.start(config: config)
+                    try await recorder.start(withConfig: config)
                     let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
                     ScreenRecorderService.printCallback("recording started at `\(path)`")
                     debugPrint("recording started at `\(path)`")
@@ -98,6 +117,24 @@ class ScreenRecorderService {
                 }
             }
         }
+    }
+    
+    func configureRecorder(with config: Config) {
+        commandQueue.async { [recorder] in
+            Task { [recorder] in
+                defer { fflush(stdout) }
+                do {
+                    try await recorder.configureAndInitialize(with: config)
+                }
+            }
+        }
+    }
+    
+    func startRecording() {
+        defer { fflush(stdout) }
+        let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
+        ScreenRecorderService.printCallback("recording started at `\(path)`")
+        debugPrint("recording started at `\(path)`")
     }
     
     func stopRecording() {
@@ -118,6 +155,10 @@ class ScreenRecorderService {
     
     func printAudioInputDevices() {
         recorder.printAudioInputDevices()
+    }
+    
+    func printVideoInputDevices() {
+        recorder.printVideoInputDevices()
     }
     
 //    func waitForCompletion() {

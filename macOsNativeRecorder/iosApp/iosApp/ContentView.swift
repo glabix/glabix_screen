@@ -102,15 +102,56 @@ struct ContentView: View {
             
             HStack {
                 Button(action: {
+                    handler.printAudioInputDevices()
+                }) {
+                    Text("mics")
+                }
+                
+                Button(action: {
+                    handler.printVideoInputDevices()
+                }) {
+                    Text("camera")
+                }
+            }
+            
+            
+            HStack {
+                Button(action: {
                     Task {
                         do {
-                            try await handler.start()
+                            try await handler.configure()
                         } catch {
                             debugPrint("ERROR", error)
                         }
                     }
                 }) {
+                    Text("configure")
+                }
+                .disabled(handler.recording)
+                
+                Button(action: {
+                    do {
+                        try handler.start()
+                    } catch {
+                        debugPrint("ERROR", error)
+                    }
+                }) {
                     Text("start")
+                }
+                .disabled(handler.recording)
+            }
+             
+            HStack {
+                Button(action: {
+                    Task {
+                        do {
+                            try await handler.startWithConfig()
+                        } catch {
+                            debugPrint("ERROR", error)
+                        }
+                    }
+                }) {
+                    Text("startWithConfig")
                 }
                 .disabled(handler.recording)
                 

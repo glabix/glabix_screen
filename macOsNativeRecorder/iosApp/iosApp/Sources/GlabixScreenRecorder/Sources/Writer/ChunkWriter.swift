@@ -18,8 +18,8 @@ enum ChunkWriterStatus {
 
 final class ChunkWriter {
     private var writer: ScreenWriter?
-    let startTime: CMTime
-    var endTime: CMTime
+    var startTime: CMTime?
+    var endTime: CMTime?
     let chunkIndex: Int
     
     private var status: ChunkWriterStatus = .active
@@ -29,11 +29,14 @@ final class ChunkWriter {
     private let fileManager = FileManager.default
     
     var isActive: Bool { writer != nil && status == .active }
+    var debugStatus: ChunkWriterStatus { status }
     var isActiveOrFinalizing: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
     var debugInfo: [Any] {
-        [chunkIndex, endTime.seconds, "hasWr?", writer != nil, "s:", status]
+        [chunkIndex, endTime?.seconds ?? 0, "hasWr?", writer != nil, "s:", status]
     }
+    
+    private static let chunkDuration: CMTime = CMTime(seconds: 2, preferredTimescale: 1)
     
     init(
         screenConfigurator: ScreenConfigurator,
@@ -41,8 +44,7 @@ final class ChunkWriter {
         outputDir: URL?,
         captureMicrophone: Bool,
         index: Int,
-        startTime: CMTime,
-        endTime: CMTime
+        startTime: CMTime?
     ) {
         screenChunkURL = outputDir?.appendingPathComponent("chunk_\(index).mp4")
         micChunkURL = if captureMicrophone {
@@ -58,15 +60,28 @@ final class ChunkWriter {
         )
         
         self.startTime = startTime
-        self.endTime = endTime
+        self.endTime = startTime.map { $0 + ChunkWriter.chunkDuration }
         self.chunkIndex = index
         
         removeOutputFiles()
+        
+        if let startTime = startTime {
+            writer?.startSession(atSourceTime: startTime)
+        }
+    }
+    
+    func startAt(_ startTime: CMTime) {
+        self.startTime = startTime
+        self.endTime = startTime + ChunkWriter.chunkDuration
         writer?.startSession(atSourceTime: startTime)
     }
     
     func updateStatusOnFinalizeOrCancel(endTime: CMTime) {
-        if self.startTime > endTime {
+        guard let startTime = startTime else { return }
+        
+        self.endTime = endTime
+        
+        if startTime > endTime {
             status = .cancelling
         } else {
             status = .finalizing
@@ -74,8 +89,10 @@ final class ChunkWriter {
     }
     
     func finalizeOrCancelWithDelay(endTime: CMTime) async {
+        guard let startTime = startTime else { return }
+        
 //        guard status == .active else { return }
-        if self.startTime > endTime {
+        if startTime > endTime {
             status = .cancelling
         } else {
             status = .finalizing
@@ -86,7 +103,9 @@ final class ChunkWriter {
     }
     
     func finalizeOrCancel(endTime: CMTime) async {
-        if self.startTime > endTime {
+        guard let startTime = startTime else { return }
+        
+        if startTime > endTime {
             await cancel()
         } else {
             await finalize(endTime: endTime)
@@ -105,6 +124,7 @@ final class ChunkWriter {
     }
     
     private func cancel() async {
+        guard let endTime = endTime else { return }
         status = .cancelled
         
         await writer?.finalize(endTime: endTime)

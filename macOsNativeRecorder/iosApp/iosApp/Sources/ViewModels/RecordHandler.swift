@@ -33,7 +33,36 @@ class RecordHandler: ObservableObject {
         }
     }
     
-    func start() async throws {
+    func start() throws {
+        try checkPermissions()
+        
+        DispatchQueue.main.async {
+            self.recording = true
+            self.paused = false
+        }
+        
+        screenRecorder.start()
+    }
+    
+    func configure() async throws {
+        try checkPermissions()
+        
+        try await screenRecorder
+            .configureAndInitialize(with: .init(
+                displayId: nil,
+                resolution: .uhd4k,
+                fps: 30,
+                cropRect: nil,
+                //                    chunksDirectoryPath: nil,
+                chunksDirectoryPath: "/Users/pavelfeklistov/Library/Containers/com.glabix.screenMac/Data/Documents/chunks",
+                showCursor: true,
+                captureSystemAudio: true,
+                captureMicrophone: true,
+                microphoneUniqueID: nil//"6A08AC30-F752-4660-82B0-F72A00000003"
+            ))
+    }
+    
+    func startWithConfig() async throws {
         try checkPermissions()
         
         DispatchQueue.main.async {
@@ -43,7 +72,7 @@ class RecordHandler: ObservableObject {
         
         try await screenRecorder
             .start(
-                config: .init(
+                withConfig: .init(
                     displayId: nil,
                     resolution: .uhd4k,
                     fps: 30,
@@ -84,5 +113,13 @@ class RecordHandler: ObservableObject {
 //                _ = NSWorkspace.shared.open($0)
 //            }
 //        }
+    }
+    
+    func printAudioInputDevices() {
+        screenRecorder.printAudioInputDevices()
+    }
+    
+    func printVideoInputDevices() {
+        screenRecorder.printVideoInputDevices()
     }
 }

@@ -34,6 +34,7 @@
 		B31B38C12DC5006C0001C7EB /* SystemAudioInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38AC2DC5006C0001C7EB /* SystemAudioInput.swift */; };
 		B31B38C32DC5006C0001C7EB /* MicInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A32DC5006C0001C7EB /* MicInput.swift */; };
 		B35875302DD4BF13004AF111 /* ChunkWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B358752F2DD4BF13004AF111 /* ChunkWriter.swift */; };
+		B394DCD62DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */; };
 		B3C095F42DC9EFC600ED3CB7 /* RecordConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F02DC9EFC600ED3CB7 /* RecordConfiguration.swift */; };
 		B3C095F52DC9EFC600ED3CB7 /* CommandAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */; };
 		B3C095F62DC9EFC600ED3CB7 /* ScreenConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F22DC9EFC600ED3CB7 /* ScreenConfigurator.swift */; };
@@ -90,6 +91,7 @@
 		B31B38AC2DC5006C0001C7EB /* SystemAudioInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioInput.swift; sourceTree = "<group>"; };
 		B31B38AD2DC5006C0001C7EB /* VideoInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoInput.swift; sourceTree = "<group>"; };
 		B358752F2DD4BF13004AF111 /* ChunkWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkWriter.swift; sourceTree = "<group>"; };
+		B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureDeviceDiscoverable.swift; sourceTree = "<group>"; };
 		B3C095EC2DC9EFC600ED3CB7 /* Command.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Command.swift; sourceTree = "<group>"; };
 		B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandAction.swift; sourceTree = "<group>"; };
 		B3C095EE2DC9EFC600ED3CB7 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
@@ -241,6 +243,7 @@
 		B3C095F32DC9EFC600ED3CB7 /* Config */ = {
 			isa = PBXGroup;
 			children = (
+				B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */,
 				B3C095EC2DC9EFC600ED3CB7 /* Command.swift */,
 				B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */,
 				B3C095EE2DC9EFC600ED3CB7 /* Config.swift */,
@@ -357,7 +360,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/..\"\n#./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "cd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -400,6 +403,7 @@
 				B303A5AF2DB788D000487002 /* ReverseMask.swift in Sources */,
 				B3F39F352DADA0800054A07B /* AppDelegate.swift in Sources */,
 				B303A5B82DB7895F00487002 /* InputSettings.swift in Sources */,
+				B394DCD62DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
 				B3F39F332DAD61D30054A07B /* CameraInputManager.swift in Sources */,
 			);

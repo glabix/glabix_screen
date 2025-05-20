@@ -21,6 +21,9 @@ class ScreenRecorder: NSObject {
     
     private let screenCaptureQueue = DispatchQueue(label: "com.glabix.screen.screenCapture")
     
+    private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
+    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
+    
     private func setupStream(
         screenConfigurator: ScreenConfigurator,
         recordConfiguration: RecordConfiguration
@@ -41,37 +44,25 @@ class ScreenRecorder: NSObject {
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: screenCaptureQueue)
     }
     
-    private func inputDevices() -> [AVCaptureDevice] {
-        var discoverySession: AVCaptureDevice.DiscoverySession
-        if #available(macOS 15.0, *) {
-            discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified)
-        } else {
-            discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
-        }
-        let devices = discoverySession.devices//.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
-        return devices
+    func printAudioInputDevices() {
+//        let auth = AVCaptureDevice.authorizationStatus(for: .audio)
+//        print("auth: \(auth)")
+//        
+//        AVCaptureDevice.requestAccess(for: .audio) { (isSuccess) in
+//            print("isSuccess: \(isSuccess)")
+//        }
+        
+        Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
     }
     
-    func printAudioInputDevices() {
-        let defaultAudioInputDevice = AVCaptureDevice.default(for: .audio)
-        
-        let devices = inputDevices()
-        let devicesData = devices.map {
-            Callback.MicrophoneDevice(
-                id: $0.uniqueID,
-                name: $0.localizedName,
-                isDefault: $0.uniqueID == defaultAudioInputDevice?.uniqueID
-            )
-        }
-        Callback.print(devicesData)
+    func printVideoInputDevices() {
+        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
     }
     
     private func configureMicrophoneCapture(uniqueID: String?) {
         microphoneSession = AVCaptureSession()
         
-        let devices = inputDevices()
-        
-        guard let microphone: AVCaptureDevice = devices.first(where: { $0.uniqueID == uniqueID }) ?? AVCaptureDevice.default(for: .audio) else {
+        guard let microphone = microphoneDevices.deviceOrDefault(uniqueID: uniqueID) else {
             return
         }
         print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
@@ -88,7 +79,23 @@ class ScreenRecorder: NSObject {
         }
     }
     
-    func start(config: Config) async throws {
+    func start(withConfig config: Config) async throws {
+        try await configure(with: config)
+        chunksManager?.startOnNextSample()
+        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
+    }
+    
+    func start() {
+        chunksManager?.startOnNextSample()
+        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
+    }
+    
+    func configureAndInitialize(with config: Config) async throws {
+        try await configure(with: config)
+        chunksManager?.initializeFirstChunkWriter()
+    }
+    
+    private func configure(with config: Config) async throws {
         let availableContent = try await SCShareableContent.current
         print("Available displays: \(availableContent.displays.map { "\($0.displayID)" }.joined(separator: ", "))")
         
@@ -96,8 +103,8 @@ class ScreenRecorder: NSObject {
             throw NSError(domain: "GlabixScreenRecorder", code: 2, userInfo: [NSLocalizedDescriptionKey: "Display not found"])
         }
         
-//        let displayID = CGMainDisplayID()
-//        debugPrint("displayId", displayID.description, displayID)
+        //        let displayID = CGMainDisplayID()
+        //        debugPrint("displayId", displayID.description, displayID)
         
         let screenConfigurator = ScreenConfigurator(displayID: display.displayID)
         let recordConfiguration = RecordConfiguration(config: config)
@@ -111,8 +118,6 @@ class ScreenRecorder: NSObject {
         // Start capturing, wait for stream to start
         microphoneSession?.startRunning()
         try await stream?.startCapture()
-        
-        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
     }
     
     func stop() async throws {
