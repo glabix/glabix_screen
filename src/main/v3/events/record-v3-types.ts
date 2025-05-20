@@ -48,20 +48,16 @@ export enum ChunkStatusV3 {
   SENT_TO_SERVER = "sent_to_server",
 }
 
-export enum ChunkTypeV3 {
-  VIDEO = "video",
-  AUDIO = "audio",
-}
-
 export interface IChunkV3 {
   innerRecordUuid: string
   uuid: string
   createdAt: number
   updatedAt: number
-  source: string
+  videoSource: string
+  audioSource?: string
   status: ChunkStatusV3
-  type: ChunkTypeV3
   isLast: boolean
+  size: number
 }
 
 export interface IRecordV3 {

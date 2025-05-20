@@ -32,7 +32,7 @@ export class StorageManagerV3 {
     directory: string,
     timestamp: number,
     chunkPart: ChunkPart
-  ): Promise<string> {
+  ): Promise<{ source: string; size: number }> {
     const fileName = `${timestamp}_${chunkPart.partIndex}.bin`
     const filePath = path.join(directory, fileName)
     this.logSender.sendLog("storage.chunk.save.start", stringify({ filePath }))
@@ -52,7 +52,7 @@ export class StorageManagerV3 {
       "storage.chunk.save.completed",
       stringify({ filePath })
     )
-    return filePath
+    return { source: filePath, size: chunkPart.data.length }
   }
 
   splitChunk(data: Buffer): ChunkPart[] {

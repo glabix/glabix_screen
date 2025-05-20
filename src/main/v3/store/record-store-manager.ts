@@ -40,8 +40,16 @@ export class RecordStoreManager {
     const current = this.getRecording(recordLocalUuid)
     if (!current) throw new Error(`Recording ${recordLocalUuid} not found`)
 
-    const updated = { ...current, ...update, updatedAt: Date.now() }
-    this.store.set(`${RECORDINGS}.${recordLocalUuid}`, updated)
+    const updated = {
+      ...current,
+      ...update,
+      updatedAt: Date.now(),
+    } as IRecordV3
+    const sortedChunks = this.getSortedChunks(updated.chunks)
+    this.store.set(`${RECORDINGS}.${recordLocalUuid}`, {
+      ...updated,
+      chunks: sortedChunks,
+    })
     this.logSender.sendLog(
       "records.store.update.complete",
       stringify({ recordLocalUuid, update: { ...update, chunks: "{...}" } })
@@ -79,17 +87,19 @@ export class RecordStoreManager {
     innerRecordUuid: string,
     chunkUuid: string,
     source: string,
-    isLast: boolean
+    isLast: boolean,
+    size: number
   ): IChunkV3 {
     return {
       innerRecordUuid,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       uuid: chunkUuid,
-      source,
+      videoSource: source,
       type: ChunkTypeV3.VIDEO,
       status: ChunkStatusV3.RECORDED,
       isLast,
+      size,
     }
   }
 
@@ -97,7 +107,8 @@ export class RecordStoreManager {
     recordLocalUuid: string,
     chunkUuid: string,
     source: string,
-    isLast: boolean
+    isLast: boolean,
+    size: number
   ) {
     this.logSender.sendLog(
       "chunks.store.create.start",
@@ -109,7 +120,8 @@ export class RecordStoreManager {
       recordLocalUuid,
       chunkUuid,
       source,
-      isLast
+      isLast,
+      size
     )
     const chunks = { ...recording.chunks }
     chunks[chunkUuid] = storeData
@@ -220,6 +232,22 @@ export class RecordStoreManager {
       }
     }
     return chunks
+  }
+
+  private getSortedChunks(
+    chunks: Record<string, IChunkV3>
+  ): Record<string, IChunkV3> {
+    return Object.entries(chunks)
+      .sort(([uuid1, chunk1], [uuid2, chunk2]) => {
+        return chunk1.createdAt - chunk2.createdAt
+      })
+      .reduce(
+        (acc, [uuid, chunk]) => {
+          acc[uuid] = chunk
+          return acc
+        },
+        {} as Record<string, IChunkV3>
+      )
   }
 }
 

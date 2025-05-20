@@ -6,7 +6,7 @@ export function uploadCompleteCommandV3(
   uploadUuid: string
 ) {
   const url = `${import.meta.env.VITE_API_PATH}screen_recorder/organizations/${orgId}/uploads/${uploadUuid}/complete`
-
+  return new Promise((res) => res({ data: { uuid: "123" } }))
   return axios.post<{
     uuid: string
   }>(url, null, { headers: { Authorization: `Bearer ${token}` } })

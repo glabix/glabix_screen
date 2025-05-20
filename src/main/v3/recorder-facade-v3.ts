@@ -12,6 +12,7 @@ import { RecordStoreManager } from "@main/v3/store/record-store-manager"
 import { ServerUploadManager } from "@main/v3/server-upload-manager"
 import { stringify } from "@main/helpers/stringify"
 import { LogSender } from "@main/helpers/log-sender"
+import { ProgressResolverV3 } from "@main/v3/progrss-resolver-v3"
 
 export class RecorderFacadeV3 {
   private chunkManager = new ChunkManagerV3()
@@ -19,10 +20,15 @@ export class RecorderFacadeV3 {
   private store: RecordStoreManager
   private uploadManager: ServerUploadManager
   private logSender = new LogSender()
+  private progressResolverV3 = new ProgressResolverV3()
 
   constructor() {
     this.store = new RecordStoreManager()
-    this.uploadManager = new ServerUploadManager(this.store, this.storage)
+    this.uploadManager = new ServerUploadManager(
+      this.store,
+      this.storage,
+      this.progressResolverV3
+    )
 
     // Автоматическая проверка очереди при изменениях
     this.store.store.onDidAnyChange(() => {
@@ -70,6 +76,7 @@ export class RecorderFacadeV3 {
     this.logSender.sendLog("records.chunks.handle.start", stringify(event))
     try {
       await this.chunkManager.handleDataEvent(event)
+      this.progressResolverV3.updateRecord(event.innerFileUuid)
     } catch (error) {
       // Добавляем дополнительный контекст к ошибке
       // @ts-ignore

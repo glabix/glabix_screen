@@ -25,6 +25,7 @@ export class RecorderSchedulerV3 {
     this.cleanupEmpty()
     this.resetRecords()
     this.resetChunks()
+    this.setIsLastForLastChunk()
 
     this.cleanupCompleted()
     this.cleanupCanceled()
@@ -48,6 +49,23 @@ export class RecorderSchedulerV3 {
           status: IRecordV3Status.COMPLETE,
         })
       }
+    }
+  }
+
+  private setIsLastForLastChunk() {
+    const recordings = this.store.getRecordings()
+    for (const recording of recordings) {
+      const chunks = Object.values(recording.chunks)
+      if (!chunks.length) {
+        continue
+      }
+      if (chunks.find((c) => c.isLast)) {
+        continue
+      }
+      const lastChunk = chunks[chunks.length - 1]!
+      this.store.updateChunk(recording.localUuid, lastChunk.uuid, {
+        isLast: true,
+      })
     }
   }
 

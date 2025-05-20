@@ -11,16 +11,23 @@ import fs from "fs"
 import { uploadCompleteCommandV3 } from "@main/commands/v3/upload-complete.command"
 import { OpenLibraryPageHandler } from "@main/v3/open-library-page-handler"
 import { StorageManagerV3 } from "@main/v3/storage-manager-v3"
+import { ProgressResolverV3 } from "@main/v3/progrss-resolver-v3"
 
 export class ServerUploadManager {
   private store: RecordStoreManager
   private storage: StorageManagerV3
   private isProcessing = false
   private openLibraryPageHandler = new OpenLibraryPageHandler()
+  private progressResolverV3 = new ProgressResolverV3()
 
-  constructor(store: RecordStoreManager, storage: StorageManagerV3) {
+  constructor(
+    store: RecordStoreManager,
+    storage: StorageManagerV3,
+    progressResolverV3: ProgressResolverV3
+  ) {
     this.store = store
     this.storage = storage
+    this.progressResolverV3 = progressResolverV3
 
     setInterval(() => this.processQueue(), 5000) // Проверка каждые 5 сек
   }
@@ -30,6 +37,7 @@ export class ServerUploadManager {
     this.isProcessing = true
     try {
       const recordForProcessing = this.store.getPriorityRecording()
+      console.log(recordForProcessing?.localUuid)
       if (recordForProcessing) {
         await this.processRecording(recordForProcessing)
       }
@@ -39,7 +47,9 @@ export class ServerUploadManager {
   }
 
   private async processRecording(recording: IRecordV3): Promise<void> {
-    if (!TokenStorage.token?.access_token) return
+    if (!TokenStorage.token?.access_token) {
+      return
+    }
     try {
       // 1. Инициализация загрузки
       if (!recording.upload) {
@@ -115,6 +125,10 @@ export class ServerUploadManager {
     const orgId = TokenStorage.organizationId
     const filename = recording.title + ".mp4"
     const preview = await this.storage.readPreview(recordingLocalUuid)
+    this.store.updateRecording(recordingLocalUuid, {
+      status: IRecordV3Status.CREATING_ON_SERVER,
+      lastUploadAttemptAt: Date.now(),
+    })
     try {
       const { data } = await initUploadCommandV3(
         token,
@@ -134,11 +148,9 @@ export class ServerUploadManager {
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.PENDING,
         failCounter: (recording.failCounter || 0) + 1,
-        lastUploadAttemptAt: Date.now(),
       })
       throw error
     }
-
     this.openLibraryPageHandler.checkToOpenLibraryPage(recording.localUuid)
   }
 
@@ -161,7 +173,10 @@ export class ServerUploadManager {
         try {
           const token = TokenStorage.token!.access_token
           const orgId = TokenStorage.organizationId!
-          const buffer = await fs.promises.readFile(chunk.source)
+          const buffer = await fs.promises.readFile(chunk.videoSource)
+          this.store.updateRecording(recordingLocalUuid, {
+            lastUploadAttemptAt: Date.now(),
+          })
           this.store.updateChunk(recordingLocalUuid, chunkUuid, {
             status: ChunkStatusV3.SENDING_TO_SERVER,
           })
@@ -171,6 +186,13 @@ export class ServerUploadManager {
             recording.serverUuid!,
             buffer
           )
+          if (Object.values(recording.chunks).find((c) => c.isLast)) {
+            this.progressResolverV3.updateChunkData(
+              recording.localUuid,
+              chunkUuid,
+              chunk.size
+            )
+          }
           this.store.updateChunk(recordingLocalUuid, chunkUuid, {
             status: ChunkStatusV3.SENT_TO_SERVER,
           })
@@ -183,7 +205,6 @@ export class ServerUploadManager {
           })
           this.store.updateRecording(recordingLocalUuid, {
             failCounter: (recording.failCounter || 0) + 1,
-            lastUploadAttemptAt: Date.now(),
           })
           throw error
         }
@@ -207,6 +228,7 @@ export class ServerUploadManager {
     const orgId = TokenStorage.organizationId!
     this.store.updateRecording(recordingLocalUuid, {
       status: IRecordV3Status.COMPLETING_ON_SERVER,
+      lastUploadAttemptAt: Date.now(),
     })
     try {
       const data = await uploadCompleteCommandV3(
@@ -214,6 +236,7 @@ export class ServerUploadManager {
         orgId,
         recording.serverUuid
       )
+      this.progressResolverV3.completeRecord(recordingLocalUuid)
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.COMPLETED_ON_SERVER,
         failCounter: 0,
@@ -226,7 +249,6 @@ export class ServerUploadManager {
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.COMPLETE,
         failCounter: (recording.failCounter || 0) + 1,
-        lastUploadAttemptAt: Date.now(),
       })
 
       throw error

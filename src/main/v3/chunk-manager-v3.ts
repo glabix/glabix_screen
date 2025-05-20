@@ -40,7 +40,7 @@ export class ChunkManagerV3 {
       const buffer = Buffer.from(event.data)
       const chunkParts = this.storage.splitChunk(buffer)
       for (const part of chunkParts) {
-        const source = await this.storage.saveChunkPart(
+        const { source, size } = await this.storage.saveChunkPart(
           dirPath,
           event.timestamp,
           part
@@ -48,10 +48,15 @@ export class ChunkManagerV3 {
         const isLast = event.isLast
           ? part.partIndex === chunkParts.length - 1
           : false
-        this.store.createChunk(event.innerFileUuid, chunkUuid, source, isLast)
+        this.store.createChunk(
+          event.innerFileUuid,
+          chunkUuid,
+          source,
+          isLast,
+          size
+        )
         this.store.updateRecording(event.innerFileUuid, {
           failCounter: recording.failCounter ? 1 : 0,
-          lastUploadAttemptAt: undefined,
         })
         this.openLibraryPageHandler.checkToOpenLibraryPage(event.innerFileUuid)
       }
