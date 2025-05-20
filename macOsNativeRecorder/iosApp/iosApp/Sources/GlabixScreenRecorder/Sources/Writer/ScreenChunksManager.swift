@@ -236,11 +236,13 @@ class ScreenChunksManager {
             at: chunkWriterStartTime// - (lastSampleBuffer.sampleBuffer.duration.seconds.isNaN ? CMTime() : lastSampleBuffer.sampleBuffer.duration)
            )
         {
-            if (additionalSampleBuffer.presentationTimeStamp != timestamp) {
-                debugPrint("(\(chunkWriter.chunkIndex)) @@@@@@ writing as first \(type) from #", lastSampleBuffer.chunkIndex, lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", chunkWriter.startTime?.seconds ?? 0, "duration", lastSampleBuffer.sampleBuffer.duration.seconds, "current", timestamp.seconds)
-                chunkWriter.appendSampleBuffer(additionalSampleBuffer, type: type)
-            } else {
-                debugPrint("(\(chunkWriter.chunkIndex)) @@@@@@ writing SKIPPED as first \(type) from #", lastSampleBuffer.chunkIndex, lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", chunkWriter.startTime?.seconds ?? 0, "duration", lastSampleBuffer.sampleBuffer.duration.seconds, "current", timestamp.seconds)
+            if type != .mic {
+                if (additionalSampleBuffer.presentationTimeStamp != timestamp) {
+                    debugPrint("(\(chunkWriter.chunkIndex)) @@@@@@ writing as first \(type) from #", lastSampleBuffer.chunkIndex, lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", chunkWriter.startTime?.seconds ?? 0, "duration", lastSampleBuffer.sampleBuffer.duration.seconds, "current", timestamp.seconds)
+                    chunkWriter.appendSampleBuffer(additionalSampleBuffer, type: type)
+                } else {
+                    debugPrint("(\(chunkWriter.chunkIndex)) @@@@@@ writing SKIPPED as first \(type) from #", lastSampleBuffer.chunkIndex, lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", chunkWriter.startTime?.seconds ?? 0, "duration", lastSampleBuffer.sampleBuffer.duration.seconds, "current", timestamp.seconds)
+                }
             }
             
             if type == .screen {
@@ -248,7 +250,7 @@ class ScreenChunksManager {
                     debugPrint("(\(chunkWriter.chunkIndex)) @@@@@@ writing as last \(type) to ", lastSampleBuffer.chunkIndex, lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "endtime", prevChunkWriter.endTime?.seconds ?? 0, "additionnal at", additionalSampleBuffer.presentationTimeStamp.seconds)
                     prevChunkWriter.appendSampleBuffer(additionalSampleBuffer, type: type)
                 } else {
-                    debugPrint("(\(chunkWriter.chunkIndex)) @@@@@@ writing as last \(type) to ", lastSampleBuffer.chunkIndex, "not found", chunkWritersDebugInfo)
+                    debugPrint("(\(chunkWriter.chunkIndex)) 💀💀💀@@@@@@ writing as last \(type) to ", lastSampleBuffer.chunkIndex, "not found", chunkWritersDebugInfo)
                 }
             }
         }

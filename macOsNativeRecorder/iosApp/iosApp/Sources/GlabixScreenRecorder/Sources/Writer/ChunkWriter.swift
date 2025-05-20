@@ -96,7 +96,7 @@ final class ChunkWriter {
             status = .cancelling
         } else {
             status = .finalizing
-            try? await Task.sleep(for: .seconds(0.3))
+            try? await Task.sleep(for: .seconds(0.5))
         }
         
         await finalizeOrCancel(endTime: endTime)

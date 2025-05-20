@@ -22,11 +22,22 @@ class CaptureDevicesObserver {
     }
     
     @objc func audioDeviceWasConnected(notification: Notification) {
+        handleDeviceUpdated(notification.object)
         Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
     }
     
     @objc func audioDeviceWasDisconnected(notification: Notification) {
+        handleDeviceUpdated(notification.object)
         Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
+    }
+    
+    func handleDeviceUpdated(_ object: Any?) {
+        guard let device = object as? AVCaptureDevice else { return }
+        if device.hasMediaType(.video) {
+            Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
+        } else if device.hasMediaType(.audio) {
+            Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
+        }
     }
 }
 

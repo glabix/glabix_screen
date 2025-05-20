@@ -81,6 +81,7 @@ class ScreenRecorder: NSObject {
     
     func start(withConfig config: Config) async throws {
         try await configure(with: config)
+        
         chunksManager?.startOnNextSample()
         Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
     }
