@@ -23,12 +23,10 @@ class CaptureDevicesObserver {
     
     @objc func audioDeviceWasConnected(notification: Notification) {
         handleDeviceUpdated(notification.object)
-        Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
     }
     
     @objc func audioDeviceWasDisconnected(notification: Notification) {
         handleDeviceUpdated(notification.object)
-        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
     }
     
     func handleDeviceUpdated(_ object: Any?) {
