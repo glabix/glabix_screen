@@ -1,7 +1,6 @@
 import Store from "electron-store"
 import {
   ChunkStatusV3,
-  ChunkTypeV3,
   IChunkV3,
   IRecordV3,
   IRecordV3Status,
@@ -86,42 +85,49 @@ export class RecordStoreManager {
   private buildChunk(
     innerRecordUuid: string,
     chunkUuid: string,
-    source: string,
+    videoSource: string,
+    audioSource: string | null,
     isLast: boolean,
-    size: number
+    size: number,
+    index: number
   ): IChunkV3 {
     return {
       innerRecordUuid,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       uuid: chunkUuid,
-      videoSource: source,
-      type: ChunkTypeV3.VIDEO,
+      videoSource: videoSource,
+      audioSource: audioSource,
       status: ChunkStatusV3.RECORDED,
       isLast,
       size,
+      index,
     }
   }
 
   createChunk(
     recordLocalUuid: string,
     chunkUuid: string,
-    source: string,
+    videoSource: string,
+    audioSource: string | null,
     isLast: boolean,
-    size: number
+    size: number,
+    index: number
   ) {
     this.logSender.sendLog(
       "chunks.store.create.start",
-      stringify({ recordLocalUuid, source, isLast })
+      stringify({ recordLocalUuid, videoSource, audioSource, isLast })
     )
     const recording = this.getRecording(recordLocalUuid)
     if (!recording) throw new Error(`Recording ${recordLocalUuid} not found`)
     const storeData = this.buildChunk(
       recordLocalUuid,
       chunkUuid,
-      source,
+      videoSource,
+      audioSource,
       isLast,
-      size
+      size,
+      index
     )
     const chunks = { ...recording.chunks }
     chunks[chunkUuid] = storeData

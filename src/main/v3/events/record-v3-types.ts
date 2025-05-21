@@ -13,11 +13,20 @@ export interface RecordSetCropDataEventV3 {
 
 export interface RecordDataEventV3 {
   type: RecordEventsV3.SEND_DATA
-  data: Buffer
-  innerFileUuid: string
-  timestamp: number // Добавляем timestamp вместо index
+  recordUuid: string // uuid записи экрана
+  uuid: string // uuid чанка
+  timestamp: number
+  videoSource: string
+  audioSource: string | null
+  size: number
   isLast: boolean
-  byteLength: number
+  index: number
+}
+
+export interface RecordLastChunkHandledV3 {
+  type: RecordEventsV3.LAST_CHUNK_HANDLED
+  recordUuid: string // uuid записи экрана
+  lastChunkIndex: number
 }
 
 export interface RecordCancelEventV3 {
@@ -30,6 +39,7 @@ export type RecordEventV3 =
   | RecordDataEventV3
   | RecordCancelEventV3
   | RecordSetCropDataEventV3
+  | RecordLastChunkHandledV3
 
 export enum IRecordV3Status {
   PENDING = "pending",
@@ -54,10 +64,11 @@ export interface IChunkV3 {
   createdAt: number
   updatedAt: number
   videoSource: string
-  audioSource?: string
+  audioSource: string | null
   status: ChunkStatusV3
   isLast: boolean
   size: number
+  index: number
 }
 
 export interface IRecordV3 {

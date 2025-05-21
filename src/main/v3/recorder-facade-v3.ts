@@ -5,6 +5,7 @@ import {
   RecordCancelEventV3,
   RecordDataEventV3,
   RecordEventV3,
+  RecordLastChunkHandledV3,
   RecordSetCropDataEventV3,
 } from "./events/record-v3-types"
 import { RecordEventsV3 } from "./events/record-v3-events"
@@ -49,6 +50,8 @@ export class RecorderFacadeV3 {
         break
       case RecordEventsV3.SET_CROP_DATA:
         return this.handleCropData(event)
+      case RecordEventsV3.LAST_CHUNK_HANDLED:
+        return this.handleLastChunk(event)
       default:
         throw new Error("Unknown event type")
     }
@@ -76,7 +79,25 @@ export class RecorderFacadeV3 {
     this.logSender.sendLog("records.chunks.handle.start", stringify(event))
     try {
       await this.chunkManager.handleDataEvent(event)
-      this.progressResolverV3.updateRecord(event.innerFileUuid)
+      this.progressResolverV3.updateRecord(event.recordUuid)
+    } catch (error) {
+      // Добавляем дополнительный контекст к ошибке
+      // @ts-ignore
+      this.logSender.sendLog(
+        "records.chunks.handle.error",
+        stringify(error),
+        true
+      )
+      throw new Error(`Failed to process data event: ${error.message}`)
+    }
+  }
+
+  private async handleLastChunk(
+    event: RecordLastChunkHandledV3
+  ): Promise<void> {
+    this.logSender.sendLog("records.chunks.handle.last.start", stringify(event))
+    try {
+      await this.chunkManager.handleLastChunkData(event)
     } catch (error) {
       // Добавляем дополнительный контекст к ошибке
       // @ts-ignore

@@ -14,3 +14,8 @@ export enum RecordSettingsEvents {
   INIT = "record-settings:init",
   UPDATE = "record-settings:update",
 }
+
+export enum ChunkSaverEvents {
+  CHUNK_FINALIZED = "chunk_finalized",
+  RECORD_STOPPED = "record_stopped",
+}

@@ -1,4 +1,5 @@
 import { BrowserWindow } from "electron"
+import { ChunkStatusV3 } from "@main/v3/events/record-v3-types"
 
 export type ScreenAction =
   | "fullScreenVideo"
@@ -253,4 +254,29 @@ export interface ILastDeviceSettings {
   videoId?: string
   audioId?: string
   systemAudio?: boolean
+}
+
+export interface IRecorderSavedChunk {
+  innerRecordUuid: string // uuid записи экрана
+  uuid: string // uuid чанка
+  createdAt: number
+  videoSource: string
+  audioSource: string | null
+  size: number
+  isLast: boolean
+  index: number
+}
+
+export interface IRecorderLastChunkHandled {
+  innerRecordUuid: string // uuid записи экрана
+  index: number
+}
+
+export interface IHandleChunkDataEvent {
+  data: ArrayBuffer
+  recordUuid: string
+  timestamp: number
+  isLast: boolean
+  size: number
+  index: number
 }

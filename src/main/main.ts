@@ -34,9 +34,11 @@ import {
   IDialogWindowData,
   IDropdownPageData,
   IDropdownPageSelectData,
+  IHandleChunkDataEvent,
   IMediaDevicesAccess,
   IModalWindowTabData,
   IOrganizationLimits,
+  IRecorderSavedChunk,
   IRecordUploadProgressData,
   IScreenshotImageData,
   ISimpleStoreData,
@@ -67,6 +69,7 @@ import { is, optimizer } from "@electron-toolkit/utils"
 import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
 import {
+  ChunkSaverEvents,
   RecordEvents,
   RecordSettingsEvents,
 } from "../shared/events/record.events"
@@ -102,12 +105,18 @@ import AutoLaunch from "./helpers/auto-launch.helper"
 import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
 import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
 import {
+  ChunkPart,
   RecordCancelEventV3,
   RecordDataEventV3,
+  RecordLastChunkHandledV3,
   RecordSetCropDataEventV3,
   RecordStartEventV3,
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
+import fs from "fs/promises"
+import { fsErrorParser } from "@main/helpers/fs-error-parser"
+import { ChunkProcessor } from "@main/chunk-saver"
+import EventEmitter from "node:events"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -136,6 +145,8 @@ let cleanupScheduler: RecorderSchedulerV3
 const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
+const chunkProcessor = new ChunkProcessor()
+const emitter = new EventEmitter()
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -1710,16 +1721,46 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     showRecordErrorBox("Ошибка записи")
     return
   }
-  const sendDataEvent: RecordDataEventV3 = {
-    type: RecordEventsV3.SEND_DATA,
+  const handleChunkDataEvent: IHandleChunkDataEvent = {
     data,
-    innerFileUuid: fileUuid,
+    recordUuid: fileUuid,
     timestamp: Date.now(),
     isLast,
-    byteLength: data.byteLength,
+    size: data.byteLength,
+    index: index - 1,
   }
-  recorderFacadeV3.handleEvent(sendDataEvent)
+  chunkProcessor.addChunk(handleChunkDataEvent)
 })
+
+chunkProcessor.on(
+  ChunkSaverEvents.CHUNK_FINALIZED,
+  (data: IRecorderSavedChunk) => {
+    const sendDataEvent: RecordDataEventV3 = {
+      type: RecordEventsV3.SEND_DATA,
+      recordUuid: data.innerRecordUuid,
+      uuid: data.uuid,
+      timestamp: data.createdAt,
+      videoSource: data.videoSource,
+      audioSource: data.audioSource,
+      size: data.size,
+      isLast: data.isLast,
+      index: data.index,
+    }
+    recorderFacadeV3.handleEvent(sendDataEvent)
+  }
+)
+
+chunkProcessor.on(
+  ChunkSaverEvents.RECORD_STOPPED,
+  (data: IRecorderSavedChunk) => {
+    const sendDataEvent: RecordLastChunkHandledV3 = {
+      type: RecordEventsV3.LAST_CHUNK_HANDLED,
+      recordUuid: data.innerRecordUuid,
+      lastChunkIndex: data.index,
+    }
+    recorderFacadeV3.handleEvent(sendDataEvent)
+  }
+)
 
 ipcMain.on("stop-recording", (event, data) => {
   if (mainWindow) {
