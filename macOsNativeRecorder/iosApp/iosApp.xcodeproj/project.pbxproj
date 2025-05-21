@@ -35,6 +35,7 @@
 		B31B38C32DC5006C0001C7EB /* MicInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A32DC5006C0001C7EB /* MicInput.swift */; };
 		B35875302DD4BF13004AF111 /* ChunkWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B358752F2DD4BF13004AF111 /* ChunkWriter.swift */; };
 		B394DCD62DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */; };
+		B394DCD82DDDF08300474586 /* WaveformProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B394DCD72DDDF08300474586 /* WaveformProcessor.swift */; };
 		B3C095F42DC9EFC600ED3CB7 /* RecordConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F02DC9EFC600ED3CB7 /* RecordConfiguration.swift */; };
 		B3C095F52DC9EFC600ED3CB7 /* CommandAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */; };
 		B3C095F62DC9EFC600ED3CB7 /* ScreenConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C095F22DC9EFC600ED3CB7 /* ScreenConfigurator.swift */; };
@@ -92,6 +93,7 @@
 		B31B38AD2DC5006C0001C7EB /* VideoInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoInput.swift; sourceTree = "<group>"; };
 		B358752F2DD4BF13004AF111 /* ChunkWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkWriter.swift; sourceTree = "<group>"; };
 		B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureDeviceDiscoverable.swift; sourceTree = "<group>"; };
+		B394DCD72DDDF08300474586 /* WaveformProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformProcessor.swift; sourceTree = "<group>"; };
 		B3C095EC2DC9EFC600ED3CB7 /* Command.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Command.swift; sourceTree = "<group>"; };
 		B3C095ED2DC9EFC600ED3CB7 /* CommandAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandAction.swift; sourceTree = "<group>"; };
 		B3C095EE2DC9EFC600ED3CB7 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
@@ -213,6 +215,7 @@
 		B31B38AE2DC5006C0001C7EB /* Writer */ = {
 			isa = PBXGroup;
 			children = (
+				B394DCD72DDDF08300474586 /* WaveformProcessor.swift */,
 				B358752F2DD4BF13004AF111 /* ChunkWriter.swift */,
 				B3C095FB2DC9F06500ED3CB7 /* ScreenRecorderService.swift */,
 				B31B38A02DC5006C0001C7EB /* AudioMixer.swift */,
@@ -396,6 +399,7 @@
 				B31B38BE2DC5006C0001C7EB /* ScreenWriter.swift in Sources */,
 				B31B38C02DC5006C0001C7EB /* StreamOutput.swift in Sources */,
 				B31B38C12DC5006C0001C7EB /* SystemAudioInput.swift in Sources */,
+				B394DCD82DDDF08300474586 /* WaveformProcessor.swift in Sources */,
 				B31B38C32DC5006C0001C7EB /* MicInput.swift in Sources */,
 				B3C095FC2DC9F06500ED3CB7 /* ScreenRecorderService.swift in Sources */,
 				B303A5A62DB779D400487002 /* SelectAreaPanel.swift in Sources */,

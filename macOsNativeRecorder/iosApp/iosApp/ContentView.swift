@@ -107,11 +107,11 @@ struct ContentView: View {
                     Text("mics")
                 }
                 
-                Button(action: {
-                    handler.printVideoInputDevices()
-                }) {
-                    Text("camera")
-                }
+//                Button(action: {
+//                    handler.printVideoInputDevices()
+//                }) {
+//                    Text("camera")
+//                }
             }
             
             

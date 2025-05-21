@@ -39,10 +39,16 @@ extension Callback {
         var action: RecordingAction = .audioInputDevices
     }
     
-    struct CameraDevices: CallbackActionContainable {
-        let devices: [CaptureDevice]
+//    struct CameraDevices: CallbackActionContainable {
+//        let devices: [CaptureDevice]
+//        
+//        var action: RecordingAction = .videoInputDevices
+//    }
+    
+    struct MicrophoneWaveform: CallbackActionContainable {
+        let amplitudes: [Float]
         
-        var action: RecordingAction = .videoInputDevices
+        var action: RecordingAction = .microphoneWaveform
     }
 }
 
@@ -52,7 +58,8 @@ extension Callback {
         case started
         case stopped
         case audioInputDevices
-        case videoInputDevices
+//        case videoInputDevices
+        case microphoneWaveform
     }
     
     struct ChunkFinalized: CallbackActionContainable {
@@ -75,7 +82,6 @@ class ScreenRecorderService {
     private let recorder = ScreenRecorder()
     private let captureDevicesObserver = CaptureDevicesObserver()
     private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
-//    private let completionGroup = DispatchGroup()
     
     static func printCallback(_ message: String) {
         fflush(stdout)
@@ -100,12 +106,10 @@ class ScreenRecorderService {
     }
             
     func startRecording(withConfig config: Config) {
-//        completionGroup.enter()
         commandQueue.async { [recorder] in
             Task { [recorder] in
                 defer { fflush(stdout) }
                 do {
-//                    try await self.recorder.startCapture(configJSON: configJSON)
                     try await recorder.start(withConfig: config)
                     let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
                     ScreenRecorderService.printCallback("recording started at `\(path)`")
@@ -113,7 +117,6 @@ class ScreenRecorderService {
                     
                 } catch {
                     print("Error starting capture: \(error)")
-//                    self.completionGroup.leave()
                 }
             }
         }
@@ -144,10 +147,8 @@ class ScreenRecorderService {
                 do {
                     try await recorder.stop()
                     print("Recording stopped")
-//                    self.completionGroup.leave()
                 } catch {
                     print("Error stopping capture: \(error)")
-//                    self.completionGroup.leave()
                 }
             }
         }
@@ -157,11 +158,7 @@ class ScreenRecorderService {
         recorder.printAudioInputDevices()
     }
     
-    func printVideoInputDevices() {
-        recorder.printVideoInputDevices()
-    }
-    
-//    func waitForCompletion() {
-//        completionGroup.wait()
+//    func printVideoInputDevices() {
+//        recorder.printVideoInputDevices()
 //    }
 }

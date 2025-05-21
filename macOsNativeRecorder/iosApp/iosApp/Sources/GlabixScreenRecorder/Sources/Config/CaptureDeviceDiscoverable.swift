@@ -10,7 +10,7 @@ import AVFoundation
 
 class CaptureDevicesObserver {
     private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
-    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
+//    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
     
     init() {
         setupObservers()
@@ -31,9 +31,10 @@ class CaptureDevicesObserver {
     
     func handleDeviceUpdated(_ object: Any?) {
         guard let device = object as? AVCaptureDevice else { return }
-        if device.hasMediaType(.video) {
-            Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
-        } else if device.hasMediaType(.audio) {
+//        if device.hasMediaType(.video) {
+//            Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
+//        } else
+        if device.hasMediaType(.audio) {
             Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
         }
     }

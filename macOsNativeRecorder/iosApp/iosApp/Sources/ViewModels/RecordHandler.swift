@@ -119,7 +119,7 @@ class RecordHandler: ObservableObject {
         screenRecorder.printAudioInputDevices()
     }
     
-    func printVideoInputDevices() {
-        screenRecorder.printVideoInputDevices()
-    }
+//    func printVideoInputDevices() {
+//        screenRecorder.printVideoInputDevices()
+//    }
 }

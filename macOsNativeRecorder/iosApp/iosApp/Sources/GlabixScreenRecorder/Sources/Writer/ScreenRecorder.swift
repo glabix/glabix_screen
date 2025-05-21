@@ -22,7 +22,9 @@ class ScreenRecorder: NSObject {
     private let screenCaptureQueue = DispatchQueue(label: "com.glabix.screen.screenCapture")
     
     private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
-    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
+//    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
+    
+    let waveformProcessor: WaveformProcessor = WaveformProcessor()
     
     private func setupStream(
         screenConfigurator: ScreenConfigurator,
@@ -55,16 +57,17 @@ class ScreenRecorder: NSObject {
         Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
     }
     
-    func printVideoInputDevices() {
-        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
-    }
+//    func printVideoInputDevices() {
+//        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
+//    }
     
     private func configureMicrophoneCapture(uniqueID: String?) {
         microphoneSession = AVCaptureSession()
         
-        guard let microphone = microphoneDevices.deviceOrDefault(uniqueID: uniqueID) else {
-            return
-        }
+        let device = microphoneDevices.deviceOrDefault(uniqueID: uniqueID)
+        waveformProcessor.configureMicrophoneCapture(with: device)
+        
+        guard let microphone = device else { return}
         print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
         
         do {
@@ -72,6 +75,7 @@ class ScreenRecorder: NSObject {
             microphoneSession?.addInput(micInput)
             
             let micOutput = AVCaptureAudioDataOutput()
+            
             micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
             microphoneSession?.addOutput(micOutput)
         } catch {
@@ -122,14 +126,9 @@ class ScreenRecorder: NSObject {
     }
     
     func stop() async throws {
-//        screenCaptureQueue.async { [weak self] in
-            // Stop capturing, wait for stream to stop
         try await stream?.stopCapture()
         microphoneSession?.stopRunning()
             
         await chunksManager?.stop()
-        
-        
-//        }
     }
 }

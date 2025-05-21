@@ -36,8 +36,8 @@ struct GlabixScreenRecorder: ParsableCommand {
                             recorder.resume()
                         case .printAudioInputDevices:
                             recorder.printAudioInputDevices()
-                        case .printVideoInputDevices:
-                            recorder.printVideoInputDevices()
+//                        case .printVideoInputDevices:
+//                            recorder.printVideoInputDevices()
                     }
                 } catch {
                     let action = commandJSON
@@ -56,8 +56,8 @@ struct GlabixScreenRecorder: ParsableCommand {
                             recorder.resume()
                         case "mics":
                             recorder.printAudioInputDevices()
-                        case "cams":
-                            recorder.printVideoInputDevices()
+//                        case "cams":
+//                            recorder.printVideoInputDevices()
                         default:
                             print("invalid command format", error)
                     }
