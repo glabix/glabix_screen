@@ -13,7 +13,7 @@ class WaveformProcessor: NSObject {
     
     private var amplitudes: [[Float]] = []
     private var lastSaveTime = Date()
-    private let updateInterval: TimeInterval = 0.1 // 100ms интервалы
+    private let updateInterval: TimeInterval = 1.0/30 // 100ms интервалы
     private let queue = DispatchQueue(label: "com.glabix.screen.screenCapture.waveform")
     
     override init() {
@@ -44,10 +44,9 @@ class WaveformProcessor: NSObject {
         let frames = data.map { Float($0)/Float(Int16.max) }
         amplitudes.append(frames)
         
-        Callback.print(Callback.MicrophoneWaveform(amplitudes: frames))
-        
         let currentTime = Date()
         if currentTime.timeIntervalSince(lastSaveTime) >= updateInterval {
+            Callback.print(Callback.MicrophoneWaveform(amplitudes: amplitudes.flatMap { $0 }))
             amplitudes.removeAll()
             lastSaveTime = currentTime
         }
