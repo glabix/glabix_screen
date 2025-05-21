@@ -65,7 +65,6 @@ class ScreenRecorder: NSObject {
         microphoneSession = AVCaptureSession()
         
         let device = microphoneDevices.deviceOrDefault(uniqueID: uniqueID)
-        waveformProcessor.configureMicrophoneCapture(with: device)
         
         guard let microphone = device else { return}
         print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
@@ -78,6 +77,7 @@ class ScreenRecorder: NSObject {
             
             micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
             microphoneSession?.addOutput(micOutput)
+            microphoneSession?.addOutput(waveformProcessor.micOutput)
         } catch {
             print("Error setting up microphone capture: \(error)")
         }
@@ -118,10 +118,10 @@ class ScreenRecorder: NSObject {
         print("config.captureMicrophone", config.captureMicrophone)
         if config.captureMicrophone {
             configureMicrophoneCapture(uniqueID: config.microphoneUniqueID)
+            microphoneSession?.startRunning()
         }
         
         // Start capturing, wait for stream to start
-        microphoneSession?.startRunning()
         try await stream?.startCapture()
     }
     

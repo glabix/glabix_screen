@@ -9,40 +9,28 @@
 import AVFoundation
 
 class WaveformProcessor: NSObject {
-    var microphoneSession: AVCaptureSession?
+    let micOutput: AVCaptureAudioDataOutput
+    
     private var amplitudes: [[Float]] = []
     private var lastSaveTime = Date()
     private let updateInterval: TimeInterval = 0.1 // 100ms интервалы
     private let queue = DispatchQueue(label: "com.glabix.screen.screenCapture.waveform")
     
-    func configureMicrophoneCapture(with microphone: AVCaptureDevice?) {
-        microphoneSession = AVCaptureSession()
+    override init() {
+        micOutput = AVCaptureAudioDataOutput()
+        let audioSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM, // PCM формат
+            AVSampleRateKey: 8000,                // Низкая частота дискретизации
+            AVNumberOfChannelsKey: 1,             // Моно
+            AVLinearPCMBitDepthKey: 16,           // Глубина 16 бит
+            AVLinearPCMIsFloatKey: false,         // Целочисленный формат
+            AVLinearPCMIsNonInterleaved: false    // Смешанный формат
+        ]
+        micOutput.audioSettings = audioSettings
         
-        guard let microphone = microphone else {
-            return
-        }
+        super.init()
         
-        do {
-            let micInput = try AVCaptureDeviceInput(device: microphone)
-            microphoneSession?.addInput(micInput)
-            
-            let micOutput = AVCaptureAudioDataOutput()
-            let audioSettings: [String: Any] = [
-                AVFormatIDKey: kAudioFormatLinearPCM, // PCM формат
-                AVSampleRateKey: 8000,                // Низкая частота дискретизации
-                AVNumberOfChannelsKey: 1,             // Моно
-                AVLinearPCMBitDepthKey: 16,           // Глубина 16 бит
-                AVLinearPCMIsFloatKey: false,         // Целочисленный формат
-                AVLinearPCMIsNonInterleaved: false    // Смешанный формат
-            ]
-            micOutput.audioSettings = audioSettings
-            
-            micOutput.setSampleBufferDelegate(self, queue: queue)
-            microphoneSession?.addOutput(micOutput)
-            microphoneSession?.startRunning()
-        } catch {
-            print("Error setting up microphone capture: \(error)")
-        }
+        micOutput.setSampleBufferDelegate(self, queue: queue)
     }
     
     func process(_ sampleBuffer: CMSampleBuffer) {
