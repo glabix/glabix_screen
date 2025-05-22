@@ -84,6 +84,102 @@ class MicrophoneCaptureDevices: CaptureDeviceDiscoverable {
     }
 }
 
+extension MicrophoneCaptureDevices {
+    func getAudioDeviceID(from uid: String) -> AudioDeviceID {
+        var deviceID = kAudioObjectUnknown
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMaster
+        )
+        
+        var propertySize: UInt32 = 0
+        var status = AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &propertySize
+        )
+        
+        if status != noErr {
+            print("Error getting property data size: \(status)")
+            return deviceID
+        }
+        
+        let deviceCount = Int(propertySize) / MemoryLayout<AudioDeviceID>.size
+        var deviceIDs: [AudioDeviceID] = Array(repeating: kAudioObjectUnknown, count: deviceCount)
+        
+        status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &propertySize,
+            &deviceIDs
+        )
+        
+        if status != noErr {
+            print("Error getting property data: \(status)")
+            return deviceID
+        }
+        
+        for id in deviceIDs {
+            var name: CFString = "" as CFString
+            var nameSize = UInt32(MemoryLayout<CFString>.size)
+            var address = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDeviceUID,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMaster
+            )
+            
+            status = AudioObjectGetPropertyData(
+                id,
+                &address,
+                0,
+                nil,
+                &nameSize,
+                &name
+            )
+            
+            if status == noErr && name as String == uid {
+                return id
+            }
+        }
+        
+        return deviceID
+    }
+    
+    func setDefaultInputDevice(to deviceUID: String) {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMaster
+        )
+        
+        var deviceID = getAudioDeviceID(from: deviceUID)
+        guard deviceID != kAudioObjectUnknown else {
+            print("Device with UID \(deviceUID) not found.")
+            return
+        }
+        
+        let status = AudioObjectSetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            UInt32(MemoryLayout.size(ofValue: deviceID)),
+            &deviceID
+        )
+        
+        if status != noErr {
+            print("Error setting default input device: \(status)")
+        } else {
+            print("Default input device successfully set to \(deviceUID)")
+        }
+    }
+}
+
 class CameraCaptureDevices: CaptureDeviceDiscoverable {
     var systemPreferredDevice: AVCaptureDevice? { .default(for: .video) }
     

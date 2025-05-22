@@ -77,7 +77,9 @@ class ScreenRecorder: NSObject {
             
             micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
             microphoneSession?.addOutput(micOutput)
-            microphoneSession?.addOutput(waveformProcessor.micOutput)
+            waveformProcessor.micOutput.map {
+                microphoneSession?.addOutput($0)
+            }
         } catch {
             print("Error setting up microphone capture: \(error)")
         }

@@ -58,7 +58,8 @@ class RecordHandler: ObservableObject {
                 showCursor: true,
                 captureSystemAudio: true,
                 captureMicrophone: true,
-                microphoneUniqueID: nil//"6A08AC30-F752-4660-82B0-F72A00000003"
+                microphoneUniqueID: nil
+//                microphoneUniqueID: "6A08AC30-F752-4660-82B0-F72A00000003"
             ))
     }
     

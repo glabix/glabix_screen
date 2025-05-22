@@ -8,15 +8,46 @@
 
 import AVFoundation
 
+class WaveformSender {
+    lazy var fileURL: URL = {
+        let tempDirectoryURL = FileManager.default.temporaryDirectory
+        let tempFileURL = tempDirectoryURL.appendingPathComponent("numbers.txt")
+        return tempFileURL
+    }()
+    
+    func callback(values: [Float]) {
+        Callback.print(Callback.MicrophoneWaveform(amplitudes: values))
+    }
+    
+    func write(values: [Float]) {
+        if !FileManager.default.fileExists(atPath: fileURL.path) {
+            FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
+        }
+
+        let numberString = values.map(\.description).joined(separator: ",")
+        do {
+            try numberString.write(to: fileURL, atomically: true, encoding: .utf8)
+        } catch {
+            print("Не удалось записать в файл: \(error)")
+        }
+    }
+}
+
 class WaveformProcessor: NSObject {
-    let micOutput: AVCaptureAudioDataOutput
+    let micOutput: AVCaptureAudioDataOutput?
     
     private var amplitudes: [[Float]] = []
     private var lastSaveTime = Date()
     private let updateInterval: TimeInterval = 1.0/30 // 100ms интервалы
     private let queue = DispatchQueue(label: "com.glabix.screen.screenCapture.waveform")
     
+    private let sender = WaveformSender()
+    
     override init() {
+        micOutput = nil
+        super.init()
+        return;
+        
         micOutput = AVCaptureAudioDataOutput()
         let audioSettings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM, // PCM формат
@@ -26,11 +57,11 @@ class WaveformProcessor: NSObject {
             AVLinearPCMIsFloatKey: false,         // Целочисленный формат
             AVLinearPCMIsNonInterleaved: false    // Смешанный формат
         ]
-        micOutput.audioSettings = audioSettings
+        micOutput?.audioSettings = audioSettings
         
         super.init()
         
-        micOutput.setSampleBufferDelegate(self, queue: queue)
+        micOutput?.setSampleBufferDelegate(self, queue: queue)
     }
     
     func process(_ sampleBuffer: CMSampleBuffer) {
@@ -46,7 +77,7 @@ class WaveformProcessor: NSObject {
         
         let currentTime = Date()
         if currentTime.timeIntervalSince(lastSaveTime) >= updateInterval {
-            Callback.print(Callback.MicrophoneWaveform(amplitudes: amplitudes.flatMap { $0 }))
+            sender.callback(values: amplitudes.flatMap { $0 })
             amplitudes.removeAll()
             lastSaveTime = currentTime
         }
