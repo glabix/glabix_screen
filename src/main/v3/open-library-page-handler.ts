@@ -1,8 +1,9 @@
 import { TokenStorage } from "@main/storages/token-storage"
 import { openExternalLink } from "@shared/helpers/open-external-link"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
-import { Notification } from "electron"
+import { ipcMain, Notification } from "electron"
 import { LogSender } from "@main/helpers/log-sender"
+import { FileUploadEvents } from "@shared/events/file-upload.events"
 
 export class OpenLibraryPageHandler {
   store = new RecordStoreManager()
@@ -21,10 +22,16 @@ export class OpenLibraryPageHandler {
     })
     if (recording.serverUuid && lastChunk) {
       if (this.store.getLastCreatedRecordCache() === recording.localUuid) {
-        this.openLibraryPage(recording.localUuid, false)
+        this.openLibraryPage(recording.serverUuid, false)
       } else {
         this.showLoadedNotification(recording.localUuid)
       }
+    }
+    if (recording.failCounter && lastChunk) {
+      const params = {
+        filename: recording.title,
+      }
+      ipcMain.emit(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, params)
     }
   }
 

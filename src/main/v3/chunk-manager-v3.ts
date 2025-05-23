@@ -45,6 +45,15 @@ export class ChunkManagerV3 {
       )
     }
     this.store.updateChunk(event.recordUuid, chunk.uuid, { isLast: true })
+    try {
+      this.openLibraryPageHandler.checkToOpenLibraryPage(event.recordUuid)
+    } catch (error) {
+      this.logSender.sendLog(
+        "utils.open_library_page.error",
+        stringify(error),
+        true
+      )
+    }
   }
   async handleDataEvent(event: RecordDataEventV3): Promise<void> {
     this.logSender.sendLog("chunks.handle.start", stringify(event))
@@ -70,7 +79,15 @@ export class ChunkManagerV3 {
     this.store.updateRecording(event.recordUuid, {
       failCounter: recording.failCounter ? 1 : 0,
     })
-    this.openLibraryPageHandler.checkToOpenLibraryPage(event.recordUuid)
+    try {
+      this.openLibraryPageHandler.checkToOpenLibraryPage(event.recordUuid)
+    } catch (error) {
+      this.logSender.sendLog(
+        "utils.open_library_page.error",
+        stringify(error),
+        true
+      )
+    }
 
     if (event.isLast) {
       this.activeRecordings.delete(event.recordUuid)

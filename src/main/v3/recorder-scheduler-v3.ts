@@ -4,22 +4,20 @@ import { TokenStorage } from "@main/storages/token-storage"
 import { deleteUploadCommand } from "@main/commands/v3/delete-upload.command"
 import { ChunkStatusV3, IRecordV3Status } from "@main/v3/events/record-v3-types"
 import axios, { AxiosError } from "axios"
+import { stringify } from "@main/helpers/stringify"
+import { LogSender } from "@main/helpers/log-sender"
 
 export class RecorderSchedulerV3 {
-  private interval: NodeJS.Timeout
+  private interval: NodeJS.Timeout | null = null
   private storage = new StorageManagerV3()
   private store = new RecordStoreManager()
+  private logSender = new LogSender()
+
   constructor() {}
 
   start() {
-    this.interval = setInterval(
-      () => {
-        this.cleanupCompleted()
-        this.cleanupCanceled()
-      },
-      5 * 1000
-      // 60 * 1000 * 5 //5 min
-    )
+    this.logSender.sendLog("utils.recorder_scheduler.start")
+    this.startIntervals()
 
     // only on start
     this.cleanupEmpty()
@@ -32,11 +30,26 @@ export class RecorderSchedulerV3 {
     this.store.resetLastCreatedRecordCache()
   }
 
-  stop() {
-    clearInterval(this.interval)
+  stopIntervals() {
+    if (this.interval) {
+      clearInterval(this.interval)
+      this.interval = null
+    }
+  }
+
+  startIntervals() {
+    this.logSender.sendLog("utils.recorder_scheduler.startIntervals")
+    this.interval = setInterval(
+      () => {
+        this.cleanupCompleted()
+        this.cleanupCanceled()
+      },
+      60 * 1000 * 5 //5 min
+    )
   }
 
   private async resetRecords() {
+    this.logSender.sendLog("utils.recorder_scheduler.resetRecords.start")
     const recordings = this.store.getRecordings()
     for (const record of recordings) {
       if (record.status === IRecordV3Status.CREATING_ON_SERVER) {
@@ -53,6 +66,9 @@ export class RecorderSchedulerV3 {
   }
 
   private setIsLastForLastChunk() {
+    this.logSender.sendLog(
+      "utils.recorder_scheduler.setIsLastForLastChunk.start"
+    )
     const recordings = this.store.getRecordings()
     for (const recording of recordings) {
       const chunks = Object.values(recording.chunks)
@@ -70,6 +86,7 @@ export class RecorderSchedulerV3 {
   }
 
   private resetChunks() {
+    this.logSender.sendLog("utils.recorder_scheduler.resetChunks.start")
     const sendingChunks = this.store.getSendingChunks()
     for (const chunk of sendingChunks) {
       this.store.updateChunk(chunk.innerRecordUuid, chunk.uuid, {
@@ -79,6 +96,7 @@ export class RecorderSchedulerV3 {
   }
 
   private async cleanupCompleted(): Promise<void> {
+    this.logSender.sendLog("utils.recorder_scheduler.cleanupCompleted.start")
     const completed = this.store.getCompletedRecordings()
 
     await Promise.all(
@@ -89,6 +107,7 @@ export class RecorderSchedulerV3 {
   }
 
   private async cleanupCanceled(): Promise<void> {
+    this.logSender.sendLog("utils.recorder_scheduler.cleanupCanceled.start")
     const canceledOnServerRecords = this.store.getCanceledRecords()
     const filteredCanceledRecords = canceledOnServerRecords.filter(
       (c) => Date.now() - c.canceledAt! > 1000 * 30
@@ -108,6 +127,7 @@ export class RecorderSchedulerV3 {
   }
 
   private async cleanupEmpty(): Promise<void> {
+    this.logSender.sendLog("utils.recorder_scheduler.cleanupEmpty.start")
     const empty = this.store.getEmptyRecords()
 
     await Promise.all(
@@ -116,6 +136,9 @@ export class RecorderSchedulerV3 {
   }
 
   private async cancelRecordOnServer(recordingLocalUuid: string) {
+    this.logSender.sendLog(
+      "utils.recorder_scheduler.cancelRecordOnServer.start"
+    )
     const recording = this.store.getRecording(recordingLocalUuid)
     if (!recording) {
       throw new Error(`Recording ${recordingLocalUuid} not found`)

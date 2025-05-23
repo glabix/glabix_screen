@@ -23,10 +23,10 @@ export function initUploadCommandV3(
   if (preview) {
     formData.append("preview", preview)
   }
-  return new Promise((res) => res({ data: { uuid: "123" } }))
-  // return axios.post<{
-  //   uuid: string
-  // }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
+  // return new Promise((res) => res({ data: { uuid: "123" } }))
+  return axios.post<{
+    uuid: string
+  }>(url, formData, { headers: { Authorization: `Bearer ${token}` } })
 }
 
 import { ICropVideoData } from "@shared/types/types"

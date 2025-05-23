@@ -14,6 +14,7 @@ import { ServerUploadManager } from "@main/v3/server-upload-manager"
 import { stringify } from "@main/helpers/stringify"
 import { LogSender } from "@main/helpers/log-sender"
 import { ProgressResolverV3 } from "@main/v3/progrss-resolver-v3"
+import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 
 export class RecorderFacadeV3 {
   private chunkManager = new ChunkManagerV3()
@@ -22,9 +23,11 @@ export class RecorderFacadeV3 {
   private uploadManager: ServerUploadManager
   private logSender = new LogSender()
   private progressResolverV3 = new ProgressResolverV3()
-
-  constructor() {
+  private scheduler: RecorderSchedulerV3
+  private isSleeping = false
+  constructor(scheduler: RecorderSchedulerV3) {
     this.store = new RecordStoreManager()
+    this.scheduler = scheduler
     this.uploadManager = new ServerUploadManager(
       this.store,
       this.storage,
@@ -134,7 +137,7 @@ export class RecorderFacadeV3 {
 
   async handlePreview(
     recordingInnerUuid: string,
-    previewData: ArrayBuffer
+    previewData: string
   ): Promise<void> {
     try {
       await this.storage.savePreview(recordingInnerUuid, previewData)
@@ -143,7 +146,19 @@ export class RecorderFacadeV3 {
     }
   }
 
-  async getPreview(recordingId: string): Promise<string | null> {
+  async getPreview(recordingId: string): Promise<File | null> {
     return this.storage.readPreview(recordingId)
+  }
+
+  wakeUp() {
+    this.uploadManager.isSleep = false
+    this.scheduler.startIntervals()
+    this.isSleeping = false
+  }
+
+  sleep() {
+    this.uploadManager.isSleep = true
+    this.scheduler.stopIntervals()
+    this.isSleeping = true
   }
 }

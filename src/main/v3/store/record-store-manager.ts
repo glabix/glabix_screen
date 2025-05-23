@@ -27,6 +27,10 @@ export class RecordStoreManager {
   }
 
   deleteRecord(recordLocalUuid: string) {
+    this.logSender.sendLog(
+      "records.store.delete.record",
+      JSON.stringify({ recordLocalUuid })
+    )
     this.store.delete(`${RECORDINGS}.${recordLocalUuid}`)
   }
 
@@ -183,7 +187,6 @@ export class RecordStoreManager {
       const delay = getUploadDelay(attempts)
       const updatedAt = recording.lastUploadAttemptAt || recording.createdAt
       const priority = now - updatedAt - delay
-      console.log(priority)
       if (priority > 0) {
         if (priority > maxPriority) {
           maxPriority = priority
@@ -259,6 +262,10 @@ export class RecordStoreManager {
 
 export function getUploadDelay(attempt: number): number {
   const delays = [
+    0, // Первая попытка (0 сек)
+    0, // Первая попытка (0 сек)
+    0, // Первая попытка (0 сек)
+    0, // Первая попытка (0 сек)
     0, // Первая попытка (0 сек)
     1000 * 10, // 10 сек
     1000 * 20, // 20 сек

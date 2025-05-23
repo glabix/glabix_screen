@@ -1,4 +1,4 @@
-import fs from "fs/promises"
+import fs from "fs"
 import path from "path"
 import { ChunkPart } from "@main/v3/events/record-v3-types"
 import { app } from "electron"
@@ -21,85 +21,59 @@ export class StorageManagerV3 {
   async prepareDirectory(uuid: string): Promise<string> {
     const dirPath = path.join(this.baseDir, uuid)
     try {
-      await fs.mkdir(dirPath, { recursive: true })
+      await fs.promises.mkdir(dirPath, { recursive: true })
     } catch (error) {
       fsErrorParser(error, dirPath)
     }
     return dirPath
   }
 
-  async saveChunkPart(
-    directory: string,
-    timestamp: number,
-    chunkPart: ChunkPart
-  ): Promise<{ source: string; size: number }> {
-    const fileName = `${timestamp}_${chunkPart.partIndex}.bin`
-    const filePath = path.join(directory, fileName)
-    this.logSender.sendLog("storage.chunk.save.start", stringify({ filePath }))
-    try {
-      await fs.writeFile(filePath, chunkPart.data)
-    } catch (error) {
-      this.logSender.sendLog(
-        "storage.chunk.save.error",
-        stringify({ error }),
-        true
-      )
-      fsErrorParser(error, filePath)
-      // @ts-ignore
-      throw new Error(`Failed to save chunk part ${fileName}: ${error.message}`)
-    }
-    this.logSender.sendLog(
-      "storage.chunk.save.completed",
-      stringify({ filePath })
-    )
-    return { source: filePath, size: chunkPart.data.length }
-  }
-
-  splitChunk(data: Buffer): ChunkPart[] {
-    const parts: ChunkPart[] = []
-    const totalParts = Math.ceil(data.length / MAX_CHUNK_SIZE)
-
-    for (let i = 0; i < totalParts; i++) {
-      const start = i * MAX_CHUNK_SIZE
-      const end = Math.min((i + 1) * MAX_CHUNK_SIZE, data.length)
-      const partData = data.subarray(start, end)
-
-      parts.push({
-        data: partData,
-        partIndex: i,
-        isLastPart: i === totalParts - 1,
-      })
-    }
-
-    return parts
-  }
-
   async cleanupRecord(recordingUuid: string): Promise<void> {
+    this.logSender.sendLog(
+      "storage_manager.cleanup_record.start",
+      JSON.stringify({ recordingUuid })
+    )
     const recording = this.store.getRecording(recordingUuid)
     if (recording?.dirPath) {
       try {
-        await fs.rm(recording.dirPath, { recursive: true, force: true })
+        await fs.promises.rm(recording.dirPath, {
+          recursive: true,
+          force: true,
+        })
       } catch (error) {
-        console.error(`Cleanup failed for ${recordingUuid}:`, error)
+        this.logSender.sendLog(
+          "storage_manager.cleanup_record.error",
+          JSON.stringify({ error }),
+          true
+        )
       }
     }
     this.store.deleteRecord(recordingUuid)
   }
 
+  private dataUrlToBuffer(dataUrl: string): Buffer {
+    // Разделяем dataURL на метаданные и данные
+    const matches = dataUrl.match(/^data:(.+?);base64,(.+)$/)
+    if (!matches || matches.length !== 3) {
+      throw new Error("Invalid dataURL format")
+    }
+
+    const base64Data = matches[2] // Берём только часть с Base64 данными
+    return Buffer.from(base64Data, "base64") // Преобразуем Base64 в Buffer
+  }
+
   async savePreview(
     recordingInnerUuid: string,
-    previewData: ArrayBuffer | string
+    previewData: string
   ): Promise<string> {
     const previewDir = path.join(this.baseDir, recordingInnerUuid, "preview")
-    await fs.mkdir(previewDir, { recursive: true })
+    await fs.promises.mkdir(previewDir, { recursive: true })
+    const buffer = this.dataUrlToBuffer(previewData)
 
     const previewPath = path.join(previewDir, "preview.png")
-    const data =
-      typeof previewData === "string"
-        ? Buffer.from(previewData, "base64")
-        : Buffer.from(previewData)
+    const data = Buffer.from(previewData, "base64")
 
-    await fs.writeFile(previewPath, data)
+    await fs.promises.writeFile(previewPath, buffer)
 
     this.store.updateRecording(recordingInnerUuid, {
       previewPath,
@@ -109,12 +83,30 @@ export class StorageManagerV3 {
     return previewPath
   }
 
+  async writeFile(source: string, buffer: Buffer): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const writeStream = fs.createWriteStream(source, { flags: "a" })
+      writeStream.write(buffer, (err) => {
+        if (err) {
+          fsErrorParser(err, source)
+          return reject(err)
+        }
+      })
+      writeStream.end()
+      writeStream.on("finish", resolve)
+      writeStream.on("error", (err) => {
+        fsErrorParser(err, source)
+        reject(err)
+      })
+    })
+  }
+
   async readPreview(recordingInnerUuid: string): Promise<File | null> {
     const recording = this.store.getRecording(recordingInnerUuid)
     if (!recording?.previewPath) return null
 
     try {
-      const data = await fs.readFile(recording.previewPath)
+      const data = await fs.promises.readFile(recording.previewPath)
       return new File([data], "preview.png", { type: "image/png" })
     } catch (error) {
       console.error(`Failed to read preview for ${recordingInnerUuid}:`, error)
@@ -127,7 +119,7 @@ export class StorageManagerV3 {
     if (!recording?.previewPath) return
 
     try {
-      await fs.rm(recording.previewPath, { force: true })
+      await fs.promises.rm(recording.previewPath, { force: true })
       this.store.updateRecording(recordingId, {
         previewPath: null,
       })

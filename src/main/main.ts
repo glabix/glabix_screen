@@ -82,7 +82,6 @@ import Record from "../database/models/Record"
 import sequelize from "../database/index"
 import StorageService from "../services/storage.service"
 import { RecordManager } from "../services/record-manager"
-import { PreviewManager } from "../services/preview-manager"
 import {
   createDialogWindow,
   destroyDialogWindow,
@@ -146,7 +145,6 @@ const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
 const chunkProcessor = new ChunkProcessor()
-const emitter = new EventEmitter()
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -209,7 +207,7 @@ function clearAllIntervals() {
     checkForUpdatesInterval = undefined
   }
   RecordManager.clearIntervals()
-  cleanupScheduler.stop()
+  cleanupScheduler.stopIntervals()
 }
 
 // Инициализация базы данных
@@ -312,6 +310,7 @@ if (!gotTheLock) {
     powerMonitor.on("resume", () => {
       logSender.sendLog("powerMonitor.resume")
       StorageService.wakeUp()
+      recorderFacadeV3.wakeUp()
     })
     initializeDatabase().then(() => {
       RecordManager.setTimer()
@@ -323,8 +322,8 @@ if (!gotTheLock) {
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
-    recorderFacadeV3 = new RecorderFacadeV3()
     cleanupScheduler = new RecorderSchedulerV3()
+    recorderFacadeV3 = new RecorderFacadeV3(cleanupScheduler)
     cleanupScheduler.start()
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -1637,19 +1636,6 @@ ipcMain.on(
   }
 )
 
-ipcMain.on(RecordEvents.START, (event, data) => {
-  // if (mainWindow) {
-  //   StorageService.startRecord().then((r) => {
-  //     mainWindow.webContents.send(
-  //       RecordEvents.START,
-  //       data,
-  //       r.getDataValue("uuid")
-  //     )
-  //   })
-  // }
-  modalWindow.hide()
-})
-
 // V3 Record Start
 ipcMain.on(RecordEvents.START, async (event, data) => {
   if (mainWindow) {
@@ -1697,8 +1683,6 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     "record.recording.set_crop.data.received",
     stringify({ fileUuid, cropData })
   )
-
-  StorageService.setCropData(fileUuid, cropData)
 })
 
 ipcMain.on(RecordEvents.SEND_PREVIEW, (event, res) => {
@@ -1746,6 +1730,10 @@ chunkProcessor.on(
       isLast: data.isLast,
       index: data.index,
     }
+    logSender.sendLog(
+      "chunk_processor.chunk_finilized",
+      JSON.stringify({ sendDataEvent })
+    )
     recorderFacadeV3.handleEvent(sendDataEvent)
   }
 )
@@ -1758,6 +1746,10 @@ chunkProcessor.on(
       recordUuid: data.innerRecordUuid,
       lastChunkIndex: data.index,
     }
+    logSender.sendLog(
+      "chunk_processor.record_stopped",
+      JSON.stringify({ sendDataEvent })
+    )
     recorderFacadeV3.handleEvent(sendDataEvent)
   }
 )
@@ -1890,10 +1882,6 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
   })
 })
 
-ipcMain.on(RecordEvents.ERROR, (event, file) => {
-  showRecordErrorBox()
-})
-
 ipcMain.on(RecordEvents.STOP, (event, data) => {
   const { fileUuid } = data
   StorageService.endRecord(fileUuid)
@@ -1977,6 +1965,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
 
 powerMonitor.on("suspend", () => {
   StorageService.sleep()
+  recorderFacadeV3.sleep()
   const isRecording = ["recording", "paused"].includes(
     store.get()["recordingState"]
   )

@@ -12,13 +12,16 @@ import { uploadCompleteCommandV3 } from "@main/commands/v3/upload-complete.comma
 import { OpenLibraryPageHandler } from "@main/v3/open-library-page-handler"
 import { StorageManagerV3 } from "@main/v3/storage-manager-v3"
 import { ProgressResolverV3 } from "@main/v3/progrss-resolver-v3"
+import { LogSender } from "@main/helpers/log-sender"
 
 export class ServerUploadManager {
+  isSleep = false
   private store: RecordStoreManager
   private storage: StorageManagerV3
   private isProcessing = false
   private openLibraryPageHandler = new OpenLibraryPageHandler()
   private progressResolverV3 = new ProgressResolverV3()
+  private logSender = new LogSender()
 
   constructor(
     store: RecordStoreManager,
@@ -33,12 +36,22 @@ export class ServerUploadManager {
   }
 
   async processQueue(): Promise<void> {
-    if (this.isProcessing) return
+    if (
+      this.isSleep ||
+      this.isProcessing ||
+      !TokenStorage.token?.access_token
+    ) {
+      return
+    }
+
     this.isProcessing = true
     try {
       const recordForProcessing = this.store.getPriorityRecording()
-      console.log(recordForProcessing?.localUuid)
       if (recordForProcessing) {
+        this.logSender.sendLog(
+          "records.process_recordings.recordForProcessing",
+          JSON.stringify({ recordForProcessing })
+        )
         await this.processRecording(recordForProcessing)
       }
     } finally {
@@ -47,9 +60,10 @@ export class ServerUploadManager {
   }
 
   private async processRecording(recording: IRecordV3): Promise<void> {
-    if (!TokenStorage.token?.access_token) {
-      return
-    }
+    this.logSender.sendLog(
+      "records.process_recordings.start",
+      JSON.stringify({ localUuid: recording.localUuid })
+    )
     try {
       // 1. Инициализация загрузки
       if (!recording.upload) {
@@ -62,7 +76,7 @@ export class ServerUploadManager {
       // 2. Создание мультипарт загрузку
       if (
         recording.status === IRecordV3Status.PENDING &&
-        Object.keys(recording.chunks).length
+        Date.now() - recording.createdAt > 1000 * 5 // запись старше 5 секунд
       ) {
         await this.initUpload(recording.localUuid)
       }
@@ -79,7 +93,10 @@ export class ServerUploadManager {
         await this.completeUpload(recording.localUuid)
       }
     } catch (error) {
-      console.error(`Upload failed for ${recording.localUuid}:`, error)
+      this.logSender.sendLog(
+        "records.process_recordings.error",
+        JSON.stringify({ localUuid: recording.localUuid, error })
+      )
       this.store.updateRecording(recording.localUuid, {
         upload: { status: "failed" },
       })
@@ -114,6 +131,10 @@ export class ServerUploadManager {
   }
 
   private async initUpload(recordingLocalUuid: string): Promise<void> {
+    this.logSender.sendLog(
+      "records.process_recordings.init_upload.start",
+      JSON.stringify({ localUuid: recordingLocalUuid })
+    )
     const recording = this.store.getRecording(recordingLocalUuid)
     if (!recording) {
       throw new Error(`Recording ${recordingLocalUuid} not found`)
@@ -130,6 +151,18 @@ export class ServerUploadManager {
       lastUploadAttemptAt: Date.now(),
     })
     try {
+      this.logSender.sendLog(
+        "records.process_recordings.init_upload.send",
+        JSON.stringify({
+          token,
+          orgId,
+          filename,
+          title: recording.title,
+          version: recording.version,
+          isPreview: !!preview,
+          cropData: recording.cropData,
+        })
+      )
       const { data } = await initUploadCommandV3(
         token,
         orgId!,
@@ -138,6 +171,10 @@ export class ServerUploadManager {
         recording.version,
         preview,
         recording.cropData
+      )
+      this.logSender.sendLog(
+        "records.process_recordings.init_upload.success",
+        JSON.stringify({ localUuid: recordingLocalUuid, data })
       )
       this.store.updateRecording(recordingLocalUuid, {
         status: IRecordV3Status.CREATED_ON_SERVER,
@@ -155,6 +192,10 @@ export class ServerUploadManager {
   }
 
   private async uploadChunks(recordingLocalUuid: string): Promise<void> {
+    this.logSender.sendLog(
+      "records.process_recordings.uploadChunks.start",
+      JSON.stringify({ localUuid: recordingLocalUuid })
+    )
     const recording = this.store.getRecording(recordingLocalUuid)
 
     if (!recording) {
@@ -180,6 +221,15 @@ export class ServerUploadManager {
           this.store.updateChunk(recordingLocalUuid, chunkUuid, {
             status: ChunkStatusV3.SENDING_TO_SERVER,
           })
+          this.logSender.sendLog(
+            "records.process_recordings.uploadChunks.send",
+            JSON.stringify({
+              token,
+              orgId,
+              serverUuid: recording.serverUuid,
+              size: buffer.length,
+            })
+          )
           const res = await submitUploadPartCommandV3(
             token,
             orgId,
@@ -213,6 +263,10 @@ export class ServerUploadManager {
   }
 
   private async completeUpload(recordingLocalUuid: string): Promise<void> {
+    this.logSender.sendLog(
+      "records.process_recordings.completeUpload.start",
+      JSON.stringify({ localUuid: recordingLocalUuid })
+    )
     const recording = this.store.getRecording(recordingLocalUuid)
     if (!recording) {
       throw new Error(`Recording ${recordingLocalUuid} not found`)
@@ -231,6 +285,14 @@ export class ServerUploadManager {
       lastUploadAttemptAt: Date.now(),
     })
     try {
+      this.logSender.sendLog(
+        "records.process_recordings.completeUpload.send",
+        JSON.stringify({
+          token,
+          orgId,
+          serverUuid: recording.serverUuid,
+        })
+      )
       const data = await uploadCompleteCommandV3(
         token,
         orgId,
