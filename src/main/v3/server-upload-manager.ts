@@ -32,10 +32,10 @@ export class ServerUploadManager {
     this.storage = storage
     this.progressResolverV3 = progressResolverV3
 
-    setInterval(() => this.processQueue(), 5000) // Проверка каждые 5 сек
+    setInterval(() => this.processQueue("interval"), 5000) // Проверка каждые 5 сек
   }
 
-  async processQueue(): Promise<void> {
+  async processQueue(from: string): Promise<void> {
     if (
       this.isSleep ||
       this.isProcessing ||
@@ -43,14 +43,13 @@ export class ServerUploadManager {
     ) {
       return
     }
-
     this.isProcessing = true
     try {
       const recordForProcessing = this.store.getPriorityRecording()
       if (recordForProcessing) {
         this.logSender.sendLog(
           "records.process_recordings.recordForProcessing",
-          JSON.stringify({ recordForProcessing })
+          JSON.stringify({ from, recordForProcessing })
         )
         await this.processRecording(recordForProcessing)
       }
