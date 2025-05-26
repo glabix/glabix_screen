@@ -182,11 +182,20 @@ export class RecordStoreManager {
       if (recording.canceledAt) {
         return
       }
+      const statuses = [
+        IRecordV3Status.PENDING,
+        IRecordV3Status.CREATED_ON_SERVER,
+        IRecordV3Status.COMPLETE,
+      ]
+      if (!statuses.includes(recording.status)) {
+        return
+      }
 
       const attempts = recording.failCounter || 0
       const delay = getUploadDelay(attempts)
-      const updatedAt = recording.lastUploadAttemptAt || recording.createdAt
-      const priority = now - updatedAt - delay
+      const priority = recording.lastUploadAttemptAt
+        ? now - recording.lastUploadAttemptAt - delay
+        : Infinity
       if (priority > 0) {
         if (priority > maxPriority) {
           maxPriority = priority

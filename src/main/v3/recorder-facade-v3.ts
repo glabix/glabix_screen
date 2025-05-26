@@ -37,7 +37,7 @@ export class RecorderFacadeV3 {
     // Автоматическая проверка очереди при изменениях
     this.store.store.onDidAnyChange(() => {
       setTimeout(() => {
-        this.uploadManager.processQueue()
+        this.uploadManager.processQueue("onDidAnyChange")
       })
     })
   }

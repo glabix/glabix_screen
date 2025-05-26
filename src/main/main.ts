@@ -1903,7 +1903,7 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
 
 ipcMain.on(RecordEvents.STOP, (event, data) => {
   const { fileUuid } = data
-  StorageService.endRecord(fileUuid)
+  //StorageService.endRecord(fileUuid)
 })
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
