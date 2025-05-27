@@ -18,6 +18,7 @@ import {
   ModalWindowWidth,
   HotkeysEvents,
   ILastDeviceSettings,
+  IMediaDevice,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -34,6 +35,10 @@ import {
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
+import {
+  ISwiftMediaDevice,
+  SwiftMediaDevicesEvents,
+} from "@shared/types/swift-recorder.types"
 type SettingsTabType =
   | "root"
   | "shortCuts"
@@ -116,34 +121,34 @@ let screenActionsList: IDropdownItem[] = [
 ]
 
 let activeScreenActionItem: IDropdownItem | undefined = screenActionsList[0]!
-let audioDevicesList: MediaDeviceInfo[] = []
-let activeAudioDevice: MediaDeviceInfo
+let audioDevicesList: IMediaDevice[] = []
+let activeAudioDevice: IMediaDevice
 let hasCamera = false
 let hasMicrophone = false
 let visualAudioAnimationId = 0
 let visualAudioStream: MediaStream | null = null
 let audioContext: AudioContext | null = null
 let lastDeviceIds: ILastDeviceSettings = {}
-const noVideoDevice: MediaDeviceInfo = {
+const noVideoDevice: IMediaDevice = {
   deviceId: "no-camera",
   label: "Без камеры",
   kind: "videoinput",
-  groupId: "",
-  toJSON: () => {},
 }
-const noAudioDevice: MediaDeviceInfo = {
+const noAudioDevice: IMediaDevice = {
   deviceId: "no-microphone",
   label: "Без микрофона",
   kind: "audioinput",
-  groupId: "",
-  toJSON: () => {},
 }
-let videoDevicesList: MediaDeviceInfo[] = []
-let activeVideoDevice: MediaDeviceInfo | undefined
+let videoDevicesList: IMediaDevice[] = []
+let activeVideoDevice: IMediaDevice | undefined
 let activeScreenAction: ScreenAction = "fullScreenVideo"
 let streamSettings: IStreamSettings = {
   action: activeScreenAction,
 }
+
+let mediaDevicesList: IMediaDevice[] = []
+let enumerateDevices: MediaDeviceInfo[] = []
+
 let isScreenshotTab = false
 const flipCheckbox = document.querySelector(
   ".js-flip-camera-checkbox"
@@ -253,24 +258,39 @@ function getLastMediaDevices(): ILastDeviceSettings {
   return lastDevicesStr ? JSON.parse(lastDevicesStr) : {}
 }
 
-function setLastMediaDevices(
-  lastAudioDeviceId?: string,
-  lastVideoDeviceId?: string,
+function setLastMediaDevices(params: {
+  lastAudioDeviceId?: string
+  lastSwiftAudioDeviceId?: string
+  lastVideoDeviceId?: string
   systemAudio?: boolean
-) {
-  if (lastAudioDeviceId) {
-    lastDeviceIds = { ...lastDeviceIds, audioId: lastAudioDeviceId }
+}) {
+  if (params.lastAudioDeviceId) {
+    lastDeviceIds = { ...lastDeviceIds, audioId: params.lastAudioDeviceId }
+  }
+  if (params.lastSwiftAudioDeviceId) {
+    lastDeviceIds = {
+      ...lastDeviceIds,
+      swiftAudioId: params.lastSwiftAudioDeviceId,
+    }
   }
 
-  if (lastVideoDeviceId) {
-    lastDeviceIds = { ...lastDeviceIds, videoId: lastVideoDeviceId }
+  if (params.lastVideoDeviceId) {
+    lastDeviceIds = { ...lastDeviceIds, videoId: params.lastVideoDeviceId }
   }
 
-  if (typeof systemAudio == "boolean") {
-    lastDeviceIds = { ...lastDeviceIds, systemAudio }
+  if (typeof params.systemAudio == "boolean") {
+    lastDeviceIds = { ...lastDeviceIds, systemAudio: params.systemAudio }
   }
 
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
+
+  window.electronAPI.ipcRenderer.send(
+    "console.log",
+    `
+    setLastMediaDevices
+  `,
+    lastDeviceIds
+  )
 }
 
 function stopVisualAudio() {
@@ -290,6 +310,33 @@ function stopVisualAudio() {
   }
 }
 
+function getBrowserAudioDeviceId(): string {
+  let noId = ""
+  console.log("mediaDevicesList", mediaDevicesList)
+
+  const activeMediaDevice = mediaDevicesList.find(
+    (d) => d.deviceId == streamSettings.audioDeviceId
+  )
+
+  if (!activeMediaDevice) {
+    return noId
+  }
+
+  if (activeMediaDevice.isDefault) {
+    return (
+      enumerateDevices
+        .filter((d) => d.kind == "audioinput")
+        .find((d) => d.deviceId == "default")?.deviceId || noId
+    )
+  } else {
+    const label = activeMediaDevice.label
+    const devicesByName = enumerateDevices.filter(
+      (d) => d.label.includes(label) || d.label == label
+    )
+    return devicesByName.length == 1 ? devicesByName[0]!.deviceId : noId
+  }
+}
+
 function initVisualAudio() {
   stopVisualAudio()
 
@@ -297,130 +344,204 @@ function initVisualAudio() {
     streamSettings.audioDeviceId &&
     streamSettings.audioDeviceId != "no-microphone"
   ) {
-    navigator.mediaDevices
-      .getUserMedia({
-        audio: {
-          deviceId: streamSettings.audioDeviceId,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 44100,
-          channelCount: 1,
-        },
-        video: false,
-      })
-      .then((stream) => {
-        stopVisualAudio()
+    const browserDeviceId = getBrowserAudioDeviceId()
 
-        visualAudioStream = stream
-        audioContext = new AudioContext()
-        const source = audioContext.createMediaStreamSource(visualAudioStream)
-        const analyser = audioContext.createAnalyser()
+    console.log("browserDeviceId", browserDeviceId)
 
-        analyser.fftSize = 2048
-        source.connect(analyser)
+    if (browserDeviceId) {
+      navigator.mediaDevices
+        .getUserMedia({
+          audio: {
+            deviceId: browserDeviceId,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 44100,
+            channelCount: 1,
+          },
+          video: false,
+        })
+        .then((stream) => {
+          stopVisualAudio()
 
-        const canvases = document.querySelectorAll(
-          ".visualizer"
-        )! as NodeListOf<HTMLCanvasElement>
-        const bufferLength = analyser.frequencyBinCount
-        const dataArray = new Uint8Array(bufferLength)
+          visualAudioStream = stream
+          audioContext = new AudioContext()
+          const source = audioContext.createMediaStreamSource(visualAudioStream)
+          const analyser = audioContext.createAnalyser()
 
-        function updateVisual() {
-          canvases.forEach((canvas) => {
-            const canvasCtx = canvas.getContext("2d")!
-            canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-            analyser.getByteTimeDomainData(dataArray)
+          analyser.fftSize = 2048
+          source.connect(analyser)
 
-            canvasCtx.fillStyle = "rgb(255, 255, 255)"
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
+          const canvases = document.querySelectorAll(
+            ".visualizer"
+          )! as NodeListOf<HTMLCanvasElement>
+          const bufferLength = analyser.frequencyBinCount
+          const dataArray = new Uint8Array(bufferLength)
 
-            canvasCtx.lineWidth = 0
-            canvasCtx.strokeStyle = "#A7EBBB"
-            canvasCtx.fillStyle = "#A7EBBB"
+          // window.electronAPI.ipcRenderer.send('console.log', 'dataArray', dataArray)
 
-            canvasCtx.beginPath()
+          // console.log()
+          // console.log('bufferLength', bufferLength)
 
-            const sliceWidth = (canvas.width * 1.0) / bufferLength
-            let x = 0
-            let previousX = 0
-            let previousY = canvas.height / 2
+          function updateVisual() {
+            // window.electronAPI.ipcRenderer.invoke('getAudioAnalizer')
+            canvases.forEach((canvas) => {
+              const canvasCtx = canvas.getContext("2d")!
+              canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
+              analyser.getByteTimeDomainData(dataArray)
 
-            for (let i = 0; i < bufferLength; i++) {
-              const v = dataArray[i]! / 128
-              const y = (v * canvas.height) / 2 + canvas.height / 4
+              canvasCtx.fillStyle = "rgb(255, 255, 255)"
+              canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
 
-              if (i === 0) {
-                canvasCtx.moveTo(x, y)
-              } else {
-                const controlX = (previousX + x) / 2
-                const controlY = (previousY + y) / 2
-                canvasCtx.quadraticCurveTo(
-                  previousX,
-                  previousY,
-                  controlX,
-                  controlY
-                )
+              canvasCtx.lineWidth = 0
+              canvasCtx.strokeStyle = "#A7EBBB"
+              canvasCtx.fillStyle = "#A7EBBB"
+
+              canvasCtx.beginPath()
+
+              const sliceWidth = (canvas.width * 1.0) / bufferLength
+
+              let x = 0
+              let previousX = 0
+              let previousY = canvas.height / 2
+              // window.electronAPI.ipcRenderer.send('console.log', 'dataArray', dataArray)
+
+              // console.log('dataArray', dataArray)
+
+              for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i]! / 128
+                const y = (v * canvas.height) / 2 + canvas.height / 4
+
+                if (i === 0) {
+                  canvasCtx.moveTo(x, y)
+                } else {
+                  const controlX = (previousX + x) / 2
+                  const controlY = (previousY + y) / 2
+                  canvasCtx.quadraticCurveTo(
+                    previousX,
+                    previousY,
+                    controlX,
+                    controlY
+                  )
+                }
+
+                previousX = x
+                previousY = y
+                x += sliceWidth
               }
 
-              previousX = x
-              previousY = y
-              x += sliceWidth
-            }
+              // Завершение фигуры для заливки
+              canvasCtx.lineTo(canvas.width, canvas.height)
+              canvasCtx.lineTo(0, canvas.height)
+              canvasCtx.closePath()
 
-            // Завершение фигуры для заливки
-            canvasCtx.lineTo(canvas.width, canvas.height)
-            canvasCtx.lineTo(0, canvas.height)
-            canvasCtx.closePath()
+              canvasCtx.stroke()
+              canvasCtx.fill()
+            })
 
-            canvasCtx.stroke()
-            canvasCtx.fill()
-          })
+            visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
+            // setInterval(updateVisual, 10)
+          }
 
-          visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
-        }
-
-        updateVisual()
-      })
-      .catch((e) => {})
+          updateVisual()
+        })
+        .catch((e) => {})
+    } else {
+      // GET
+      console.log("run swift script")
+    }
   }
 }
 
+function useBrowserAudioDevice(): boolean {
+  return streamSettings.action == "cameraOnly" || isWindows
+}
 async function setupMediaDevices() {
-  const devices = await navigator.mediaDevices.enumerateDevices()
-  console.log("devices", devices)
+  const useBrowserDevice = useBrowserAudioDevice()
+
+  enumerateDevices = await navigator.mediaDevices.enumerateDevices()
+
+  // console.log('useBrowserDevice', useBrowserDevice)
+
+  if (useBrowserDevice) {
+    mediaDevicesList = enumerateDevices.map((d) => ({
+      deviceId: d.deviceId,
+      label: d.label,
+      kind: d.kind,
+      groupId: d.groupId,
+      isDefault: d.deviceId == "default",
+    }))
+  } else {
+    const macAudioDevices = (await window.electronAPI.ipcRenderer.invoke(
+      SwiftMediaDevicesEvents.GET_DEVICES
+    )) as IMediaDevice[]
+    const macVideoDevices = enumerateDevices
+      .filter((d) => d.kind == "videoinput")
+      .map((d) => ({
+        deviceId: d.deviceId,
+        label: d.label,
+        kind: d.kind,
+        groupId: d.groupId,
+        isDefault: d.deviceId == "default",
+      }))
+    mediaDevicesList = [...macAudioDevices, ...macVideoDevices]
+  }
+
+  // console.log('browserDevices', enumerateDevices)
+  // console.log('mediaDevicesList', mediaDevicesList)
 
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: `
-      =====================
-      navigator.mediaDevices.enumerateDevices()
-      =====================
+    modal-page.renderer:setupMediaDevices
     `,
-    body: JSON.stringify(devices),
+    body: JSON.stringify(mediaDevicesList),
   })
-  const prevSettings = { ...streamSettings }
-  const lastDevices = getLastMediaDevices()
 
-  hasMicrophone = devices.some((d) => d.kind == "audioinput")
-  hasCamera = devices.some((d) => d.kind == "videoinput")
-  audioDevicesList = devices.filter((d) => d.kind == "audioinput")
+  // const devices = await navigator.mediaDevices.enumerateDevices()
+  // const mDevices = devices.filter(d => d.kind == 'audioinput').map(d => (({deviceId: d.deviceId, label: d.label, kind: d.kind, groupId: d.groupId})))
+
+  // window.electronAPI.ipcRenderer.send('console.log', 'mDevices', mDevices)
+
+  // const data = devices.map(d => (({deviceId: d.deviceId, label: d.label, kind: d.kind, groupId: d.groupId})))
+  // window.electronAPI.ipcRenderer.send(RecordSettingsEvents.GET_DEVICES, data)
+
+  const prevSettings = { ...streamSettings }
+  lastDeviceIds = getLastMediaDevices()
+
+  window.electronAPI.ipcRenderer.send(
+    "console.log",
+    `
+    lastDeviceIds
+    `,
+    lastDeviceIds
+  )
+
+  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //   title: "modal-page.renderer:getLastMediaDevices",
+  //   body: JSON.stringify(lastDeviceIds)
+  // })
+
+  hasMicrophone = mediaDevicesList.some((d) => d.kind == "audioinput")
+  hasCamera = mediaDevicesList.some((d) => d.kind == "videoinput")
+  audioDevicesList = mediaDevicesList.filter((d) => d.kind == "audioinput")
   audioDevicesList = [noAudioDevice, ...audioDevicesList]
 
-  videoDevicesList = devices.filter((d) => d.kind == "videoinput")
+  videoDevicesList = mediaDevicesList.filter((d) => d.kind == "videoinput")
   videoDevicesList = [noVideoDevice, ...videoDevicesList]
   // System Audio
   systemAudioCheckbox.checked = streamSettings.audio!
 
   if (hasMicrophone) {
+    const lastAudioDeviceId = useBrowserAudioDevice()
+      ? lastDeviceIds.audioId
+      : lastDeviceIds.swiftAudioId
     const lastAudioDevice = audioDevicesList.find(
-      (d) => d.deviceId == lastDevices.audioId
+      (d) => d.deviceId == lastAudioDeviceId
     )
     if (lastAudioDevice) {
       activeAudioDevice = lastAudioDevice
     } else {
-      const defaultAudioDevice = audioDevicesList.find((d) =>
-        d.label.includes("Default")
-      )
+      const defaultAudioDevice = audioDevicesList.find((d) => d.isDefault)
       activeAudioDevice = defaultAudioDevice || audioDevicesList[1]!
     }
     streamSettings = {
@@ -435,9 +556,24 @@ async function setupMediaDevices() {
     }
   }
 
+  window.electronAPI.ipcRenderer.send(
+    "console.log",
+    `
+    audioDevicesList
+    `,
+    audioDevicesList
+  )
+  window.electronAPI.ipcRenderer.send(
+    "console.log",
+    `
+    activeAudioDevice
+    `,
+    activeAudioDevice
+  )
+
   if (hasCamera) {
     const lastVideoDevice = videoDevicesList.find(
-      (d) => d.deviceId == lastDevices.videoId
+      (d) => d.deviceId == lastDeviceIds.videoId
     )
 
     if (lastVideoDevice) {
@@ -460,6 +596,9 @@ async function setupMediaDevices() {
       cameraDeviceId: undefined,
     }
   }
+
+  console.log("prevSettings", prevSettings)
+  console.log("streamSettings", streamSettings)
 
   if (JSON.stringify(prevSettings) != JSON.stringify(streamSettings)) {
     sendSettings()
@@ -486,12 +625,13 @@ function initMediaDevice() {
 
 const changeMediaDevices = debounce(() => {
   initMediaDevice()
+  window.electronAPI.ipcRenderer.send("devicechange", {})
   window.electronAPI.ipcRenderer.send("dropdown:close", {})
 })
 navigator.mediaDevices.addEventListener(
   "devicechange",
   () => {
-    if (isAppShown) {
+    if (isAppShown && !isRecording) {
       changeMediaDevices()
     }
   },
@@ -534,7 +674,7 @@ function renderScreenSettings(item: IDropdownItem) {
 
 renderScreenSettings(activeScreenActionItem)
 
-function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
+function renderDeviceButton(device: IMediaDevice): HTMLElement {
   const template = document.querySelector(
     "#media_device_tpl"
   )! as HTMLTemplateElement
@@ -559,7 +699,10 @@ function renderDeviceButton(device: MediaDeviceInfo): HTMLElement {
         : ["i-microphone"]
 
   btn.classList.add(btnClass)
-  text.textContent = device.label
+  text.textContent =
+    device.isDefault && !device.label.includes("Default")
+      ? `Default - ${device.label}`
+      : device.label
   checkbox.name =
     device.kind == "videoinput" ? "isVideoEnabled" : "isAudioEnabled"
   checkbox.checked = !["no-camera", "no-microphone"].includes(device.deviceId)
@@ -655,6 +798,7 @@ function getDropdownItems(type: DropdownListType): IDropdownItem[] {
         id: d.deviceId,
         isSelected: d.deviceId == activeAudioDevice.deviceId,
         extraData: {
+          isDefault: d.isDefault,
           icon:
             d.deviceId == "no-microphone"
               ? "i-microphone-slash"
@@ -784,12 +928,23 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on(
   "dropdown:select",
   (event, data: IDropdownPageSelectData) => {
+    const newSettings = { ...data }
+    const prevSettings = { ...streamSettings }
     streamSettings = { ...streamSettings, ...data }
 
-    setLastMediaDevices(
-      streamSettings.audioDeviceId,
-      streamSettings.cameraDeviceId
-    )
+    let newDeviceIds = {}
+
+    if (data.audioDeviceId) {
+      newDeviceIds = useBrowserAudioDevice()
+        ? { ...newDeviceIds, lastAudioDeviceId: data.audioDeviceId }
+        : { ...newDeviceIds, lastSwiftAudioDeviceId: data.audioDeviceId }
+    }
+
+    if (data.cameraDeviceId) {
+      newDeviceIds = { ...newDeviceIds, lastVideoDeviceId: data.cameraDeviceId }
+    }
+
+    setLastMediaDevices(newDeviceIds)
 
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "dropdown:select",
@@ -845,8 +1000,20 @@ window.electronAPI.ipcRenderer.on(
     }
 
     openedDropdownType = undefined
+
+    let lastDevices = {}
+    if (
+      (prevSettings.action != "cameraOnly" &&
+        newSettings.action == "cameraOnly") ||
+      (prevSettings.action == "cameraOnly" &&
+        newSettings.action != "cameraOnly")
+    ) {
+      initMediaDevice()
+    } else {
+      initVisualAudio()
+    }
+
     sendSettings()
-    initVisualAudio()
   }
 )
 
@@ -961,7 +1128,9 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
-  isRecording = state["recordingState"] == "recording"
+  isRecording = ["recording", "paused", "countdown"].includes(
+    state["recordingState"]
+  )
 })
 
 // DOM
@@ -1170,7 +1339,8 @@ systemAudioCheckbox.addEventListener(
   (event) => {
     const input = event.target as HTMLInputElement
     streamSettings = { ...streamSettings, audio: input.checked }
-    setLastMediaDevices(undefined, undefined, input.checked)
+    // undefined, undefined, input.checked
+    setLastMediaDevices({ systemAudio: input.checked })
     sendSettings()
   },
   false
@@ -1527,6 +1697,73 @@ window.electronAPI.ipcRenderer.on(
       SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
     })
     updateHotkeysTexts()
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  SwiftMediaDevicesEvents.CHANGE,
+  (event, data: IMediaDevice[]) => {
+    // console.log('SwiftMediaDevicesEvents.CHANGE', data)
+    initMediaDevice()
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  SwiftMediaDevicesEvents.GET_WAVE_FORM,
+  (event, _data: number[]) => {
+    const data = [..._data, ..._data, ..._data]
+    console.log("data", data)
+    const canvases = document.querySelectorAll(
+      ".visualizer"
+    )! as NodeListOf<HTMLCanvasElement>
+
+    canvases.forEach((canvas) => {
+      const canvasCtx = canvas.getContext("2d")!
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
+      // analyser.getByteTimeDomainData(dataArray)
+
+      canvasCtx.fillStyle = "rgb(255, 255, 255)"
+      canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
+
+      canvasCtx.lineWidth = 0
+      canvasCtx.strokeStyle = "#A7EBBB"
+      canvasCtx.fillStyle = "#A7EBBB"
+
+      canvasCtx.beginPath()
+
+      const sliceWidth = (canvas.width * 1.0) / data.length
+
+      let x = 0
+      let previousX = 0
+      let previousY = canvas.height / 2
+      // window.electronAPI.ipcRenderer.send('console.log', 'dataArray', dataArray)
+
+      // console.log('dataArray', dataArray)
+
+      for (let i = 0; i < data.length; i++) {
+        const v = data[i]! / 2
+        const y = (v * canvas.height) / 2 + canvas.height / 4
+
+        if (i === 0) {
+          canvasCtx.moveTo(x, y)
+        } else {
+          const controlX = (previousX + x) / 2
+          const controlY = (previousY + y) / 2
+          canvasCtx.quadraticCurveTo(previousX, previousY, controlX, controlY)
+        }
+
+        previousX = x
+        previousY = y
+        x += sliceWidth
+      }
+
+      // Завершение фигуры для заливки
+      canvasCtx.lineTo(canvas.width, canvas.height)
+      canvasCtx.lineTo(0, canvas.height)
+      canvasCtx.closePath()
+
+      canvasCtx.stroke()
+      canvasCtx.fill()
+    })
   }
 )
 

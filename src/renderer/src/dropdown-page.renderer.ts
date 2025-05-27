@@ -24,7 +24,10 @@ function renderItem(item: IDropdownItem): HTMLElement {
 
   btn.setAttribute("data-id", item.id)
 
-  text.textContent = item.label
+  text.textContent =
+    item.extraData.isDefault && !item.label.includes("Default")
+      ? `Default - ${item.label}`
+      : item.label
 
   if (item.isSelected) {
     btn.classList.add("hover")

@@ -7,16 +7,12 @@ export enum RecordEvents {
   PAUSE = "pause",
   ERROR = "error",
   CANCEL = "cancel",
-}
 
-export enum SwiftRecorderEvents {
-  START = "start",
-  STOP = "stop",
-  PAUSE = "pause",
-  RESUME = "resume",
+  SWIFT_START = "swift_start",
 }
 
 export enum RecordSettingsEvents {
   INIT = "record-settings:init",
+  // GET_DEVICES = "record-settings:devices:get",
   UPDATE = "record-settings:update",
 }

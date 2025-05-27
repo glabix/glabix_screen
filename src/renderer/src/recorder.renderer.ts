@@ -16,6 +16,7 @@ import {
   ModalWindowEvents,
   IModalWindowTabData,
   ScreenshotActionEvents,
+  RecordSourceType,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { APIEvents } from "@shared/events/api.events"
@@ -24,7 +25,6 @@ import { captureVideoFrame } from "./helpers/capture-video-frame"
 import {
   RecordEvents,
   RecordSettingsEvents,
-  SwiftRecorderEvents,
 } from "../../shared/events/record.events"
 import { Rectangle } from "electron"
 import {
@@ -32,6 +32,7 @@ import {
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
+import { SwiftRecorderEvents } from "@shared/types/swift-recorder.types"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 let SHORTCUTS_TEXT_MAP = {}
@@ -75,10 +76,6 @@ let isRecordRestart = false
 let skipAppShowEvent = false
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "rawStreamSettings",
-    body: JSON.stringify(settings),
-  })
   const audioDeviceId =
     settings.audioDeviceId == "no-microphone"
       ? undefined
@@ -86,10 +83,6 @@ function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
   const cameraDeviceId =
     settings.cameraDeviceId == "no-camera" ? undefined : settings.cameraDeviceId
   const result = { ...settings, audioDeviceId, cameraDeviceId }
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "filterStreamSettings",
-    body: JSON.stringify(result),
-  })
   return result
 }
 
@@ -131,6 +124,8 @@ function stopRecording() {
 
     clearView()
   }
+
+  timer.stop()
 
   window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
   stopStreamTracks()
@@ -591,21 +586,45 @@ const startRecording = () => {
   isRecordCanceled = false
   isRecordRestart = false
 
-  if (videoRecorder) {
-    videoRecorder.start(5000)
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "videoRecorder.start()",
-    })
+  if (getRecordSource() == RecordSourceType.BROWSER) {
+    if (videoRecorder) {
+      videoRecorder.start(5000)
 
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: "videoRecorder.start()",
+      })
+
+      updateRecorderState("recording")
+      timer.start(true)
+
+      createPreview()
+    } else {
+      window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
+        title: "videoRecorder.start().missing_videoRecorder",
+      })
+    }
+  }
+
+  if (getRecordSource() == RecordSourceType.SWIFT) {
+    if (cropVideoData) {
+      window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CROP_UPDATE, {
+        x: Math.round(cropVideoData.x),
+        y: Math.round(cropVideoData.y),
+        width: Math.round(cropVideoData.out_w),
+        height: Math.round(cropVideoData.out_h),
+      })
+    }
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "swiftRecorder.start",
+    })
     updateRecorderState("recording")
     timer.start(true)
 
     createPreview()
-    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.START)
-  } else {
-    window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
-      title: "videoRecorder.start().missing_videoRecorder",
-    })
+    window.electronAPI.ipcRenderer.send(
+      RecordEvents.SWIFT_START,
+      lastStreamSettings
+    )
   }
 }
 
@@ -1294,4 +1313,14 @@ function readFileAsync(file, index, isLast, fileUuid): Promise<any> {
 
     reader.readAsArrayBuffer(file)
   })
+}
+
+function getRecordSource(): RecordSourceType {
+  const isSwift =
+    !isWindows &&
+    (lastStreamSettings?.action == "cropVideo" ||
+      lastStreamSettings?.action == "fullScreenVideo")
+
+  // return RecordSourceType.BROWSER
+  return isSwift ? RecordSourceType.SWIFT : RecordSourceType.BROWSER
 }

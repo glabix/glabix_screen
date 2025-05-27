@@ -48,6 +48,8 @@ import {
   ScreenshotActionEvents,
   ModalWindowWidth,
   IRecordUploadProgressData,
+  IStreamSettings,
+  IMediaDevice,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -99,9 +101,15 @@ import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
-import "./helpers/macos-recorder.helper"
+import "./helpers/swift-recorder.helper"
+import {
+  ISwiftRecorderConfig,
+  SwiftMediaDevicesEvents,
+  SwiftRecorderEvents,
+} from "@shared/types/swift-recorder.types"
 
 let activeDisplay: Electron.Display
+let swiftRecorderConfig: ISwiftRecorderConfig = {}
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
@@ -323,8 +331,13 @@ if (!gotTheLock) {
 
       checkOrganizationLimits().then(() => {
         getLastStreamSettings(modalWindow).then((settings) => {
-          modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-          mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+          console.log(
+            `
+            settings
+            `,
+            settings
+          )
+          sendInitRecordSettings(settings)
           showWindows()
         })
       })
@@ -485,6 +498,10 @@ function registerUserShortCuts() {
               const cursorPosition = screen.getCursorScreenPoint()
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
               mainWindow.webContents.send("screen:change", activeDisplay)
+              swiftRecorderConfig = {
+                ...swiftRecorderConfig,
+                displayId: activeDisplay.id,
+              }
               modalWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
@@ -717,8 +734,9 @@ function createWindow() {
   })
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
   activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
+  swiftRecorderConfig = { displayId: activeDisplay.id }
 
-  console.log("activeDisplay", activeDisplay)
+  // console.log("activeDisplay", activeDisplay)
 
   if (os.platform() == "darwin") {
     mainWindow.setWindowButtonVisibility(false)
@@ -766,8 +784,7 @@ function createWindow() {
 
   mainWindow.webContents.on("did-finish-load", () => {
     getLastStreamSettings(mainWindow).then((settings) => {
-      modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      sendInitRecordSettings(settings)
     })
   })
 
@@ -870,8 +887,7 @@ function createModal(parentWindow) {
     sendUserSettings()
 
     getLastStreamSettings(modalWindow).then((settings) => {
-      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      sendInitRecordSettings(settings)
     })
   })
 
@@ -909,8 +925,7 @@ function createModal(parentWindow) {
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     checkForUpdates()
     getLastStreamSettings(modalWindow).then((settings) => {
-      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      sendInitRecordSettings(settings)
     })
 
     loadAccountData()
@@ -971,6 +986,10 @@ function createDropdownWindow(parentWindow) {
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
       mainWindow.webContents.send("screen:change", currentScreen)
+      swiftRecorderConfig = {
+        ...swiftRecorderConfig,
+        displayId: currentScreen.id,
+      }
     }
 
     activeDisplay = currentScreen
@@ -1279,6 +1298,12 @@ function createMenu() {
   ])
 }
 
+function sendInitRecordSettings(settings: IStreamSettings) {
+  ipcMain.emit(RecordSettingsEvents.INIT, null, settings)
+  modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
+  mainWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
+}
+
 function logOut() {
   TokenStorage.reset()
   mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
@@ -1491,7 +1516,23 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
     }
   }
 })
-ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
+
+ipcMain.on(SwiftMediaDevicesEvents.CHANGE, (event, data: IMediaDevice[]) => {
+  modalWindow?.webContents.send(SwiftMediaDevicesEvents.CHANGE, data)
+})
+ipcMain.on(SwiftMediaDevicesEvents.GET_WAVE_FORM, (event, data: number[]) => {
+  modalWindow?.webContents.send(SwiftMediaDevicesEvents.GET_WAVE_FORM, data)
+})
+
+ipcMain.on(RecordSettingsEvents.UPDATE, (event, data: IStreamSettings) => {
+  swiftRecorderConfig = {
+    ...swiftRecorderConfig,
+    systemAudio: data.audio,
+  }
+
+  // console.log(`
+  //   RecordSettingsEvents.UPDATE main.ts
+  // `)
   mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
@@ -1633,6 +1674,11 @@ ipcMain.on(
   }
 )
 
+ipcMain.on(RecordEvents.SWIFT_START, (event, data) => {
+  console.log("swiftRecorderConfig", swiftRecorderConfig)
+  ipcMain.emit(SwiftRecorderEvents.START, null, swiftRecorderConfig)
+})
+
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {
     StorageService.startRecord().then((r) => {
@@ -1763,6 +1809,9 @@ ipcMain.on("windows:maximize", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
+
+  ipcMain.emit(SimpleStoreEvents.CHANGED, null, store.get())
+
   if (mainWindow) {
     mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
   }
@@ -1823,8 +1872,7 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
     contextMenu.getMenuItemById("menuLogOutItem")!.visible = true
     loginWindow.hide()
     getLastStreamSettings(modalWindow).then((settings) => {
-      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      sendInitRecordSettings(settings)
       mainWindow.show()
       modalWindow.show()
     })
@@ -1950,15 +1998,6 @@ powerMonitor.on("suspend", () => {
   }
 })
 
-import mediaDevicesUtil from "media-devices-util"
-
-const videoDevices = mediaDevicesUtil.getVideoDevices()
-const audioDevices = mediaDevicesUtil.getAudioDevices()
-
-console.log(
-  `
-  ===================  
-  mediaDevicesUtil
-`,
-  { audioDevices, videoDevices }
-)
+ipcMain.on("console.log", (event, ...args) => {
+  console.log(...args)
+})

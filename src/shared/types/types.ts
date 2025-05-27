@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron"
+import { BrowserWindow, Rectangle } from "electron"
 
 export type ScreenAction =
   | "fullScreenVideo"
@@ -249,8 +249,22 @@ export interface IRecordUploadProgressData {
   progress: number // %
 }
 
+export interface IMediaDevice {
+  kind: MediaDeviceKind
+  label: string
+  deviceId: string
+  isDefault?: boolean
+  groupId?: string
+}
+
 export interface ILastDeviceSettings {
   videoId?: string
   audioId?: string
+  swiftAudioId?: string
   systemAudio?: boolean
+}
+
+export enum RecordSourceType {
+  BROWSER = "browser",
+  SWIFT = "swift",
 }

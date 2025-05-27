@@ -1,4 +1,5 @@
 import { BrowserWindow } from "electron"
+import os from "os"
 import { ILastDeviceSettings, IStreamSettings } from "@shared/types/types"
 import { LogSender } from "./log-sender"
 import { stringify } from "./stringify"
@@ -26,7 +27,10 @@ export function getLastStreamSettings(
           settings = {
             ...settings,
             audio: systemAudio,
-            audioDeviceId: deviceSettings.audioId,
+            audioDeviceId:
+              settings.action == "cameraOnly" || os.platform() == "win32"
+                ? deviceSettings.audioId
+                : deviceSettings.swiftAudioId,
             cameraDeviceId: deviceSettings.videoId,
           }
         }

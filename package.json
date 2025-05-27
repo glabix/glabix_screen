@@ -42,7 +42,6 @@
     "electron-traywindow-positioner": "^1.2.1",
     "electron-updater": "^6.3.9",
     "konva": "^9.3.14",
-    "media-devices-util": "^0.2.0",
     "modern-normalize": "^3.0.0",
     "moveable": "^0.53.0",
     "sequelize": "^6.37.5",
