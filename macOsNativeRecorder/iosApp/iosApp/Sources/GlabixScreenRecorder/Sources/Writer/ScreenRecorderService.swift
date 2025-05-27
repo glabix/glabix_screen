@@ -14,7 +14,7 @@ struct Callback {
         if let prettyPrintedData = try? encoder.encode(data) {
             let prettyPrintedString = String(data: prettyPrintedData, encoding: .utf8)!
             fflush(stdout)
-            Swift.print("[glabix-screen.callback] \(prettyPrintedString)")
+            Swift.print("[glabix-screen.callback]\(prettyPrintedString)###END")
             fflush(stdout)
         } else {
             debugPrint("cannot encode", data)
