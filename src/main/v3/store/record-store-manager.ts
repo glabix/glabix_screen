@@ -4,6 +4,7 @@ import {
   IChunkV3,
   IRecordV3,
   IRecordV3Status,
+  RecorderType,
 } from "@main/v3/events/record-v3-types"
 import { RecordStoreSchema } from "@main/v3/store/record-store-schema"
 import { getTitle } from "@shared/helpers/get-title"
@@ -59,7 +60,11 @@ export class RecordStoreManager {
     )
   }
 
-  private buildRecord(innerUuid: string, dirPath: string): IRecordV3 {
+  private buildRecord(
+    innerUuid: string,
+    dirPath: string,
+    orgId: number
+  ): IRecordV3 {
     const timestamp = Date.now()
     const title = getTitle(timestamp)
     const version = getVersion()
@@ -70,17 +75,19 @@ export class RecordStoreManager {
       dirPath,
       title,
       version,
+      recorderType: RecorderType.DEFAULT,
       status: IRecordV3Status.PENDING,
       chunks: {},
+      orgId,
     }
   }
 
-  createRecording(localUuid: string, dirPath: string) {
+  createRecording(localUuid: string, dirPath: string, orgId: number) {
     this.logSender.sendLog(
-      "records.store.create.success",
+      "records.store.create.start",
       stringify({ localUuid, dirPath })
     )
-    const storeData = this.buildRecord(localUuid, dirPath)
+    const storeData = this.buildRecord(localUuid, dirPath, orgId)
     this.store.set(`${RECORDINGS}.${localUuid}`, storeData)
     this.store.set(LAST_CREATED_RECORD, localUuid)
     this.logSender.sendLog("records.store.create.success", stringify(storeData))

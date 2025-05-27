@@ -142,7 +142,6 @@ export class ServerUploadManager {
       return
     }
     const token = TokenStorage.token!.access_token
-    const orgId = TokenStorage.organizationId
     const filename = recording.title + ".mp4"
     const preview = await this.storage.readPreview(recordingLocalUuid)
     this.store.updateRecording(recordingLocalUuid, {
@@ -154,7 +153,7 @@ export class ServerUploadManager {
         "records.process_recordings.init_upload.send",
         JSON.stringify({
           token,
-          orgId,
+          orgId: recording.orgId,
           filename,
           title: recording.title,
           version: recording.version,
@@ -164,7 +163,7 @@ export class ServerUploadManager {
       )
       const { data } = await initUploadCommandV3(
         token,
-        orgId!,
+        recording.orgId,
         filename,
         recording.title,
         recording.version,
@@ -207,12 +206,19 @@ export class ServerUploadManager {
     const chunksToUpload = Object.entries(recording.chunks)
       .filter(([_, chunk]) => chunk.status === ChunkStatusV3.RECORDED)
       .slice(0, 1) // Лимит параллельных загрузок
-
+    if (
+      !chunksToUpload.length &&
+      this.store.getLastCreatedRecordCache() !== recording.localUuid
+    ) {
+      this.store.updateRecording(recordingLocalUuid, {
+        failCounter: (recording.failCounter || 0) + 1,
+        lastUploadAttemptAt: Date.now(),
+      })
+    }
     await Promise.all(
       chunksToUpload.map(async ([chunkUuid, chunk]) => {
         try {
           const token = TokenStorage.token!.access_token
-          const orgId = TokenStorage.organizationId!
           const buffer = await fs.promises.readFile(chunk.videoSource)
           this.store.updateRecording(recordingLocalUuid, {
             lastUploadAttemptAt: Date.now(),
@@ -224,14 +230,14 @@ export class ServerUploadManager {
             "records.process_recordings.uploadChunks.send",
             JSON.stringify({
               token,
-              orgId,
+              orgId: recording.orgId,
               serverUuid: recording.serverUuid,
               size: buffer.length,
             })
           )
           const res = await submitUploadPartCommandV3(
             token,
-            orgId,
+            recording.orgId,
             recording.serverUuid!,
             buffer
           )
@@ -278,7 +284,6 @@ export class ServerUploadManager {
       throw new Error(`Recording ${recordingLocalUuid} serverUuid not found `)
     }
     const token = TokenStorage.token!.access_token
-    const orgId = TokenStorage.organizationId!
     this.store.updateRecording(recordingLocalUuid, {
       status: IRecordV3Status.COMPLETING_ON_SERVER,
       lastUploadAttemptAt: Date.now(),
@@ -288,13 +293,13 @@ export class ServerUploadManager {
         "records.process_recordings.completeUpload.send",
         JSON.stringify({
           token,
-          orgId,
+          orgId: recording.orgId,
           serverUuid: recording.serverUuid,
         })
       )
       const data = await uploadCompleteCommandV3(
         token,
-        orgId,
+        recording.orgId,
         recording.serverUuid
       )
       this.progressResolverV3.completeRecord(recordingLocalUuid)

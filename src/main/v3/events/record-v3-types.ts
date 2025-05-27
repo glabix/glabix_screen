@@ -71,6 +71,11 @@ export interface IChunkV3 {
   index: number
 }
 
+export enum RecorderType {
+  DEFAULT = "default",
+  CUSTOM_MAC = "custom_mac",
+}
+
 export interface IRecordV3 {
   localUuid: string
   serverUuid?: string
@@ -85,6 +90,8 @@ export interface IRecordV3 {
   previewGeneratedAt?: number
   failCounter?: number
   lastUploadAttemptAt?: number
+  orgId: number
+  recorderType: RecorderType
   upload?: {
     status: "pending" | "uploading" | "completed" | "failed"
   }
