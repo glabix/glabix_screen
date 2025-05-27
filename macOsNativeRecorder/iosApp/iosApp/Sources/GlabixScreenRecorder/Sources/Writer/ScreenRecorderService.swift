@@ -128,8 +128,11 @@ class ScreenRecorderService {
     
     func startRecording() {
         defer { fflush(stdout) }
+        
         let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
         Log.success("recording started at `\(path)`")
+        
+        recorder.start()
     }
     
     func stopRecording() {

@@ -14,6 +14,21 @@ enum ChunkWriterStatus {
     case cancelled
     case finalizing
     case finalized
+    
+    var description: String {
+        switch self {
+            case .active:
+                "active"
+            case .cancelling:
+                "cancelling"
+            case .cancelled:
+                "cancelled"
+            case .finalizing:
+                "finalizing"
+            case .finalized:
+                "finalized"
+        }
+    }
 }
 
 final class ChunkWriter {
@@ -34,8 +49,16 @@ final class ChunkWriter {
     var debugStatus: ChunkWriterStatus { status }
     var isActiveOrFinalizing: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
-    var debugInfo: [Any] {
-        [chunkIndex, endTime?.seconds ?? 0, "hasWr?", writer != nil, "s:", status, "buf: ", lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? ""]
+    var debugInfo: String {
+        [
+            "(\(chunkIndex))",
+            "endTime: \(endTime?.seconds ?? 0)",
+            "hasWr?: \(writer != nil)",
+            "s: \(status)",
+            "buf: \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? 0)"
+        ]
+            .map(\.description)
+            .joined(separator: " ")
     }
     
     private static let chunkDuration: CMTime = CMTime(seconds: 2, preferredTimescale: 1)

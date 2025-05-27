@@ -24,6 +24,8 @@ struct GlabixWaveform: ParsableCommand {
                 let commandJSON = input.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard let jsonData = commandJSON.data(using: .utf8) else { continue }
                 
+                // {"action": "start", "config": {"microphoneUniqueID": null}}
+                
                 do {
                     let command = try JSONDecoder().decode(WaveformCommand.self, from: jsonData)
                     debugPrint("command", command)

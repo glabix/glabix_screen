@@ -24,7 +24,7 @@ struct Config: Codable {
             resolution: .uhd4k,
             fps: 25,
             cropRect: nil,
-            chunksDirectoryPath: "/Users/pavelfeklistov/Documents/chunks",
+            chunksDirectoryPath: nil,//"/Users/pavelfeklistov/Documents/chunks",
             showCursor: true,
             captureSystemAudio: true,
             captureMicrophone: true,
