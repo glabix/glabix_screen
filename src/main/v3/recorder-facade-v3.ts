@@ -15,6 +15,7 @@ import { stringify } from "@main/helpers/stringify"
 import { LogSender } from "@main/helpers/log-sender"
 import { ProgressResolverV3 } from "@main/v3/progrss-resolver-v3"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
+import { TokenStorage } from "@main/storages/token-storage"
 
 export class RecorderFacadeV3 {
   private chunkManager = new ChunkManagerV3()
@@ -67,8 +68,11 @@ export class RecorderFacadeV3 {
       "records.create.started",
       stringify({ innerRecordUuid: innerRecordingUuid })
     )
-
-    this.store.createRecording(innerRecordingUuid, dirPath)
+    const orgId = TokenStorage.organizationId
+    if (!orgId) {
+      throw new Error(`Failed to handle start: unknown organization id`)
+    }
+    this.store.createRecording(innerRecordingUuid, dirPath, orgId)
 
     this.logSender.sendLog(
       "records.create.completed",

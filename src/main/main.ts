@@ -1658,11 +1658,15 @@ ipcMain.on(
 // V3 Record Start
 ipcMain.on(RecordEvents.START, async (event, data) => {
   if (mainWindow) {
-    const startEventV3: RecordStartEventV3 = {
-      type: RecordEventsV3.START,
+    try {
+      const startEventV3: RecordStartEventV3 = {
+        type: RecordEventsV3.START,
+      }
+      const uuid = await recorderFacadeV3.handleEvent(startEventV3)
+      mainWindow.webContents.send(RecordEvents.START, data, uuid)
+    } catch (e) {
+      showRecordErrorBox("Ошибка записи")
     }
-    const uuid = await recorderFacadeV3.handleEvent(startEventV3)
-    mainWindow.webContents.send(RecordEvents.START, data, uuid)
   }
   modalWindow.hide()
 })
