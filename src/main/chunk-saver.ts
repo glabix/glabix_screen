@@ -16,21 +16,22 @@ interface IChunkData extends IHandleChunkDataEvent {
   bytesWritten: number
 }
 
+interface IQueue {
+  pending: Map<number, IChunkData>
+  currentFile: {
+    fd?: fs.promises.FileHandle
+    size: number
+    path: string
+    count: number
+  }
+  isProcessing: boolean
+  shouldProcessAgain: boolean
+}
+
 export class ChunkProcessor extends EventEmitter {
   private logSender = new LogSender()
 
-  private queues: Map<
-    string,
-    {
-      pending: Map<number, IChunkData>
-      currentFile: {
-        fd?: fs.promises.FileHandle
-        size: number
-        path: string
-        count: number
-      }
-    }
-  > = new Map()
+  private queues: Map<string, IQueue> = new Map()
 
   private readonly MAX_FILE_SIZE = 5 * 1024 * 1024 // 100MB
   private readonly baseDir = path.join(app.getPath("userData"), "recordsV3")
@@ -46,6 +47,8 @@ export class ChunkProcessor extends EventEmitter {
       this.queues.set(recordUuid, {
         pending: new Map(),
         currentFile: { size: 0, path: "", count: -1 },
+        isProcessing: false,
+        shouldProcessAgain: false,
       })
       this.logSender.sendLog(
         "chunk_saver.queue.set",
@@ -74,24 +77,44 @@ export class ChunkProcessor extends EventEmitter {
       return
     }
 
+    if (queue.isProcessing) {
+      this.logSender.sendLog(
+        "chunk_saver.queue.already_processing",
+        JSON.stringify({ recordUuid })
+      )
+      queue.shouldProcessAgain = true // пометили повторную обработку
+      return
+    }
+
+    queue.isProcessing = true // Начинаем обработку
+
     let nextIndex = this.findNextIndex(queue.pending)
     this.logSender.sendLog(
       "chunk_saver.queue.next_index_1",
       JSON.stringify({ nextIndex })
     )
-    while (nextIndex !== undefined) {
-      const event = queue.pending.get(nextIndex)!
-      await this.processChunk(event, queue)
-      queue.pending.delete(nextIndex)
-      nextIndex = this.findNextIndex(queue.pending)
-      this.logSender.sendLog(
-        "chunk_saver.queue.next_index_2",
-        JSON.stringify({ nextIndex })
-      )
+    try {
+      while (nextIndex !== undefined) {
+        const event = queue.pending.get(nextIndex)!
+        await this.processChunk(event, queue)
+        queue.pending.delete(nextIndex)
+        nextIndex = this.findNextIndex(queue.pending)
+        this.logSender.sendLog(
+          "chunk_saver.queue.next_index_2",
+          JSON.stringify({ nextIndex })
+        )
+      }
+    } finally {
+      queue.isProcessing = false // Завершаем обработку
+      // 🔁 если что-то добавилось во время обработки — повторяем
+      if (queue.shouldProcessAgain) {
+        queue.shouldProcessAgain = false
+        await this.processQueue(recordUuid)
+      }
     }
   }
 
-  private async processChunk(event: IChunkData, queue: any): Promise<void> {
+  private async processChunk(event: IChunkData, queue: IQueue): Promise<void> {
     this.logSender.sendLog(
       "chunk_saver.queue.process_chunk",
       JSON.stringify({ event })
@@ -112,7 +135,7 @@ export class ChunkProcessor extends EventEmitter {
         this.MAX_FILE_SIZE - queue.currentFile.size
       )
       try {
-        await queue.currentFile.fd.write(
+        await queue.currentFile!.fd!.write(
           chunkBuffer.subarray(
             event.bytesWritten,
             event.bytesWritten + bytesToWrite
@@ -125,8 +148,16 @@ export class ChunkProcessor extends EventEmitter {
       event.bytesWritten += bytesToWrite
       queue.currentFile.size += bytesToWrite
     }
-
-    if (isLast) {
+    const isRealLast = !queue.pending
+      .entries()
+      .find(([index, data]) => data.isLast && data.index > event.index)
+    if (isLast && !isRealLast) {
+      this.logSender.sendLog(
+        "chunk_saver.queue.process_chunk.is_not_real_last",
+        JSON.stringify({ event })
+      )
+    }
+    if (isLast && isRealLast) {
       await this.finalizeRecording(recordUuid, queue)
     }
   }

@@ -1694,7 +1694,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, fileUuid, index, isLast } = res
   logSender.sendLog(
     "record.recording.chunk.received",
-    stringify({ fileUuid, byteLength: data.byteLength, count: index })
+    stringify({ fileUuid, byteLength: data.byteLength, count: index, isLast })
   )
   if (!data.byteLength) {
     logSender.sendLog(
