@@ -6,7 +6,21 @@ struct GlabixScreenRecorder: ParsableCommand {
 //    @Argument(help: "JSON configuration for recording (optional)")
 //    var configJSON: String?
     
+    static let configuration: CommandConfiguration = CommandConfiguration(
+        commandName: "waveform",
+        abstract: "waveform mode",
+        subcommands: [GlabixWaveform.self]
+    )
+    
+//    @Option(
+//        name: .shortAndLong,
+//        help: "Help text"
+//    )
+//    var name: String
+    
     func run() throws {
+        Log.success("Recorder module launched")
+        
         let recorder = ScreenRecorderService()
         
         DispatchQueue.global().async {

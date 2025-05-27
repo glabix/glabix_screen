@@ -33,6 +33,7 @@
 		B31B38C02DC5006C0001C7EB /* StreamOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38AB2DC5006C0001C7EB /* StreamOutput.swift */; };
 		B31B38C12DC5006C0001C7EB /* SystemAudioInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38AC2DC5006C0001C7EB /* SystemAudioInput.swift */; };
 		B31B38C32DC5006C0001C7EB /* MicInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31B38A32DC5006C0001C7EB /* MicInput.swift */; };
+		B34221052DE5F664001D0778 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = B34221042DE5F664001D0778 /* Log.swift */; };
 		B35875302DD4BF13004AF111 /* ChunkWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B358752F2DD4BF13004AF111 /* ChunkWriter.swift */; };
 		B394DCD62DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */; };
 		B394DCD82DDDF08300474586 /* WaveformProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B394DCD72DDDF08300474586 /* WaveformProcessor.swift */; };
@@ -91,6 +92,7 @@
 		B31B38AB2DC5006C0001C7EB /* StreamOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamOutput.swift; sourceTree = "<group>"; };
 		B31B38AC2DC5006C0001C7EB /* SystemAudioInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioInput.swift; sourceTree = "<group>"; };
 		B31B38AD2DC5006C0001C7EB /* VideoInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoInput.swift; sourceTree = "<group>"; };
+		B34221042DE5F664001D0778 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		B358752F2DD4BF13004AF111 /* ChunkWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkWriter.swift; sourceTree = "<group>"; };
 		B394DCD52DDC9CDC00474586 /* CaptureDeviceDiscoverable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureDeviceDiscoverable.swift; sourceTree = "<group>"; };
 		B394DCD72DDDF08300474586 /* WaveformProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformProcessor.swift; sourceTree = "<group>"; };
@@ -206,6 +208,7 @@
 		B31B389F2DC5006C0001C7EB /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				B34221042DE5F664001D0778 /* Log.swift */,
 				B31B389D2DC5006C0001C7EB /* Extensions.swift */,
 				B31B389E2DC5006C0001C7EB /* Screens.swift */,
 			);
@@ -374,6 +377,7 @@
 			files = (
 				B303A5A82DB7887900487002 /* CameraContentView.swift in Sources */,
 				B303A5B42DB7891D00487002 /* MicInputManager.swift in Sources */,
+				B34221052DE5F664001D0778 /* Log.swift in Sources */,
 				B303A5A42DB6A05C00487002 /* FloatingPanel.swift in Sources */,
 				B303A5A22DB69C3900487002 /* AreaSelector.swift in Sources */,
 				B303A5AA2DB7889400487002 /* CameraView.swift in Sources */,

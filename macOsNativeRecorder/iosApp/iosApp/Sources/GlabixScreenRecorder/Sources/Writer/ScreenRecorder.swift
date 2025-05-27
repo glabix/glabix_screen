@@ -12,6 +12,39 @@ import ScreenCaptureKit
 import VideoToolbox
 import Combine
 
+class WaveformService: NSObject {
+    private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
+    private var microphoneSession: AVCaptureSession?
+    let waveformProcessor: WaveformProcessor = WaveformProcessor()
+    private let queue = DispatchQueue(label: "com.glabix.screen.waveform")
+    
+    func start(config: WaveformConfig) {
+        microphoneSession = AVCaptureSession()
+        
+        let device = microphoneDevices.deviceOrDefault(uniqueID: config.microphoneUniqueID)
+        
+        guard let microphone = device else { return}
+        print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
+        
+        do {
+            let micInput = try AVCaptureDeviceInput(device: microphone)
+            microphoneSession?.addInput(micInput)
+            
+            waveformProcessor.micOutput.map {
+                microphoneSession?.addOutput($0)
+            }
+            
+            microphoneSession?.startRunning()
+        } catch {
+            print("Error setting up microphone capture: \(error)")
+        }
+    }
+    
+    func stop() {
+        microphoneSession?.stopRunning()
+    }
+}
+
 class ScreenRecorder: NSObject {
     var chunksManager: ScreenChunksManager?
     
@@ -23,8 +56,6 @@ class ScreenRecorder: NSObject {
     
     private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
 //    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
-    
-    let waveformProcessor: WaveformProcessor = WaveformProcessor()
     
     private func setupStream(
         screenConfigurator: ScreenConfigurator,
@@ -44,6 +75,8 @@ class ScreenRecorder: NSObject {
                
         try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: screenCaptureQueue)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: screenCaptureQueue)
+        
+        clearOutputDirectory()
     }
     
     func printAudioInputDevices() {
@@ -77,9 +110,6 @@ class ScreenRecorder: NSObject {
             
             micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
             microphoneSession?.addOutput(micOutput)
-            waveformProcessor.micOutput.map {
-                microphoneSession?.addOutput($0)
-            }
         } catch {
             print("Error setting up microphone capture: \(error)")
         }
@@ -104,8 +134,7 @@ class ScreenRecorder: NSObject {
     
     private func configure(with config: Config) async throws {
         let availableContent = try await SCShareableContent.current
-        print("Available displays: \(availableContent.displays.map { "\($0.displayID)" }.joined(separator: ", "))")
-        
+//        print("Available displays: \(availableContent.displays.map { "\($0.displayID)" }.joined(separator: ", "))")
         guard let display = availableContent.displays.first(where: { $0.displayID == config.displayId ?? CGMainDisplayID() }) else {
             throw NSError(domain: "GlabixScreenRecorder", code: 2, userInfo: [NSLocalizedDescriptionKey: "Display not found"])
         }
@@ -115,9 +144,9 @@ class ScreenRecorder: NSObject {
         
         let screenConfigurator = ScreenConfigurator(displayID: display.displayID)
         let recordConfiguration = RecordConfiguration(config: config)
-        
+                
         try await setupStream(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration)
-        print("config.captureMicrophone", config.captureMicrophone)
+        
         if config.captureMicrophone {
             configureMicrophoneCapture(uniqueID: config.microphoneUniqueID)
             microphoneSession?.startRunning()
@@ -127,10 +156,27 @@ class ScreenRecorder: NSObject {
         try await stream?.startCapture()
     }
     
+    private func clearOutputDirectory() {
+        let fileManager = FileManager.default
+        guard let directoryURL = chunksManager?.outputDirectory else { return }
+        
+        do {
+            try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
+            let files = try fileManager.contentsOfDirectory(atPath: directoryURL.path())
+            
+            for file in files {
+                let filePath = directoryURL.appendingPathComponent(file).absoluteURL
+                try fileManager.removeItem(at: filePath)
+            }
+        } catch let error {
+            print(error)
+        }
+    }
+    
     func stop() async throws {
+        await chunksManager?.stop()
+        
         try await stream?.stopCapture()
         microphoneSession?.stopRunning()
-            
-        await chunksManager?.stop()
     }
 }

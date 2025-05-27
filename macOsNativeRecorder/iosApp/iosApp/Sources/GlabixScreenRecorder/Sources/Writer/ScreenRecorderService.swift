@@ -82,12 +82,6 @@ class ScreenRecorderService {
     private let recorder = ScreenRecorder()
     private let captureDevicesObserver = CaptureDevicesObserver()
     private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
-    
-    static func printCallback(_ message: String) {
-        fflush(stdout)
-        print("[glabix-screen] \(message)")
-        fflush(stdout)
-    }
 
     func pause() {
         commandQueue.async { [recorder] in
@@ -112,11 +106,10 @@ class ScreenRecorderService {
                 do {
                     try await recorder.start(withConfig: config)
                     let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
-                    ScreenRecorderService.printCallback("recording started at `\(path)`")
-                    debugPrint("recording started at `\(path)`")
+                    Log.print("recording started at `\(path)`")
                     
                 } catch {
-                    print("Error starting capture: \(error)")
+                    Log.print("Error starting capture: \(error)")
                 }
             }
         }
@@ -136,8 +129,7 @@ class ScreenRecorderService {
     func startRecording() {
         defer { fflush(stdout) }
         let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
-        ScreenRecorderService.printCallback("recording started at `\(path)`")
-        debugPrint("recording started at `\(path)`")
+        Log.success("recording started at `\(path)`")
     }
     
     func stopRecording() {
@@ -146,9 +138,8 @@ class ScreenRecorderService {
                 defer { fflush(stdout) }
                 do {
                     try await recorder.stop()
-                    print("Recording stopped")
                 } catch {
-                    print("Error stopping capture: \(error)")
+                    Log.error("Error stopping capture: \(error)")
                 }
             }
         }

@@ -28,7 +28,7 @@ class WaveformSender {
         do {
             try numberString.write(to: fileURL, atomically: true, encoding: .utf8)
         } catch {
-            print("Не удалось записать в файл: \(error)")
+            Log.error("Не удалось записать в файл: \(error)")
         }
     }
 }
@@ -44,10 +44,6 @@ class WaveformProcessor: NSObject {
     private let sender = WaveformSender()
     
     override init() {
-        micOutput = nil
-        super.init()
-        return;
-        
         micOutput = AVCaptureAudioDataOutput()
         let audioSettings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM, // PCM формат

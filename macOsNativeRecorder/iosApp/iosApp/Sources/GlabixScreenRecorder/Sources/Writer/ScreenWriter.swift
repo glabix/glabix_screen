@@ -55,7 +55,7 @@ final class ScreenWriter {
     func finalize(endTime: CMTime) async {
         if assetWriter?.status == .writing {
         } else {
-            debugPrint("💀💀💀", "(\(chunkIndex)) screen assetWriter is not writing \(assetWriter?.status.rawValue)")
+            Log.error("screen assetWriter is not writing \(assetWriter?.status.rawValue)", Log.nowString, chunkIndex: chunkIndex)
         }
         assetWriter?.endSession(atSourceTime: endTime)
         await assetWriter?.finishWriting()
@@ -63,7 +63,7 @@ final class ScreenWriter {
 
         if micAssetWriter?.status == .writing {
         } else {
-            debugPrint("💀💀💀", "(\(chunkIndex)) mic assetWriter is not writing \(micAssetWriter?.status.rawValue)")
+            Log.error("mic assetWriter is not writing \(micAssetWriter?.status.rawValue)", Log.nowString, chunkIndex: chunkIndex)
         }
         micAssetWriter?.endSession(atSourceTime: endTime)
         await micAssetWriter?.finishWriting()

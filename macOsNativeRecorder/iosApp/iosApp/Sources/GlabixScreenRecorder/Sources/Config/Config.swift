@@ -32,3 +32,13 @@ struct Config: Codable {
         )
     }
 }
+
+struct WaveformConfig: Codable {
+    let microphoneUniqueID : String?
+    
+    static var `default`: WaveformConfig {
+        .init(
+            microphoneUniqueID: nil
+        )
+    }
+}
