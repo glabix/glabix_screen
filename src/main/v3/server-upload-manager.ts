@@ -13,6 +13,7 @@ import { OpenLibraryPageHandler } from "@main/v3/open-library-page-handler"
 import { StorageManagerV3 } from "@main/v3/storage-manager-v3"
 import { ProgressResolverV3 } from "@main/v3/progrss-resolver-v3"
 import { LogSender } from "@main/helpers/log-sender"
+import { AxiosRequestConfig } from "axios"
 
 export class ServerUploadManager {
   isSleep = false
@@ -235,11 +236,23 @@ export class ServerUploadManager {
               size: buffer.length,
             })
           )
+          const config: AxiosRequestConfig = {
+            onUploadProgress: (progressEvent) => {
+              if (Object.values(recording.chunks).find((c) => c.isLast)) {
+                this.progressResolverV3.updateChunkData(
+                  recording.localUuid,
+                  chunkUuid,
+                  progressEvent.loaded
+                )
+              }
+            },
+          }
           const res = await submitUploadPartCommandV3(
             token,
             recording.orgId,
             recording.serverUuid!,
-            buffer
+            buffer,
+            config
           )
           if (Object.values(recording.chunks).find((c) => c.isLast)) {
             this.progressResolverV3.updateChunkData(
