@@ -61,7 +61,7 @@ final class ChunkWriter {
             .joined(separator: " ")
     }
     
-    private static let chunkDuration: CMTime = CMTime(seconds: 2, preferredTimescale: 1)
+    private let chunkDuration: CMTime
     
     init(
         screenConfigurator: ScreenConfigurator,
@@ -71,6 +71,8 @@ final class ChunkWriter {
         index: Int,
         startTime: CMTime?
     ) {
+        let chunkDuration = CMTime(seconds: Double(recordConfiguration.chunkDurationSeconds), preferredTimescale: 1)
+        self.chunkDuration = chunkDuration
         screenChunkURL = outputDir?.appendingPathComponent("chunk_\(index).mp4")
         micChunkURL = if captureMicrophone {
             outputDir?.appendingPathComponent("chunk_\(index).m4a")
@@ -85,7 +87,7 @@ final class ChunkWriter {
         )
         
         self.startTime = startTime
-        self.endTime = startTime.map { $0 + ChunkWriter.chunkDuration }
+        self.endTime = startTime.map { $0 + chunkDuration }
         self.chunkIndex = index
         
         removeOutputFiles()
@@ -97,7 +99,7 @@ final class ChunkWriter {
     
     func startAt(_ startTime: CMTime) {
         self.startTime = startTime
-        self.endTime = startTime + ChunkWriter.chunkDuration
+        self.endTime = startTime + chunkDuration
         writer?.startSession(atSourceTime: startTime)
     }
     

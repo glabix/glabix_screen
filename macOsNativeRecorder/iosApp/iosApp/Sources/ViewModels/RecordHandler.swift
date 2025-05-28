@@ -48,19 +48,7 @@ class RecordHandler: ObservableObject {
         try checkPermissions()
         
         try await screenRecorder
-            .configureAndInitialize(with: .init(
-                displayId: nil,
-                resolution: .uhd4k,
-                fps: 30,
-                cropRect: nil,
-                //                    chunksDirectoryPath: nil,
-                chunksDirectoryPath: "/Users/pavelfeklistov/Library/Containers/com.glabix.screenMac/Data/Documents/chunks",
-                showCursor: true,
-                captureSystemAudio: true,
-                captureMicrophone: true,
-                microphoneUniqueID: nil
-//                microphoneUniqueID: "6A08AC30-F752-4660-82B0-F72A00000003"
-            ))
+            .configureAndInitialize(with: .development)
     }
     
     func startWithConfig() async throws {
@@ -73,18 +61,7 @@ class RecordHandler: ObservableObject {
         
         try await screenRecorder
             .start(
-                withConfig: .init(
-                    displayId: nil,
-                    resolution: .uhd4k,
-                    fps: 30,
-                    cropRect: nil,
-//                    chunksDirectoryPath: nil,
-                    chunksDirectoryPath: "/Users/pavelfeklistov/Library/Containers/com.glabix.screenMac/Data/Documents/chunks",
-                    showCursor: true,
-                    captureSystemAudio: true,
-                    captureMicrophone: true,
-                    microphoneUniqueID: nil//"6A08AC30-F752-4660-82B0-F72A00000003"
-                )
+                withConfig: .development
             )
         
 //        DispatchQueue.main.async {

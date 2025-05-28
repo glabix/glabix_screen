@@ -59,11 +59,11 @@ struct GlabixScreenRecorder: ParsableCommand {
                     let action = commandJSON
                     switch action {
                         case "config":
-                            recorder.configureRecorder(with: .default)
+                            recorder.configureRecorder(with: .development)
                         case "start":
                             recorder.startRecording()
-                        case "startWithConfig":
-                            recorder.startRecording(withConfig: .default)
+                        case "startWithConfig", "s":
+                            recorder.startRecording(withConfig: .development)
                         case "stop":
                             recorder.stopRecording()
                         case "pause", "p":
