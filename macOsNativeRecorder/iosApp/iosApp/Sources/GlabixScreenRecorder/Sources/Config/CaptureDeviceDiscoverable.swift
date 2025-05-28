@@ -86,11 +86,11 @@ class MicrophoneCaptureDevices: CaptureDeviceDiscoverable {
 
 extension MicrophoneCaptureDevices {
     func getAudioDeviceID(from uid: String) -> AudioDeviceID {
-        var deviceID = kAudioObjectUnknown
+        let deviceID = kAudioObjectUnknown
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDevices,
             mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMaster
+            mElement: kAudioObjectPropertyElementMain
         )
         
         var propertySize: UInt32 = 0
@@ -130,7 +130,7 @@ extension MicrophoneCaptureDevices {
             var address = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyDeviceUID,
                 mScope: kAudioObjectPropertyScopeGlobal,
-                mElement: kAudioObjectPropertyElementMaster
+                mElement: kAudioObjectPropertyElementMain
             )
             
             status = AudioObjectGetPropertyData(
@@ -154,7 +154,7 @@ extension MicrophoneCaptureDevices {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMaster
+            mElement: kAudioObjectPropertyElementMain
         )
         
         var deviceID = getAudioDeviceID(from: deviceUID)

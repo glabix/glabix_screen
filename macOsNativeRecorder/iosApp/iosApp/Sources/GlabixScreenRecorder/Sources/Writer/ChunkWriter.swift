@@ -127,7 +127,7 @@ final class ChunkWriter {
             status = .finalizing
             self.endTime = endTime
             
-            try? await Task.sleep(for: .seconds(0.5))
+            try? await Task.sleep(for: .seconds(0.3))
         }
         
         await finalizeOrCancel(endTime: endTime, lastSampleBuffers: lastSampleBuffers)
@@ -257,7 +257,7 @@ final class ChunkWriter {
         }
         
         if status == .finalizing {
-            Log.print("appending to finalizing chunk \(type) at \(sampleBuffer.presentationTimeStamp.seconds) endAt \(endTime?.seconds ?? 0)", chunkIndex: chunkIndex)
+            Log.print("appending to finalizing chunk \(type) at \(sampleBuffer.presentationTimeStamp.seconds) endAt \(endTime?.seconds ?? 0) diff \(CMClock.hostTimeClock.time.seconds - sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
         }
         
         assetWriterInput.append(sampleBuffer)

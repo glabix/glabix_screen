@@ -85,7 +85,7 @@ class ScreenChunksManager {
     }
     
     private func initChunkWriter(index: Int, expectedStartTime: CMTime?) {
-        Log.print("createNewChunk initChunkWriter ", expectedStartTime?.seconds ?? 0, Log.nowString, chunkIndex: index)
+        Log.print("createNewChunk initChunkWriter expectedStartTime:", expectedStartTime?.seconds ?? 0, Log.nowString, chunkIndex: index)
         _chunkWriters.append(
             ChunkWriter(
                 screenConfigurator: screenConfigurator,
@@ -217,23 +217,27 @@ class ScreenChunksManager {
                     state = .paused
                     chunkWriter = writerAt(timestamp)
                     
-                    Log.success("Pause", "timestamp", timestamp.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkWriter?.chunkIndex)//, "chunk start", chunkStartTime.seconds)
+                    Log.info("Pausing", "timestamp", timestamp.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkWriter?.chunkIndex)//, "chunk start", chunkStartTime.seconds)
                     //            pausedAt = timestamp
-                    activeChunkWriters
-                        .forEach { chunkWriter in
-                            chunkWriter.updateStatusOnFinalizeOrCancel(endTime: timestamp)
-                            
-                            queue.async { [weak chunkWriter, weak self] in
-                                Task { [weak chunkWriter, weak self] in
+                    
+                    queue.async { [weak self] in
+                        Task { [weak self] in
+                            await self?.activeChunkWriters
+                                .asyncForEach { chunkWriter in
+                                    chunkWriter.updateStatusOnFinalizeOrCancel(endTime: timestamp)
+                                
                                     guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
-                                    await chunkWriter?.finalizeOrCancelWithDelay(
+                                    await chunkWriter.finalizeOrCancelWithDelay(
                                         endTime: timestamp,
                                         lastSampleBuffers: lastSampleBuffers
                                     )
                                 }
-                            }
+                            
+                            guard let lastChunkIndex = self?.notCancelledChunkWriters.last?.chunkIndex else { return }
+                            self?.initChunkWriter(index: lastChunkIndex + 1, expectedStartTime: nil)
+                            Log.success("Paused", self?.chunkWritersDebugInfo ?? "")
                         }
-                    
+                    }
                 } else {
                     chunkWriter = getOrInitializeWriterAt(timestamp, type: type)
                 }
@@ -285,7 +289,7 @@ class ScreenChunksManager {
             }
         
         let chunkIndex = notCancelledChunkWriters.last?.chunkIndex
-        Log.success("stopped", endTime.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkIndex)
+        Log.success("Stopped", endTime.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkIndex)
         Callback.print(Callback.RecordingStopped(lastChunkIndex: chunkIndex))
                        
         self._chunkWriters = []
