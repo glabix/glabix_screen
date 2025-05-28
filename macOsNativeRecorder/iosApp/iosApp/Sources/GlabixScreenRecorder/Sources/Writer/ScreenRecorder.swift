@@ -24,7 +24,7 @@ class WaveformService: NSObject {
         let device = microphoneDevices.deviceOrDefault(uniqueID: config.microphoneUniqueID)
         
         guard let microphone = device else { return}
-        print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
+        Log.info("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
         
         do {
             let micInput = try AVCaptureDeviceInput(device: microphone)
@@ -36,7 +36,7 @@ class WaveformService: NSObject {
             
             microphoneSession?.startRunning()
         } catch {
-            print("Error setting up microphone capture: \(error)")
+            Log.error("Error setting up microphone capture: \(error)")
         }
     }
     
@@ -100,7 +100,7 @@ class ScreenRecorder: NSObject {
         let device = microphoneDevices.deviceOrDefault(uniqueID: uniqueID)
         
         guard let microphone = device else { return}
-        print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
+        Log.info("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
         
         do {
             let micInput = try AVCaptureDeviceInput(device: microphone)
@@ -111,7 +111,7 @@ class ScreenRecorder: NSObject {
             micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
             microphoneSession?.addOutput(micOutput)
         } catch {
-            print("Error setting up microphone capture: \(error)")
+            Log.error("Error setting up microphone capture: \(error)")
         }
     }
     

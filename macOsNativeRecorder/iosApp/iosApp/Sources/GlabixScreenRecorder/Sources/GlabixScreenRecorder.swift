@@ -12,14 +12,16 @@ struct GlabixScreenRecorder: ParsableCommand {
         subcommands: [GlabixWaveform.self]
     )
     
-//    @Option(
-//        name: .shortAndLong,
-//        help: "Help text"
-//    )
-//    var name: String
+    @Option(
+        name: .shortAndLong,
+        help: "Print debug info"
+    )
+    var verbose: Bool = true
     
     func run() throws {
-        Log.success("Recorder module launched")
+        Log.shared.verbose = verbose
+        
+        Log.success("Recorder module launched \(verbose)")
         
         let recorder = ScreenRecorderService()
         

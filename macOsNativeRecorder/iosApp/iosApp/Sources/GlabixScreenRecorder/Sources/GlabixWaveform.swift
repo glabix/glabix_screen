@@ -13,6 +13,8 @@ struct GlabixWaveform: ParsableCommand {
     var options: GlabixScreenRecorder
     
     func run() throws {
+        Log.shared.verbose = options.verbose
+        
         Log.success("Waveform module launched")
         
         let service = WaveformService()

@@ -69,6 +69,7 @@ class ScreenChunksManager {
     private var lastSampleTime: CMTime?
     private var lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer] = [:]
     private let queue = DispatchQueue(label: "com.glabix.screen.chunksManager")
+    private let processSampleQueue = DispatchQueue(label: "com.glabix.screen.screenCapture.processSample")
     private let defaultChunksDir: String
     
     init(
@@ -85,7 +86,6 @@ class ScreenChunksManager {
     
     private func initChunkWriter(index: Int, expectedStartTime: CMTime?) {
         Log.print("createNewChunk initChunkWriter ", expectedStartTime?.seconds ?? 0, Log.nowString, chunkIndex: index)
-
         _chunkWriters.append(
             ChunkWriter(
                 screenConfigurator: screenConfigurator,
@@ -100,7 +100,8 @@ class ScreenChunksManager {
 
     private func asyncInitializeNextIfNeeded(chunkWriter: ChunkWriter) {
         let nextChunkIndex = chunkWriter.chunkIndex + 1
-        queue.asyncAfter(deadline: .now() + 0.2) { [weak self] in // not always state = shouldPause being applied
+        
+        processSampleQueue.async { [weak self] in // not always state = shouldPause being applied
             guard self?.activeChunkWriter(nextChunkIndex) == nil else { return }
             
             guard self?.state == .recording else {
@@ -183,10 +184,21 @@ class ScreenChunksManager {
         state = .shouldStart
     }
     
-    func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
+    func syncProcessSampleBuffer(_ sampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
+        processSampleQueue.sync {
+            processSampleBuffer(sampleBuffer, type: type)
+            
+//            if chunkWriter.chunkIndex == 3, state == .recording {
+//                Log.error("PAUSE!", Log.nowString)
+//                pause()
+//            }
+        }
+    }
+    
+    private func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
         let timestamp = sampleBuffer.presentationTimeStamp
         
-        let chunkWriter: ChunkWriter?        
+        let chunkWriter: ChunkWriter?
         switch state {
             case .initial:
                 chunkWriter = writerAt(timestamp)
