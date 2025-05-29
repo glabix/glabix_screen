@@ -6,7 +6,8 @@ export enum SwiftRecorderEvents {
   PAUSE = "swift-recorder:pause",
   RESUME = "swift-recorder:resume",
   CONFIGURE = "swift-recorder:configure",
-  CROP_UPDATE = "crop_update",
+  START_WAVE_FORM = "swift-recorder:wave-form:start",
+  STOP_WAVE_FORM = "swift-recorder:wave-form:stop",
 }
 
 export enum SwiftMediaDevicesEvents {

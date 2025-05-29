@@ -607,13 +607,20 @@ const startRecording = () => {
 
   if (getRecordSource() == RecordSourceType.SWIFT) {
     if (cropVideoData) {
-      window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CROP_UPDATE, {
+      const cropRect: Rectangle = {
         x: Math.round(cropVideoData.x),
         y: Math.round(cropVideoData.y),
         width: Math.round(cropVideoData.out_w),
         height: Math.round(cropVideoData.out_h),
+      }
+
+      window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CONFIGURE, {
+        cropRect,
       })
     }
+
+    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.START)
+
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "swiftRecorder.start",
     })
@@ -621,10 +628,11 @@ const startRecording = () => {
     timer.start(true)
 
     createPreview()
-    window.electronAPI.ipcRenderer.send(
-      RecordEvents.SWIFT_START,
-      lastStreamSettings
-    )
+
+    // window.electronAPI.ipcRenderer.send(
+    //   RecordEvents.SWIFT_START,
+    //   lastStreamSettings
+    // )
   }
 }
 

@@ -38,6 +38,7 @@ import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import {
   ISwiftMediaDevice,
   SwiftMediaDevicesEvents,
+  SwiftRecorderEvents,
 } from "@shared/types/swift-recorder.types"
 type SettingsTabType =
   | "root"
@@ -267,6 +268,7 @@ function setLastMediaDevices(params: {
   if (params.lastAudioDeviceId) {
     lastDeviceIds = { ...lastDeviceIds, audioId: params.lastAudioDeviceId }
   }
+
   if (params.lastSwiftAudioDeviceId) {
     lastDeviceIds = {
       ...lastDeviceIds,
@@ -283,14 +285,6 @@ function setLastMediaDevices(params: {
   }
 
   localStorage.setItem(LAST_DEVICE_IDS, JSON.stringify(lastDeviceIds))
-
-  window.electronAPI.ipcRenderer.send(
-    "console.log",
-    `
-    setLastMediaDevices
-  `,
-    lastDeviceIds
-  )
 }
 
 function stopVisualAudio() {
@@ -308,6 +302,8 @@ function stopVisualAudio() {
     cancelAnimationFrame(visualAudioAnimationId)
     visualAudioAnimationId = 0
   }
+
+  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP_WAVE_FORM)
 }
 
 function getBrowserAudioDeviceId(): string {
@@ -346,8 +342,6 @@ function initVisualAudio() {
   ) {
     const browserDeviceId = getBrowserAudioDeviceId()
 
-    console.log("browserDeviceId", browserDeviceId)
-
     if (browserDeviceId) {
       navigator.mediaDevices
         .getUserMedia({
@@ -378,17 +372,11 @@ function initVisualAudio() {
           const bufferLength = analyser.frequencyBinCount
           const dataArray = new Uint8Array(bufferLength)
 
-          // window.electronAPI.ipcRenderer.send('console.log', 'dataArray', dataArray)
-
-          // console.log()
-          // console.log('bufferLength', bufferLength)
-
           function updateVisual() {
-            // window.electronAPI.ipcRenderer.invoke('getAudioAnalizer')
+            analyser.getByteTimeDomainData(dataArray)
             canvases.forEach((canvas) => {
               const canvasCtx = canvas.getContext("2d")!
               canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-              analyser.getByteTimeDomainData(dataArray)
 
               canvasCtx.fillStyle = "rgb(255, 255, 255)"
               canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
@@ -406,11 +394,11 @@ function initVisualAudio() {
               let previousY = canvas.height / 2
               // window.electronAPI.ipcRenderer.send('console.log', 'dataArray', dataArray)
 
-              // console.log('dataArray', dataArray)
-
               for (let i = 0; i < bufferLength; i++) {
                 const v = dataArray[i]! / 128
                 const y = (v * canvas.height) / 2 + canvas.height / 4
+                // console.log(`v/y`, v, y)
+                // window.electronAPI.ipcRenderer.send('console.log', `v/y`, v, y)
 
                 if (i === 0) {
                   canvasCtx.moveTo(x, y)
@@ -424,6 +412,8 @@ function initVisualAudio() {
                     controlY
                   )
                 }
+
+                // console.log("coord", previousX, x, previousY, y)
 
                 previousX = x
                 previousY = y
@@ -440,15 +430,20 @@ function initVisualAudio() {
             })
 
             visualAudioAnimationId = requestAnimationFrame(() => updateVisual())
-            // setInterval(updateVisual, 10)
           }
 
           updateVisual()
         })
         .catch((e) => {})
     } else {
+      window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.START_WAVE_FORM)
+      // window.electronAPI.ipcRenderer.send('console.log',
+      //   `
+      //     run swift script
+      //   `
+      // )
       // GET
-      console.log("run swift script")
+      // console.log("run swift script")
     }
   }
 }
@@ -456,12 +451,10 @@ function initVisualAudio() {
 function useBrowserAudioDevice(): boolean {
   return streamSettings.action == "cameraOnly" || isWindows
 }
-async function setupMediaDevices() {
+async function setupMediaDevices(setDefault = false) {
   const useBrowserDevice = useBrowserAudioDevice()
 
   enumerateDevices = await navigator.mediaDevices.enumerateDevices()
-
-  // console.log('useBrowserDevice', useBrowserDevice)
 
   if (useBrowserDevice) {
     mediaDevicesList = enumerateDevices.map((d) => ({
@@ -490,12 +483,10 @@ async function setupMediaDevices() {
   // console.log('browserDevices', enumerateDevices)
   // console.log('mediaDevicesList', mediaDevicesList)
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `
-    modal-page.renderer:setupMediaDevices
-    `,
-    body: JSON.stringify(mediaDevicesList),
-  })
+  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //   title: `modal-page.renderer:setupMediaDevices`,
+  //   body: JSON.stringify(mediaDevicesList),
+  // })
 
   // const devices = await navigator.mediaDevices.enumerateDevices()
   // const mDevices = devices.filter(d => d.kind == 'audioinput').map(d => (({deviceId: d.deviceId, label: d.label, kind: d.kind, groupId: d.groupId})))
@@ -508,13 +499,13 @@ async function setupMediaDevices() {
   const prevSettings = { ...streamSettings }
   lastDeviceIds = getLastMediaDevices()
 
-  window.electronAPI.ipcRenderer.send(
-    "console.log",
-    `
-    lastDeviceIds
-    `,
-    lastDeviceIds
-  )
+  // window.electronAPI.ipcRenderer.send(
+  //   "console.log",
+  //   `
+  //   lastDeviceIds
+  //   `,
+  //   lastDeviceIds
+  // )
 
   // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
   //   title: "modal-page.renderer:getLastMediaDevices",
@@ -535,9 +526,9 @@ async function setupMediaDevices() {
     const lastAudioDeviceId = useBrowserAudioDevice()
       ? lastDeviceIds.audioId
       : lastDeviceIds.swiftAudioId
-    const lastAudioDevice = audioDevicesList.find(
-      (d) => d.deviceId == lastAudioDeviceId
-    )
+    const lastAudioDevice = setDefault
+      ? audioDevicesList.find((d) => d.deviceId == lastAudioDeviceId)
+      : audioDevicesList.find((d) => d.isDefault)
     if (lastAudioDevice) {
       activeAudioDevice = lastAudioDevice
     } else {
@@ -556,20 +547,20 @@ async function setupMediaDevices() {
     }
   }
 
-  window.electronAPI.ipcRenderer.send(
-    "console.log",
-    `
-    audioDevicesList
-    `,
-    audioDevicesList
-  )
-  window.electronAPI.ipcRenderer.send(
-    "console.log",
-    `
-    activeAudioDevice
-    `,
-    activeAudioDevice
-  )
+  // window.electronAPI.ipcRenderer.send(
+  //   "console.log",
+  //   `
+  //   audioDevicesList
+  //   `,
+  //   audioDevicesList
+  // )
+  // window.electronAPI.ipcRenderer.send(
+  //   "console.log",
+  //   `
+  //   activeAudioDevice
+  //   `,
+  //   activeAudioDevice
+  // )
 
   if (hasCamera) {
     const lastVideoDevice = videoDevicesList.find(
@@ -597,16 +588,13 @@ async function setupMediaDevices() {
     }
   }
 
-  console.log("prevSettings", prevSettings)
-  console.log("streamSettings", streamSettings)
-
   if (JSON.stringify(prevSettings) != JSON.stringify(streamSettings)) {
     sendSettings()
   }
 }
 
-function initMediaDevice() {
-  setupMediaDevices()
+function initMediaDevice(setDefault = false) {
+  setupMediaDevices(setDefault)
     .then(() => {
       initVisualAudio()
 
@@ -624,7 +612,7 @@ function initMediaDevice() {
 }
 
 const changeMediaDevices = debounce(() => {
-  initMediaDevice()
+  initMediaDevice(true)
   window.electronAPI.ipcRenderer.send("devicechange", {})
   window.electronAPI.ipcRenderer.send("dropdown:close", {})
 })
@@ -1702,70 +1690,84 @@ window.electronAPI.ipcRenderer.on(
 window.electronAPI.ipcRenderer.on(
   SwiftMediaDevicesEvents.CHANGE,
   (event, data: IMediaDevice[]) => {
-    // console.log('SwiftMediaDevicesEvents.CHANGE', data)
-    initMediaDevice()
+    initMediaDevice(true)
   }
 )
+
+let silenceData: number[] = []
+const waveDataMin = 8
+const waveDataMax = 256
+for (let i = 0; i < 1024; i++) {
+  silenceData[i] = 128
+}
 
 window.electronAPI.ipcRenderer.on(
   SwiftMediaDevicesEvents.GET_WAVE_FORM,
   (event, _data: number[]) => {
-    const data = [..._data, ..._data, ..._data]
-    console.log("data", data)
-    const canvases = document.querySelectorAll(
-      ".visualizer"
-    )! as NodeListOf<HTMLCanvasElement>
-
-    canvases.forEach((canvas) => {
-      const canvasCtx = canvas.getContext("2d")!
-      canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-      // analyser.getByteTimeDomainData(dataArray)
-
-      canvasCtx.fillStyle = "rgb(255, 255, 255)"
-      canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
-
-      canvasCtx.lineWidth = 0
-      canvasCtx.strokeStyle = "#A7EBBB"
-      canvasCtx.fillStyle = "#A7EBBB"
-
-      canvasCtx.beginPath()
-
-      const sliceWidth = (canvas.width * 1.0) / data.length
-
-      let x = 0
-      let previousX = 0
-      let previousY = canvas.height / 2
-      // window.electronAPI.ipcRenderer.send('console.log', 'dataArray', dataArray)
-
-      // console.log('dataArray', dataArray)
-
-      for (let i = 0; i < data.length; i++) {
-        const v = data[i]! / 2
-        const y = (v * canvas.height) / 2 + canvas.height / 4
-
-        if (i === 0) {
-          canvasCtx.moveTo(x, y)
-        } else {
-          const controlX = (previousX + x) / 2
-          const controlY = (previousY + y) / 2
-          canvasCtx.quadraticCurveTo(previousX, previousY, controlX, controlY)
-        }
-
-        previousX = x
-        previousY = y
-        x += sliceWidth
-      }
-
-      // Завершение фигуры для заливки
-      canvasCtx.lineTo(canvas.width, canvas.height)
-      canvasCtx.lineTo(0, canvas.height)
-      canvasCtx.closePath()
-
-      canvasCtx.stroke()
-      canvasCtx.fill()
+    const size = Math.ceil(1024 / _data.length)
+    const data = silenceData.map((v, i) => {
+      const index = Math.round(i / size)
+      let value = Math.round(v + _data[index]! * 1000)
+      value = Math.max(waveDataMin, value)
+      value = Math.min(waveDataMax, value)
+      return value
     })
+
+    drawWaveForm(data)
   }
 )
+
+function drawWaveForm(data: number[]) {
+  const canvases = document.querySelectorAll(
+    ".visualizer"
+  )! as NodeListOf<HTMLCanvasElement>
+
+  canvases.forEach((canvas) => {
+    const canvasCtx = canvas.getContext("2d")!
+    canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
+    // analyser.getByteTimeDomainData(dataArray)
+
+    canvasCtx.fillStyle = "rgb(255, 255, 255)"
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
+
+    canvasCtx.lineWidth = 0
+    canvasCtx.strokeStyle = "#A7EBBB"
+    canvasCtx.fillStyle = "#A7EBBB"
+
+    canvasCtx.beginPath()
+
+    const sliceWidth = (canvas.width * 1.0) / data.length
+
+    let x = 0
+    let previousX = 0
+    let previousY = canvas.height / 2
+
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i]! / 128
+      const y = (v * canvas.height) / 2 + canvas.height / 4
+      console.log(`v/y`, v, y)
+      if (i === 0) {
+        canvasCtx.moveTo(x, y)
+      } else {
+        const controlX = (previousX + x) / 2
+        const controlY = (previousY + y) / 2
+        canvasCtx.quadraticCurveTo(previousX, previousY, controlX, controlY)
+      }
+
+      previousX = x
+      previousY = y
+      x += sliceWidth
+    }
+
+    // Завершение фигуры для заливки
+    canvasCtx.lineTo(canvas.width, canvas.height)
+    canvasCtx.lineTo(0, canvas.height)
+    canvasCtx.closePath()
+
+    canvasCtx.stroke()
+    canvasCtx.fill()
+  })
+}
 
 function updateHotkeysTexts() {
   const textEls = document.querySelectorAll(

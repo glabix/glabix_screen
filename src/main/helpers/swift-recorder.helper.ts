@@ -20,6 +20,7 @@ import {
   SwiftRecorderCallbackActions,
   SwiftRecorderEvents,
 } from "@shared/types/swift-recorder.types"
+import { AppEvents } from "@shared/events/app.events"
 
 // import audioDevices from 'macos-audio-devices'
 // import mic from 'mic'
@@ -28,9 +29,10 @@ import {
 // import { Transform } from "stream"
 // let analyser: any
 
-const CALLBACK_SEPARATOR = "[glabix-screen.callback]"
+const CALLBACK_START = "[glabix-screen.callback]"
+const CALLBACK_END = "###END"
 let audioInputDevices: IMediaDevice[] = []
-let swiftProcess: ChildProcessWithoutNullStreams | null = null
+let recorderProcess: ChildProcessWithoutNullStreams | null = null
 let waveFormProcess: ChildProcessWithoutNullStreams | null = null
 const logSender = new LogSender()
 let isRecording = false
@@ -44,19 +46,20 @@ let isRecording = false
 if (os.platform() == "darwin") {
   let swiftRecorderConfig: ISwiftRecorderConfig = {}
 
-  let browserMediaDevices: MediaDeviceInfo[] = []
+  // let browserMediaDevices: MediaDeviceInfo[] = []
   // const audioDevices: MediaDeviceInfo[] = []
 
   function kill() {
-    swiftProcess?.kill()
+    recorderProcess?.kill()
+    waveFormProcess?.kill()
   }
 
   function init(path: string) {
-    swiftProcess = spawn(path)
+    recorderProcess = spawn(path)
 
-    swiftProcess.stdout.on("data", (data) => {
+    recorderProcess.stdout.on("data", (data) => {
       console.log(`
-        swiftProcess Output: ${data.toString()}
+        recorderProcess Output: ${data.toString()}
         `)
       parseCallbackByActions(data.toString())
       // logSender.sendLog(`
@@ -64,26 +67,33 @@ if (os.platform() == "darwin") {
       //   `)
     })
 
-    swiftProcess.stderr.on("data", (data) => {
-      // logSender.sendLog("swiftProcess.stderr.on('data'): ", `${data.toString()}`)
+    recorderProcess.stderr.on("data", (data) => {
+      // logSender.sendLog("recorderProcess.stderr.on('data'): ", `${data.toString()}`)
       console.error(`
-        stderr: ${data}
+        recorderProcess stderr: ${data}
         `)
     })
 
-    swiftProcess.on("close", (code) => {
+    recorderProcess.on("close", (code) => {
       console.log(`детский процесс завершился с кодом ${code}`)
     })
 
-    waveFormProcess = spawn(path)
+    waveFormProcess = spawn(path, ["glabix-waveform"])
     waveFormProcess.stdout.on("data", (data) => {
-      console.log(`
-        waveFormProcess Output: ${data.toString()}
-      `)
-      parseCallbackByActions(data.toString())
+      // console.log(`
+      //   waveFormProcess Output: ${data.toString()}
+      // `)
+      parseWaveFormCallbackByAction(data.toString())
       // logSender.sendLog(`
       //     Swift Output: ${data.toString()}
       //   `)
+    })
+
+    waveFormProcess.stderr.on("data", (data) => {
+      // logSender.sendLog("recorderProcess.stderr.on('data'): ", `${data.toString()}`)
+      console.error(`
+        waveFormProcess stderr: ${data}
+        `)
     })
   }
 
@@ -97,8 +107,9 @@ if (os.platform() == "darwin") {
   getMics()
   // configureRecording()
 
-  function configRecording(config: ISwiftRecorderConfig): string {
-    let result = ""
+  function configRecording() {
+    const config = { ...swiftRecorderConfig }
+    let action = ""
     const chunkDir = path.join(
       os.homedir(),
       "Library",
@@ -109,24 +120,35 @@ if (os.platform() == "darwin") {
     const cropRect = config.cropRect
       ? `{"x": ${config.cropRect.x}, "y": ${config.cropRect.y}, "width": ${config.cropRect.width}, "height": ${config.cropRect.height}}`
       : null
-    result = `{"action": "start", "config": {"fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "uhd4k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '",' : ""} "chunksDirectoryPath": "${chunkDir}"}}\n`
-    logSender.sendLog("SwiftRecorder start config: ", JSON.stringify(config))
-    logSender.sendLog("SwiftRecorder init: ", result)
-    return result
+    action = `{"action": "configure", "config": {"fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "uhd4k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '",' : ""} "chunksDirectoryPath": "${chunkDir}"}}\n`
+    recorderProcess?.stdin.write(action)
+    // return result
   }
 
-  function configureRecording() {
-    const action = `{"action": "configure", "config": {"fps": 30, "showCursor": true, "displayId": null, "resolution": "uhd4k", "cropRect": null, "captureSystemAudio": false, "captureMicrophone": true}}\n`
-    swiftProcess?.stdin.write(action)
-  }
+  // function createConfigAction(config: ISwiftRecorderConfig): string {
+  //   let action = ""
+  //   const chunkDir = path.join(
+  //     os.homedir(),
+  //     "Library",
+  //     "Application Support",
+  //     app.getName(),
+  //     "chunks_storage"
+  //   )
+  //   const cropRect = config.cropRect
+  //     ? `{"x": ${config.cropRect.x}, "y": ${config.cropRect.y}, "width": ${config.cropRect.width}, "height": ${config.cropRect.height}}`
+  //     : null
+  //   return action = `{"action": "start", "config": {"fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "uhd4k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '",' : ""} "chunksDirectoryPath": "${chunkDir}"}}\n`
+  // }
 
-  function startRecording(_config: ISwiftRecorderConfig) {
-    // swiftProcess.stdin.write('{"action": "start", "config": {"fps": 30, "showCursor": true, "displayId": 0}}\n');
+  function startRecording() {
+    recorderProcess?.stdin.write('{"action": "start"}\n')
+    logSender.sendLog('{"swift-recorder": "start"}')
+    // recorderProcess.stdin.write('{"action": "start", "config": {"fps": 30, "showCursor": true, "displayId": 0}}\n');
 
-    const params = `{"action": "start", "config": {"fps": 30, "captureSystemAudio": true, "captureMicrophone": false, "showCursor": true, "displayId": 69734406, "resolution": "uhd4k", "cropRect": null, "chunksDirectoryPath": "/Users/artembydiansky/Library/Application Support/glabix-screen/chunks_storage" }}\n`
-    const config = configRecording(_config)
-    const startAction = `{"action": "start", "config":${config}`
-    swiftProcess?.stdin.write(startAction)
+    // const params = `{"action": "start", "config": {"fps": 30, "captureSystemAudio": true, "captureMicrophone": false, "showCursor": true, "displayId": 69734406, "resolution": "uhd4k", "cropRect": null, "chunksDirectoryPath": "/Users/artembydiansky/Library/Application Support/glabix-screen/chunks_storage" }}\n`
+    // const config = configRecording(_config)
+    // const startAction = `{"action": "start", "config":${config}`
+    // recorderProcess?.stdin.write(startAction)
     // console.log('startAction', startAction)
   }
 
@@ -136,12 +158,22 @@ if (os.platform() == "darwin") {
     // )
     // kill()
     // init(toolPath)
-    swiftProcess?.stdin.write('{"action": "printAudioInputDevices"}\n')
-    logSender.sendLog('{"action": "printAudioInputDevices"}\n')
+    recorderProcess?.stdin.write('{"action": "printAudioInputDevices"}\n')
+    logSender.sendLog('{"swift-recorder": "printAudioInputDevices"}\n')
+  }
+
+  function startWaveForm() {
+    const config = { ...swiftRecorderConfig }
+    const action = `{"action": "start", "config": {"microphoneUniqueID": "${config.audioDeviceId}"}}\n`
+    waveFormProcess?.stdin.write(action)
+  }
+
+  function stopWaveForm() {
+    waveFormProcess?.stdin.write('{"action": "stop"}\n')
   }
 
   function stopRecording() {
-    swiftProcess?.stdin.write('{"action": "stop"}\n')
+    recorderProcess?.stdin.write('{"action": "stop"}\n')
     // logSender.sendLog("stopRecording", `stopRecording`)
     // execa(toolPath, ['{"action": "stop"}']).then()
     console.log(`
@@ -151,8 +183,8 @@ if (os.platform() == "darwin") {
   }
 
   function pauseRecording() {
-    swiftProcess?.stdin.write('{"action": "pause"}\n')
-    // swiftProcess.stdin.write("pause\n")
+    recorderProcess?.stdin.write('{"action": "pause"}\n')
+    // recorderProcess.stdin.write("pause\n")
     console.log(`
       pause
       ===========
@@ -160,8 +192,8 @@ if (os.platform() == "darwin") {
   }
 
   function resumeRecording() {
-    swiftProcess?.stdin.write('{"action": "resume"}\n')
-    // swiftProcess.stdin.write("resume\n")
+    recorderProcess?.stdin.write('{"action": "resume"}\n')
+    // recorderProcess.stdin.write("resume\n")
     console.log(`
       resume
       ===========
@@ -191,19 +223,13 @@ if (os.platform() == "darwin") {
   }
 
   ipcMain.on(
-    SwiftRecorderEvents.CROP_UPDATE,
-    (event, cropRect: Rectangle | undefined) => {
-      swiftRecorderConfig = { ...swiftRecorderConfig, cropRect }
-    }
-  )
-
-  ipcMain.on(
     RecordSettingsEvents.UPDATE,
     (event, settings: IStreamSettings) => {
       // console.log(`
       //   RecordSettingsEvents.UPDATE swift-recorder.helper.ts
       // `, settings)
       assignSettingsToConfig(settings)
+      configRecording()
     }
   )
 
@@ -212,32 +238,39 @@ if (os.platform() == "darwin") {
     //   RecordSettingsEvents.INIT
     // `, settings)
     assignSettingsToConfig(settings)
+    configRecording()
+  })
+
+  ipcMain.on(SwiftRecorderEvents.START_WAVE_FORM, (event, data) => {
+    startWaveForm()
+  })
+  ipcMain.on(SwiftRecorderEvents.STOP_WAVE_FORM, (event, data) => {
+    stopWaveForm()
   })
 
   ipcMain.on(
     SwiftRecorderEvents.START,
     (event, config: ISwiftRecorderConfig) => {
+      // console.log(
+      //   `
+      // config
+      // `,
+      //   config
+      // )
+      // swiftRecorderConfig = {
+      //   ...swiftRecorderConfig,
+      //   ...config,
+      // }
+
+      // swiftRecorderConfig = filterStreamSettings(swiftRecorderConfig)
+
       console.log(
         `
-      config
-      `,
-        config
-      )
-      swiftRecorderConfig = {
-        ...swiftRecorderConfig,
-        ...config,
-      }
-
-      swiftRecorderConfig = filterStreamSettings(swiftRecorderConfig)
-
-      console.log(
-        `
-      SwiftRecorderEvents.START
-    `,
-        swiftRecorderConfig
+        SwiftRecorderEvents.START
+      `
       )
 
-      startRecording(swiftRecorderConfig)
+      startRecording()
     }
   )
   ipcMain.on(SwiftRecorderEvents.STOP, (event, data) => {
@@ -251,12 +284,40 @@ if (os.platform() == "darwin") {
   })
 
   ipcMain.on("devicechange", (event, data) => {
-    console.log("isRecording", isRecording)
     if (isRecording) {
       return
     }
 
     getMics()
+  })
+
+  ipcMain.on(
+    SwiftRecorderEvents.CONFIGURE,
+    (event, newConfig: ISwiftRecorderConfig) => {
+      console.log(
+        `
+      prev config
+    `,
+        swiftRecorderConfig
+      )
+      swiftRecorderConfig = { ...swiftRecorderConfig, ...newConfig }
+      configRecording()
+      console.log(
+        `
+      new config
+    `,
+        swiftRecorderConfig
+      )
+    }
+  )
+
+  ipcMain.on(AppEvents.ON_HIDE, (event, data) => {
+    stopRecording()
+    stopWaveForm()
+  })
+
+  ipcMain.on(AppEvents.ON_SHOW, (event, data) => {
+    configRecording()
   })
 }
 
@@ -268,9 +329,11 @@ function parseCallback(str: string): any[] {
   let res: any[] = []
   if (str) {
     const actionStr = str
-      .split(CALLBACK_SEPARATOR)
+      .split(CALLBACK_START)
       .map((s) => s.trim())
       .filter((s) => Boolean(s))
+      .flatMap((s) => s.split(CALLBACK_END))
+
     actionStr.forEach((s) => {
       if (s.includes('{"action":') || s.includes('{ "action":')) {
         try {
@@ -279,13 +342,32 @@ function parseCallback(str: string): any[] {
       }
     })
   }
-  // console.log('res', res)
   return res
+}
+
+function parseWaveFormCallbackByAction(str: string) {
+  if (str) {
+    const allActions = parseCallback(str)
+
+    const waveFormAction = allActions.filter(
+      (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_WAVE_FORM
+    )
+
+    if (waveFormAction.length) {
+      ipcMain.emit(
+        SwiftMediaDevicesEvents.GET_WAVE_FORM,
+        null,
+        waveFormAction[0].amplitudes
+      )
+    }
+  }
 }
 
 function parseCallbackByActions(str: string) {
   if (str) {
     const allActions = parseCallback(str)
+
+    console.log("allActions", allActions)
     if (allActions.length) {
     }
 
@@ -342,24 +424,14 @@ function parseCallbackByActions(str: string) {
         }))
       audioInputDevices = [...audioMediaDevices]
       // - emit action
-      ipcMain.emit(SwiftMediaDevicesEvents.CHANGE, null, audioInputDevices)
-    }
 
-    const waveFormAction = allActions.filter(
-      (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_WAVE_FORM
-    )
-
-    // console.log(`
-    //   ====parseCallbackByActions====
-    //   waveFormAction:
-    // `, waveFormAction)
-
-    if (waveFormAction.length) {
-      ipcMain.emit(
-        SwiftMediaDevicesEvents.GET_WAVE_FORM,
-        null,
-        waveFormAction[0].amplitudes
+      console.log(
+        `
+        audioInputDevices
+      `,
+        audioInputDevices
       )
+      ipcMain.emit(SwiftMediaDevicesEvents.CHANGE, null, audioInputDevices)
     }
   }
 
@@ -384,173 +456,7 @@ ipcMain.on(SimpleStoreEvents.CHANGED, (event, state) => {
   isRecording = ["recording", "paused"].includes(state["recordingState"])
 })
 
-// function initMicStream(deviceId: any) {
-
-//   const micInstance = mic({
-//     rate: '16000',
-//     channels: '1',
-//     debug: true,
-//     // exitOnSilence: 6,
-//     device: deviceId // Укажите здесь ваш идентификатор устройства
-//   });
-
-//   // var outputFileStream = fs.WriteStream('output.raw');
-
-//   const micInputStream = micInstance.getAudioStream();
-//   // micInputStream.pipe(outputFileStream);
-//   // Трансформирующий поток для анализа данных
-// // const volumeAnalyser = new Transform({
-// //   transform(chunk, encoding, callback) {
-// //     const volume = getRMS1(chunk);
-// //     console.log(`Current volume level: ${volume}`);
-// //     callback(null, chunk);
-// //   },
-// // });
-
-// // // Функция для вычисления RMS (корня среднего квадрата)
-// // function getRMS1(buffer) {
-// //   let sum = 0;
-// //   for (let i = 0; i < buffer.length; i++) {
-// //     const sample = buffer.readInt16LE(i * 2); // Чтение 16-битного значения
-// //     sum += sample * sample;
-// //   }
-// //   return Math.sqrt(sum / (buffer.length / 2));
-// // }
-
-// // // Подключение аудиопотока к анализатору
-// // micInputStream.pipe(volumeAnalyser);
-
-//   // Конфигурация анализатора
-// const analyserOptions = {
-//   minDecibels: -90, // Минимальный уровень децибел
-//   maxDecibels: -10, // Максимальный уровень децибел
-//   smoothingTimeConstant: 0.85, // Параметр сглаживания
-//   fftSize: 256, // Размер FFT
-// };
-
-// analyser = new Analyser(analyserOptions);
-// micInputStream.pipe(analyser);
-// console.log(`
-//   analyser
-//   `, analyser)
-
-// // Подключение аудиопотока к анализатору
-
-// console.log(`
-//   analyser.getByteTimeDomainData(1024):
-// `), analyser.getByteTimeDomainData(1024);
-// // Обработка данных из анализатора
-// analyser.on('data', (data) => {
-//   const volume = getRMS(data); // Функция для вычисления корня среднего квадрата
-//   console.log(`
-//     Current volume level: ${volume}
-//   `);
-// });
-
-// // Функция для вычисления RMS (корня среднего квадрата)
-// function getRMS(data) {
-//   let sum = 0;
-//   for (let i = 0; i < data.length; i++) {
-//     sum += data[i] * data[i];
-//   }
-//   return Math.sqrt(sum / data.length);
-// }
-
-//   console.log(`
-//     micInputStream:
-//     `, micInputStream);
-
-//   micInputStream.on('data', function(data) {
-//     console.log(`
-//       Received Input Stream: `,
-//       data);
-//     // Обработка данных аудио потока
-//   });
-
-//   micInputStream.on("startComplete", (data) => {
-//     console.log(`
-//       startComplete: `,
-//       data);
-//   })
-//   micInputStream.on("stopComplete", (data) => {
-//     console.log(`
-//       stopComplete: `,
-//       data);
-//   })
-
-//   micInputStream.on('error', function(err) {
-//     console.log("Error in Input Stream: " + err);
-//   });
-
-//   // Запуск записи
-//   micInstance.start();
-
-//   // setTimeout(() => {
-//   //   micInstance.stop();
-//   // }, 5000); // Остановить запись через 5 секунд
-// }
-
-// Функция для анализа уровня сигнала
-// function analyzeAudioFromDevice(deviceId) {
-//   console.log('deviceId', deviceId)
-//   const micInstance = mic({
-//     rate: '44100',
-//     channels: '1',
-//     device: deviceId, // Указываем идентификатор устройства
-//     debug: true,
-//     exitOnSilence: 6,
-//   });
-
-//   const micInputStream = micInstance.getAudioStream();
-
-//   const volumeAnalyser = new Transform({
-//     transform(chunk, encoding, callback) {
-//       const volume = getRMS(chunk);
-//       console.log(`Current volume level: ${volume}`);
-//       callback(null, chunk);
-//     },
-//   });
-
-//   console.log(`
-//     micInputStream / volumeAnalyser
-//     `, volumeAnalyser
-//   )
-
-//   function getRMS(buffer) {
-//     let sum = 0;
-//     for (let i = 0; i < buffer.length / 2; i++) {
-//       const sample = buffer.readInt16LE(i * 2);
-//       sum += sample * sample;
-//     }
-//     const rms = Math.sqrt(sum / (buffer.length / 2));
-//     console.log(`RMS calculated: ${rms}`); // Добавьте это
-//     return rms;
-//   }
-
-//   micInputStream.pipe(volumeAnalyser);
-
-//   micInputStream.on('data', (data) => {
-//   console.log('Audio data received:', data);
-//   });
-
-//   micInputStream.on('startComplete', () => {
-//     console.log('Microphone stream started');
-//   });
-
-//   micInputStream.on('processExitComplete', () => {
-//     console.log('Microphone stream exited');
-//   });
-
-//   micInputStream.on('error', (err) => {
-//     console.error('Error in Input Stream: ' + err);
-//   });
-
-//   micInstance.start();
-// }
-
-// ipcMain.handle('getAudioAnalizer', async (event, key) => {
-//   console.log(`
-//     analyser.getByteTimeDomainData(1024)
-//     `, analyser.getByteTimeDomainData(1024))
-//   return analyser.toString()
-// })
+app.on("before-quit", () => {
+  recorderProcess?.kill()
+  waveFormProcess?.kill()
+})

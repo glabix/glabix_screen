@@ -103,13 +103,13 @@ import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
 import "./helpers/swift-recorder.helper"
 import {
-  ISwiftRecorderConfig,
+  // ISwiftRecorderConfig,
   SwiftMediaDevicesEvents,
   SwiftRecorderEvents,
 } from "@shared/types/swift-recorder.types"
 
 let activeDisplay: Electron.Display
-let swiftRecorderConfig: ISwiftRecorderConfig = {}
+// let swiftRecorderConfig: ISwiftRecorderConfig = {}
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
@@ -498,10 +498,13 @@ function registerUserShortCuts() {
               const cursorPosition = screen.getCursorScreenPoint()
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
               mainWindow.webContents.send("screen:change", activeDisplay)
-              swiftRecorderConfig = {
-                ...swiftRecorderConfig,
+              ipcMain.emit(SwiftRecorderEvents.CONFIGURE, null, {
                 displayId: activeDisplay.id,
-              }
+              })
+              // swiftRecorderConfig = {
+              //   ...swiftRecorderConfig,
+              //   displayId: activeDisplay.id,
+              // }
               modalWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
@@ -734,7 +737,10 @@ function createWindow() {
   })
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
   activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
-  swiftRecorderConfig = { displayId: activeDisplay.id }
+  ipcMain.emit(SwiftRecorderEvents.CONFIGURE, null, {
+    displayId: activeDisplay.id,
+  })
+  // swiftRecorderConfig = { displayId: activeDisplay.id }
 
   // console.log("activeDisplay", activeDisplay)
 
@@ -766,12 +772,15 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
+    ipcMain.emit(AppEvents.ON_SHOW)
+
     mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
   })
 
   mainWindow.on("hide", () => {
     mainWindow.webContents.send(AppEvents.ON_HIDE)
     modalWindow.webContents.send(AppEvents.ON_HIDE)
+    ipcMain.emit(AppEvents.ON_HIDE)
   })
 
   mainWindow.on("blur", () => {
@@ -986,10 +995,13 @@ function createDropdownWindow(parentWindow) {
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
       mainWindow.webContents.send("screen:change", currentScreen)
-      swiftRecorderConfig = {
-        ...swiftRecorderConfig,
+      ipcMain.emit(SwiftRecorderEvents.CONFIGURE, null, {
         displayId: currentScreen.id,
-      }
+      })
+      // swiftRecorderConfig = {
+      //   ...swiftRecorderConfig,
+      //   displayId: currentScreen.id,
+      // }
     }
 
     activeDisplay = currentScreen
@@ -1525,10 +1537,11 @@ ipcMain.on(SwiftMediaDevicesEvents.GET_WAVE_FORM, (event, data: number[]) => {
 })
 
 ipcMain.on(RecordSettingsEvents.UPDATE, (event, data: IStreamSettings) => {
-  swiftRecorderConfig = {
-    ...swiftRecorderConfig,
-    systemAudio: data.audio,
-  }
+  // ipcMain.emit(SwiftRecorderEvents.CONFIGURE, null, { systemAudio: data.audio, audioDeviceId: data.audioDeviceId })
+  // swiftRecorderConfig = {
+  //   ...swiftRecorderConfig,
+  //   systemAudio: data.audio,
+  // }
 
   // console.log(`
   //   RecordSettingsEvents.UPDATE main.ts
@@ -1674,10 +1687,10 @@ ipcMain.on(
   }
 )
 
-ipcMain.on(RecordEvents.SWIFT_START, (event, data) => {
-  console.log("swiftRecorderConfig", swiftRecorderConfig)
-  ipcMain.emit(SwiftRecorderEvents.START, null, swiftRecorderConfig)
-})
+// ipcMain.on(RecordEvents.SWIFT_START, (event, data) => {
+//   console.log("swiftRecorderConfig", swiftRecorderConfig)
+//   ipcMain.emit(SwiftRecorderEvents.START, null, swiftRecorderConfig)
+// })
 
 ipcMain.on(RecordEvents.START, (event, data) => {
   if (mainWindow) {

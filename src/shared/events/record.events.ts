@@ -8,7 +8,7 @@ export enum RecordEvents {
   ERROR = "error",
   CANCEL = "cancel",
 
-  SWIFT_START = "swift_start",
+  // SWIFT_START = "swift_start",
 }
 
 export enum RecordSettingsEvents {
