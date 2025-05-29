@@ -1,21 +1,21 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   desktopCapturer,
+  dialog,
   globalShortcut,
   ipcMain,
   MediaAccessPermissionRequest,
   Menu,
   nativeImage,
   nativeTheme,
+  powerMonitor,
+  Rectangle,
   screen,
   session,
   systemPreferences,
   Tray,
-  dialog,
-  Rectangle,
-  clipboard,
-  powerMonitor,
 } from "electron"
 import path, { join } from "path"
 import os from "os"
@@ -24,30 +24,32 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { TokenStorage } from "./storages/token-storage"
 import {
+  DialogWindowEvents,
+  HotkeysEvents,
+  IAccountData,
   IAuthData,
+  IAvatarData,
+  ICropVideoData,
+  IDialogWindowCallbackData,
+  IDialogWindowData,
   IDropdownPageData,
   IDropdownPageSelectData,
-  IOrganizationLimits,
+  IHandleChunkDataEvent,
   IMediaDevicesAccess,
+  IModalWindowTabData,
+  IOrganizationLimits,
+  IRecorderSavedChunk,
+  IRecordUploadProgressData,
+  IScreenshotImageData,
   ISimpleStoreData,
   IUser,
   MediaDeviceType,
-  SimpleStoreEvents,
-  ModalWindowHeight,
-  IScreenshotImageData,
-  ICropVideoData,
-  IAccountData,
-  IAvatarData,
-  DialogWindowEvents,
-  IDialogWindowData,
-  IDialogWindowCallbackData,
-  HotkeysEvents,
   ModalWindowEvents,
-  IModalWindowTabData,
-  ScreenshotWindowEvents,
-  ScreenshotActionEvents,
+  ModalWindowHeight,
   ModalWindowWidth,
-  IRecordUploadProgressData,
+  ScreenshotActionEvents,
+  ScreenshotWindowEvents,
+  SimpleStoreEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -63,10 +65,11 @@ import { getVersion } from "./helpers/get-version"
 import { LogSender } from "./helpers/log-sender"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { stringify } from "./helpers/stringify"
-import { optimizer, is } from "@electron-toolkit/utils"
+import { is, optimizer } from "@electron-toolkit/utils"
 import { getScreenshot } from "./helpers/get-screenshot"
 import { dataURLToFile } from "./helpers/dataurl-to-file"
 import {
+  ChunkSaverEvents,
   RecordEvents,
   RecordSettingsEvents,
 } from "../shared/events/record.events"
@@ -79,7 +82,6 @@ import Record from "../database/models/Record"
 import sequelize from "../database/index"
 import StorageService from "../services/storage.service"
 import { RecordManager } from "../services/record-manager"
-import { PreviewManager } from "../services/preview-manager"
 import {
   createDialogWindow,
   destroyDialogWindow,
@@ -99,6 +101,21 @@ import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
+import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
+import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
+import {
+  ChunkPart,
+  RecordCancelEventV3,
+  RecordDataEventV3,
+  RecordLastChunkHandledV3,
+  RecordSetCropDataEventV3,
+  RecordStartEventV3,
+} from "@main/v3/events/record-v3-types"
+import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
+import fs from "fs/promises"
+import { fsErrorParser } from "@main/helpers/fs-error-parser"
+import { ChunkProcessor } from "@main/chunk-saver"
+import EventEmitter from "node:events"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -121,10 +138,13 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
   microphone: false,
   screen: false,
 }
+let recorderFacadeV3: RecorderFacadeV3
+let cleanupScheduler: RecorderSchedulerV3
 
 const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
+const chunkProcessor = new ChunkProcessor()
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
@@ -187,6 +207,7 @@ function clearAllIntervals() {
     checkForUpdatesInterval = undefined
   }
   RecordManager.clearIntervals()
+  cleanupScheduler.stopIntervals()
 }
 
 // Инициализация базы данных
@@ -289,6 +310,7 @@ if (!gotTheLock) {
     powerMonitor.on("resume", () => {
       logSender.sendLog("powerMonitor.resume")
       StorageService.wakeUp()
+      recorderFacadeV3.wakeUp()
     })
     initializeDatabase().then(() => {
       RecordManager.setTimer()
@@ -300,6 +322,9 @@ if (!gotTheLock) {
     lastDeviceAccessData = getMediaDevicesAccess()
     deviceAccessInterval = setInterval(watchMediaDevicesAccessChange, 2000)
     checkForUpdatesInterval = setInterval(checkForUpdates, 1000 * 60 * 60)
+    cleanupScheduler = new RecorderSchedulerV3()
+    recorderFacadeV3 = new RecorderFacadeV3(cleanupScheduler)
+    cleanupScheduler.start()
     app.on("browser-window-created", (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
@@ -1617,7 +1642,10 @@ ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
 ipcMain.on(
   FileUploadEvents.UPLOAD_PROGRESS_STATUS,
   (event, data: IRecordUploadProgressData[]) => {
-    logSender.sendLog(FileUploadEvents.UPLOAD_PROGRESS_STATUS, stringify(data))
+    logSender.sendLog(
+      FileUploadEvents.UPLOAD_PROGRESS_STATUS,
+      stringify(data.slice(-5))
+    )
     if (!data.length) {
       modalWindow?.webContents.send(ModalWindowEvents.UPLOAD_PROGRESS_HIDE)
     } else {
@@ -1630,24 +1658,30 @@ ipcMain.on(
   }
 )
 
-ipcMain.on(RecordEvents.START, (event, data) => {
+// V3 Record Start
+ipcMain.on(RecordEvents.START, async (event, data) => {
   if (mainWindow) {
-    StorageService.startRecord().then((r) => {
-      mainWindow.webContents.send(
-        RecordEvents.START,
-        data,
-        r.getDataValue("uuid")
-      )
-    })
+    try {
+      const startEventV3: RecordStartEventV3 = {
+        type: RecordEventsV3.START,
+      }
+      const uuid = await recorderFacadeV3.handleEvent(startEventV3)
+      mainWindow.webContents.send(RecordEvents.START, data, uuid)
+    } catch (e) {
+      showRecordErrorBox("Ошибка записи")
+    }
   }
-
   modalWindow.hide()
 })
 
 ipcMain.on(RecordEvents.CANCEL, (event, data) => {
   const { fileUuid } = data as { fileUuid: string }
   logSender.sendLog("record.recording.cancel", stringify({ fileUuid }))
-  StorageService.cancelRecord(fileUuid)
+  const cancelEvent: RecordCancelEventV3 = {
+    type: RecordEventsV3.CANCEL,
+    innerFileUuid: fileUuid,
+  }
+  recorderFacadeV3.handleEvent(cancelEvent)
 })
 
 ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
@@ -1665,20 +1699,28 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
           out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
           out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
         }
-
+  const cropEvent: RecordSetCropDataEventV3 = {
+    type: RecordEventsV3.SET_CROP_DATA,
+    innerFileUuid: fileUuid,
+    cropVideoData: cropData,
+  }
+  recorderFacadeV3.handleEvent(cropEvent)
   logSender.sendLog(
     "record.recording.set_crop.data.received",
     stringify({ fileUuid, cropData })
   )
+})
 
-  StorageService.setCropData(fileUuid, cropData)
+ipcMain.on(RecordEvents.SEND_PREVIEW, (event, res) => {
+  const { preview, fileUuid } = res
+  recorderFacadeV3.handlePreview(fileUuid, preview)
 })
 
 ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
   const { data, fileUuid, index, isLast } = res
   logSender.sendLog(
     "record.recording.chunk.received",
-    stringify({ fileUuid, byteLength: data.byteLength, count: index })
+    stringify({ fileUuid, byteLength: data.byteLength, count: index, isLast })
   )
   if (!data.byteLength) {
     logSender.sendLog(
@@ -1689,34 +1731,54 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     showRecordErrorBox("Ошибка записи")
     return
   }
-  const blob = new Blob([data], { type: "video/webm;codecs=h264" })
-  StorageService.getNextChunk(fileUuid, blob, index, isLast)
-  const preview = store.get()["lastVideoPreview"]
-  if (preview && !PreviewManager.hasPreview(fileUuid)) {
-    logSender.sendLog(
-      "record.recording.preview.received",
-      stringify({ fileUuid })
-    )
-    PreviewManager.savePreview(fileUuid, preview)
+  const handleChunkDataEvent: IHandleChunkDataEvent = {
+    data,
+    recordUuid: fileUuid,
+    timestamp: Date.now(),
+    isLast,
+    size: data.byteLength,
+    index: index - 1,
   }
-
-  // unprocessedFilesService
-  //   .saveFileWithStreams(blob, lastCreatedFileName!, isLast)
-  //   .then((rawFileName) => {
-  //     logSender.sendLog(
-  //       "record.raw_file_chunk.save.success",
-  //       stringify({ byteLength: data.byteLength })
-  //     )
-  //   })
-  //   .catch((e) => {
-  //     logSender.sendLog(
-  //       "record.raw_file.save.error",
-  //       stringify({ err: e }),
-  //       true
-  //     )
-  //     showRecordErrorBox("Ошибка записи")
-  //   })
+  chunkProcessor.addChunk(handleChunkDataEvent)
 })
+
+chunkProcessor.on(
+  ChunkSaverEvents.CHUNK_FINALIZED,
+  (data: IRecorderSavedChunk) => {
+    const sendDataEvent: RecordDataEventV3 = {
+      type: RecordEventsV3.SEND_DATA,
+      recordUuid: data.innerRecordUuid,
+      uuid: data.uuid,
+      timestamp: data.createdAt,
+      videoSource: data.videoSource,
+      audioSource: data.audioSource,
+      size: data.size,
+      isLast: data.isLast,
+      index: data.index,
+    }
+    logSender.sendLog(
+      "chunk_processor.chunk_finilized",
+      JSON.stringify({ sendDataEvent })
+    )
+    recorderFacadeV3.handleEvent(sendDataEvent)
+  }
+)
+
+chunkProcessor.on(
+  ChunkSaverEvents.RECORD_STOPPED,
+  (data: IRecorderSavedChunk) => {
+    const sendDataEvent: RecordLastChunkHandledV3 = {
+      type: RecordEventsV3.LAST_CHUNK_HANDLED,
+      recordUuid: data.innerRecordUuid,
+      lastChunkIndex: data.index,
+    }
+    logSender.sendLog(
+      "chunk_processor.record_stopped",
+      JSON.stringify({ sendDataEvent })
+    )
+    recorderFacadeV3.handleEvent(sendDataEvent)
+  }
+)
 
 ipcMain.on("stop-recording", (event, data) => {
   if (mainWindow) {
@@ -1846,13 +1908,9 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
   })
 })
 
-ipcMain.on(RecordEvents.ERROR, (event, file) => {
-  showRecordErrorBox()
-})
-
 ipcMain.on(RecordEvents.STOP, (event, data) => {
   const { fileUuid } = data
-  StorageService.endRecord(fileUuid)
+  //StorageService.endRecord(fileUuid)
 })
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
@@ -1933,6 +1991,7 @@ ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
 
 powerMonitor.on("suspend", () => {
   StorageService.sleep()
+  recorderFacadeV3.sleep()
   const isRecording = ["recording", "paused"].includes(
     store.get()["recordingState"]
   )

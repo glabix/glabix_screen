@@ -31,6 +31,7 @@ import {
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
+import { FileUploadEvents } from "@shared/events/file-upload.events"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 let SHORTCUTS_TEXT_MAP = {}
@@ -575,7 +576,10 @@ const createPreview = () => {
           key: "lastVideoPreview",
           value: previewDataURL,
         }
-
+        window.electronAPI.ipcRenderer.send(RecordEvents.SEND_PREVIEW, {
+          preview: previewDataURL,
+          fileUuid: currentRecordedUuid,
+        })
         window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
       }
     )

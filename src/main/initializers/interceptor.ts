@@ -24,7 +24,7 @@ axiosRetry(axios, {
     return (
       axiosRetry.isNetworkError(error) ||
       axiosRetry.isRetryableError(error) ||
-      (!!error && !!error.response && error.response!.status >= 500)
+      (!!error && !!error.response && error.response!.status > 500)
     )
   },
 })
