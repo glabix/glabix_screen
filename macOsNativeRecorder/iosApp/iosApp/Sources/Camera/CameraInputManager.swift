@@ -11,23 +11,14 @@ import CoreImage
 import AVFoundation
 
 struct CameraInput {
+    private let cameraDevices = CameraCaptureDevices()
     @AppStorage("cameraDeviceName") var cameraDeviceName: String = ""
     
     func device() -> AVCaptureDevice? {
-        //        AVCaptureDeviceInput(device: systemPreferredCamera)
-        return readDevices().first {
-            $0.localizedName == cameraDeviceName
-        }
+        cameraDevices.device(localizedName: cameraDeviceName)
     }
     
-    func readDevices() -> [AVCaptureDevice] {
-        let discoverySession = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.builtInWideAngleCamera, .externalUnknown],
-            mediaType: .video,
-            position: .unspecified
-        )
-        return discoverySession.devices
-    }
+    
 }
 
 class CameraViewModel: ObservableObject {
@@ -37,9 +28,10 @@ class CameraViewModel: ObservableObject {
     @Published var size: CGSize = .init(width: 240, height: 240)
     private let cameraInput = CameraInput()
     private let stream = CameraStream()
+    private let cameraDevices = CameraCaptureDevices()
     
     init() {
-        let devices = cameraInput.readDevices()
+        let devices = cameraDevices.devices()
         options = devices.map(\.localizedName)
         
 //        if let device = cameraInput.device() {

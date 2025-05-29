@@ -12,6 +12,39 @@ import ScreenCaptureKit
 import VideoToolbox
 import Combine
 
+class WaveformService: NSObject {
+    private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
+    private var microphoneSession: AVCaptureSession?
+    let waveformProcessor: WaveformProcessor = WaveformProcessor()
+    private let queue = DispatchQueue(label: "com.glabix.screen.waveform")
+    
+    func start(config: WaveformConfig) {
+        microphoneSession = AVCaptureSession()
+        
+        let device = microphoneDevices.deviceOrDefault(uniqueID: config.microphoneUniqueID)
+        
+        guard let microphone = device else { return}
+        Log.info("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
+        
+        do {
+            let micInput = try AVCaptureDeviceInput(device: microphone)
+            microphoneSession?.addInput(micInput)
+            
+            waveformProcessor.micOutput.map {
+                microphoneSession?.addOutput($0)
+            }
+            
+            microphoneSession?.startRunning()
+        } catch {
+            Log.error("Error setting up microphone capture: \(error)")
+        }
+    }
+    
+    func stop() {
+        microphoneSession?.stopRunning()
+    }
+}
+
 class ScreenRecorder: NSObject {
     var chunksManager: ScreenChunksManager?
     
@@ -20,6 +53,9 @@ class ScreenRecorder: NSObject {
     private var stream: SCStream?
     
     private let screenCaptureQueue = DispatchQueue(label: "com.glabix.screen.screenCapture")
+    
+    private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
+//    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
     
     private func setupStream(
         screenConfigurator: ScreenConfigurator,
@@ -39,71 +75,108 @@ class ScreenRecorder: NSObject {
                
         try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: screenCaptureQueue)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: screenCaptureQueue)
+        
+        clearOutputDirectory()
     }
+    
+    func printAudioInputDevices() {
+//        let auth = AVCaptureDevice.authorizationStatus(for: .audio)
+//        print("auth: \(auth)")
+//        
+//        AVCaptureDevice.requestAccess(for: .audio) { (isSuccess) in
+//            print("isSuccess: \(isSuccess)")
+//        }
+        
+        Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
+    }
+    
+//    func printVideoInputDevices() {
+//        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
+//    }
     
     private func configureMicrophoneCapture(uniqueID: String?) {
         microphoneSession = AVCaptureSession()
         
-        var discoverySession: AVCaptureDevice.DiscoverySession
-        if #available(macOS 15.0, *) {
-            discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified)
-        } else {
-            discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified)
-        }
-        let devices = discoverySession.devices//.filter({ !$0.localizedName.contains("CADefaultDeviceAggregate") })
-        devices.forEach {
-            print("mic", $0.uniqueID, $0.localizedName, $0.modelID)
-        }
+        let device = microphoneDevices.deviceOrDefault(uniqueID: uniqueID)
         
-        guard let microphone: AVCaptureDevice = devices.first(where: { $0.uniqueID == uniqueID }) ?? AVCaptureDevice.default(for: .audio) else {
-            return
-        }
-        print("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
+        guard let microphone = device else { return}
+        Log.info("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
         
         do {
             let micInput = try AVCaptureDeviceInput(device: microphone)
             microphoneSession?.addInput(micInput)
             
             let micOutput = AVCaptureAudioDataOutput()
+            
             micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
             microphoneSession?.addOutput(micOutput)
         } catch {
-            print("Error setting up microphone capture: \(error)")
+            Log.error("Error setting up microphone capture: \(error)")
         }
     }
     
-    func start(config: Config) async throws {
-        let availableContent = try await SCShareableContent.current
-        print("Available displays: \(availableContent.displays.map { "\($0.displayID)" }.joined(separator: ", "))")
+    func start(withConfig config: Config) async throws {
+        try await configure(with: config)
         
+        chunksManager?.startOnNextSample()
+        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
+    }
+    
+    func start() {
+        chunksManager?.startOnNextSample()
+        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
+    }
+    
+    func configureAndInitialize(with config: Config) async throws {
+        try await configure(with: config)
+        chunksManager?.initializeFirstChunkWriter()
+    }
+    
+    private func configure(with config: Config) async throws {
+        let availableContent = try await SCShareableContent.current
+//        print("Available displays: \(availableContent.displays.map { "\($0.displayID)" }.joined(separator: ", "))")
         guard let display = availableContent.displays.first(where: { $0.displayID == config.displayId ?? CGMainDisplayID() }) else {
             throw NSError(domain: "GlabixScreenRecorder", code: 2, userInfo: [NSLocalizedDescriptionKey: "Display not found"])
         }
         
-//        let displayID = CGMainDisplayID()
-//        debugPrint("displayId", displayID.description, displayID)
+        //        let displayID = CGMainDisplayID()
+        //        debugPrint("displayId", displayID.description, displayID)
         
         let screenConfigurator = ScreenConfigurator(displayID: display.displayID)
         let recordConfiguration = RecordConfiguration(config: config)
-        
+                
         try await setupStream(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration)
+        
         if config.captureMicrophone {
             configureMicrophoneCapture(uniqueID: config.microphoneUniqueID)
+            microphoneSession?.startRunning()
         }
         
         // Start capturing, wait for stream to start
         try await stream?.startCapture()
-        microphoneSession?.startRunning()
+    }
+    
+    private func clearOutputDirectory() {
+        let fileManager = FileManager.default
+        guard let directoryURL = chunksManager?.outputDirectory else { return }
+        
+        do {
+            try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
+            let files = try fileManager.contentsOfDirectory(atPath: directoryURL.path())
+            
+            for file in files {
+                let filePath = directoryURL.appendingPathComponent(file).absoluteURL
+                try fileManager.removeItem(at: filePath)
+            }
+        } catch let error {
+            print(error)
+        }
     }
     
     func stop() async throws {
-//        screenCaptureQueue.async { [weak self] in
-            // Stop capturing, wait for stream to stop
-        try await stream?.stopCapture()
-            
         await chunksManager?.stop()
         
+        try await stream?.stopCapture()
         microphoneSession?.stopRunning()
-//        }
     }
 }

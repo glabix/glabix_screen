@@ -9,3 +9,8 @@ struct Command: Codable {
     let action: CommandAction
     let config: Config?
 }
+
+struct WaveformCommand: Codable {
+    let action: WaveformCommandAction
+    let config: WaveformConfig?
+}

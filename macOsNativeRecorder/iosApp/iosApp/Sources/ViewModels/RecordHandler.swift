@@ -33,7 +33,25 @@ class RecordHandler: ObservableObject {
         }
     }
     
-    func start() async throws {
+    func start() throws {
+        try checkPermissions()
+        
+        DispatchQueue.main.async {
+            self.recording = true
+            self.paused = false
+        }
+        
+        screenRecorder.start()
+    }
+    
+    func configure() async throws {
+        try checkPermissions()
+        
+        try await screenRecorder
+            .configureAndInitialize(with: .development)
+    }
+    
+    func startWithConfig() async throws {
         try checkPermissions()
         
         DispatchQueue.main.async {
@@ -43,17 +61,7 @@ class RecordHandler: ObservableObject {
         
         try await screenRecorder
             .start(
-                config: .init(
-                    displayId: nil,
-                    resolution: .uhd4k,
-                    fps: 25,
-                    cropRect: nil,
-                    chunksDirectoryPath: nil,
-                    showCursor: true,
-                    captureSystemAudio: true,
-                    captureMicrophone: true,
-                    microphoneUniqueID: "6A08AC30-F752-4660-82B0-F72A00000003"
-                )
+                withConfig: .development
             )
         
 //        DispatchQueue.main.async {
@@ -84,4 +92,12 @@ class RecordHandler: ObservableObject {
 //            }
 //        }
     }
+    
+    func printAudioInputDevices() {
+        screenRecorder.printAudioInputDevices()
+    }
+    
+//    func printVideoInputDevices() {
+//        screenRecorder.printVideoInputDevices()
+//    }
 }

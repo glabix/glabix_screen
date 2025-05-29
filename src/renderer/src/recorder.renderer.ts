@@ -33,6 +33,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
 import { SwiftRecorderEvents } from "@shared/types/swift-recorder.types"
+import { FileUploadEvents } from "@shared/events/file-upload.events"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 let SHORTCUTS_TEXT_MAP = {}
@@ -125,10 +126,32 @@ function stopRecording() {
     clearView()
   }
 
+  stopStreamTracks()
   timer.stop()
 
+  const cropScreen = document.querySelector("#crop_video_screen") as HTMLElement
+  if (cropScreen) {
+    cropScreen.classList.remove("is-recording")
+  }
+
+  const canvasVideo = document.getElementById("__canvas_video_stream__")
+  if (canvasVideo) {
+    canvasVideo.remove()
+  }
+
+  updateRecorderState("stopped")
+
+  if (isRecordCanceled || isRecordRestart) {
+    window.electronAPI.ipcRenderer.send(RecordEvents.CANCEL, {
+      fileUuid: currentRecordedUuid,
+    })
+  } else {
+    window.electronAPI.ipcRenderer.send(RecordEvents.STOP, {
+      fileUuid: currentRecordedUuid,
+    })
+  }
+
   window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
-  stopStreamTracks()
 }
 
 function pauseRecording() {
@@ -475,20 +498,6 @@ const createVideo = (stream: MediaStream, _video) => {
       title: "videoRecorder.onstop",
     })
 
-    timer.stop()
-
-    if (isRecordCanceled || isRecordRestart) {
-      window.electronAPI.ipcRenderer.send(RecordEvents.CANCEL, {
-        fileUuid: currentRecordedUuid,
-      })
-    } else {
-      window.electronAPI.ipcRenderer.send(RecordEvents.STOP, {
-        fileUuid: currentRecordedUuid,
-      })
-    }
-
-    lastChunk = null // Reset the lastChunk for the next recording
-
     // Create a link to download the recorded video
     // const url = URL.createObjectURL(blob)
     // const a = document.createElement("a")
@@ -499,20 +508,10 @@ const createVideo = (stream: MediaStream, _video) => {
     // a.click()
     // window.URL.revokeObjectURL(url)
 
+    lastChunk = null // Reset the lastChunk for the next recording
+
     stream.getTracks().forEach((track) => track.stop())
     combineStream?.getTracks().forEach((track) => track.stop())
-
-    const cropScreen = document.querySelector(
-      "#crop_video_screen"
-    ) as HTMLElement
-    if (cropScreen) {
-      cropScreen.classList.remove("is-recording")
-    }
-
-    const canvasVideo = document.getElementById("__canvas_video_stream__")
-    if (canvasVideo) {
-      canvasVideo.remove()
-    }
 
     if (_video) {
       const videoContainer = document.querySelector(
@@ -521,8 +520,6 @@ const createVideo = (stream: MediaStream, _video) => {
       videoContainer.setAttribute("hidden", "")
       _video.srcObject = null
     }
-
-    updateRecorderState("stopped")
   }
 }
 
@@ -576,7 +573,10 @@ const createPreview = () => {
           key: "lastVideoPreview",
           value: previewDataURL,
         }
-
+        window.electronAPI.ipcRenderer.send(RecordEvents.SEND_PREVIEW, {
+          preview: previewDataURL,
+          fileUuid: currentRecordedUuid,
+        })
         window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
       }
     )
@@ -585,6 +585,7 @@ const createPreview = () => {
 const startRecording = () => {
   isRecordCanceled = false
   isRecordRestart = false
+  updateRecorderState("recording")
 
   if (getRecordSource() == RecordSourceType.BROWSER) {
     if (videoRecorder) {
@@ -594,8 +595,8 @@ const startRecording = () => {
         title: "videoRecorder.start()",
       })
 
-      updateRecorderState("recording")
-      timer.start(true)
+      // updateRecorderState("recording")
+      // timer.start(true)
 
       createPreview()
     } else {
@@ -624,7 +625,7 @@ const startRecording = () => {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "swiftRecorder.start",
     })
-    updateRecorderState("recording")
+
     timer.start(true)
 
     createPreview()

@@ -15,6 +15,7 @@ struct RecordConfiguration {
     var cropRect: CGRect? { config.cropRect.map { .init(x: $0.x, y: $0.y, width: $0.width, height: $0.height) } }
     var chunksDirectoryPath: String? { config.chunksDirectoryPath }
     var captureMicrophone: Bool { config.captureMicrophone }
+    var chunkDurationSeconds: Int { config.chunkDurationSeconds }
     
     init(config: Config) {
         self.config = config

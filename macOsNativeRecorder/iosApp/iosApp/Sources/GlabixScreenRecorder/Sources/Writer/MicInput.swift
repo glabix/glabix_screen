@@ -28,10 +28,14 @@ struct MicInput {
         //            micSettings[AVEncoderBitRateKey] = bitRate
         //        }
         
-        let micSettings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC,
-                                  AVNumberOfChannelsKey: 2,
-                                        AVSampleRateKey: 44_100.0,
-                                    AVEncoderBitRateKey: 128_000]
+        let micSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVNumberOfChannelsKey: 2,
+            AVSampleRateKey: 48_000.0,
+            AVEncoderBitRateKey: 192000
+//            AVSampleRateKey: 44_100.0,
+//            AVEncoderBitRateKey: 128_000
+        ]
         
         let micInput = AVAssetWriterInput(mediaType: .audio, outputSettings: micSettings)
         micInput.expectsMediaDataInRealTime = true
