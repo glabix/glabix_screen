@@ -144,7 +144,15 @@ export class ServerUploadManager {
     }
     const token = TokenStorage.token!.access_token
     const filename = recording.title + ".mp4"
-    const preview = await this.storage.readPreview(recordingLocalUuid)
+    let preview: null | File = null
+    try {
+      preview = await this.storage.readPreview(recordingLocalUuid)
+    } catch (e) {
+      this.logSender.sendLog(
+        "records.process_recordings.init_upload.preview.error",
+        JSON.stringify({ localUuid: recordingLocalUuid, e })
+      )
+    }
     this.store.updateRecording(recordingLocalUuid, {
       status: IRecordV3Status.CREATING_ON_SERVER,
       lastUploadAttemptAt: Date.now(),

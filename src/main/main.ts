@@ -1623,7 +1623,10 @@ ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
 ipcMain.on(
   FileUploadEvents.UPLOAD_PROGRESS_STATUS,
   (event, data: IRecordUploadProgressData[]) => {
-    logSender.sendLog(FileUploadEvents.UPLOAD_PROGRESS_STATUS, stringify(data))
+    logSender.sendLog(
+      FileUploadEvents.UPLOAD_PROGRESS_STATUS,
+      stringify(data.slice(-5))
+    )
     if (!data.length) {
       modalWindow?.webContents.send(ModalWindowEvents.UPLOAD_PROGRESS_HIDE)
     } else {
