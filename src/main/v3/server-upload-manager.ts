@@ -50,7 +50,7 @@ export class ServerUploadManager {
       if (recordForProcessing) {
         this.logSender.sendLog(
           "records.process_recordings.recordForProcessing",
-          JSON.stringify({ from, recordForProcessing })
+          JSON.stringify({ from, localUuid: recordForProcessing.localUuid })
         )
         await this.processRecording(recordForProcessing)
       }
