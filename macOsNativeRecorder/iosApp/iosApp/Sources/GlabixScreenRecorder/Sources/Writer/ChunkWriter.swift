@@ -176,7 +176,15 @@ final class ChunkWriter {
         writer = nil
         self.lastScreenSampleBuffer = nil
         
-        Callback.print(Callback.ChunkFinalized(index: chunkIndex))
+        Callback.print(Callback.ChunkFinalized(
+            index: chunkIndex,
+            screenFile: screenChunkURL.map {
+                Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
+            },
+            micFile: micChunkURL.map {
+                Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
+            }
+        ))
     }
     
     private func cancel() async {
@@ -261,5 +269,9 @@ final class ChunkWriter {
         }
         
         assetWriterInput.append(sampleBuffer)
+    }
+    
+    func calculateFileSize(_ url: URL) -> Int? {
+        try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
     }
 }

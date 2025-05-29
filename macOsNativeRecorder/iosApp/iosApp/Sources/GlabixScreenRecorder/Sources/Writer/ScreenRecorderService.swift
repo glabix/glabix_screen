@@ -10,7 +10,7 @@ import Foundation
 struct Callback {
     static func print(_ data: any Codable) {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         if let prettyPrintedData = try? encoder.encode(data) {
             let prettyPrintedString = String(data: prettyPrintedData, encoding: .utf8)!
             fflush(stdout)
@@ -62,9 +62,16 @@ extension Callback {
         case microphoneWaveform
     }
     
+    struct ChunkFile: Codable {
+        let path: String
+        let size: Int?
+    }
+    
     struct ChunkFinalized: CallbackActionContainable {
         var action: RecordingAction = .chunkFinalized
         let index: Int
+        let screenFile: ChunkFile?
+        let micFile: ChunkFile?
     }
     
     struct RecordingStarted: Codable {
