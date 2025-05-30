@@ -190,6 +190,13 @@ class ScreenChunksManager {
     func startOnNextSample(resultDirectoryPath: String) {
         processSampleQueue.sync {
             resultDirectoryURL = URL(fileURLWithPath: resultDirectoryPath)
+            let fileManager = FileManager.default
+            do {
+                try fileManager.createDirectory(atPath: resultDirectoryURL.path(), withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                Log.error("Can not create output dir at", resultDirectoryPath)
+            }
+            
             guard state == .initial else { return }
             state = .shouldStart
         }
