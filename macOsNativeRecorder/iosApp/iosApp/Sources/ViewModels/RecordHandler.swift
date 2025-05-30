@@ -41,7 +41,7 @@ class RecordHandler: ObservableObject {
             self.paused = false
         }
         
-        screenRecorder.start()
+        screenRecorder.start(withConfig: .development)
     }
     
     func configure() async throws {
@@ -49,24 +49,6 @@ class RecordHandler: ObservableObject {
         
         try await screenRecorder
             .configureAndInitialize(with: .development)
-    }
-    
-    func startWithConfig() async throws {
-        try checkPermissions()
-        
-        DispatchQueue.main.async {
-            self.recording = true
-            self.paused = false
-        }
-        
-        try await screenRecorder
-            .start(
-                withConfig: .development
-            )
-        
-//        DispatchQueue.main.async {
-//            NSWorkspace.shared.open(folder)
-//        }
     }
     
     func pause() {

@@ -7,8 +7,13 @@
 
 import Foundation
 
-struct Callback {
-    static func print(_ data: any Codable) {
+final class Callback: @unchecked Sendable {
+    static let shared = Callback()
+    
+    var enabled: Bool = true
+    
+    private func print(_ data: any Codable) {
+        guard enabled else { return }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         if let prettyPrintedData = try? encoder.encode(data) {
@@ -19,6 +24,10 @@ struct Callback {
         } else {
             debugPrint("cannot encode", data)
         }
+    }
+    
+    static func print(_ data: any Codable) {
+        shared.print(data)
     }
 }
 
@@ -76,7 +85,7 @@ extension Callback {
     
     struct RecordingStarted: Codable {
         var action: RecordingAction = .started
-        let path: String?
+        let tempPath: String?
     }
     
     struct RecordingStopped: Codable {
@@ -105,22 +114,6 @@ class ScreenRecorderService {
             }
         }
     }
-            
-    func startRecording(withConfig config: Config) {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                defer { fflush(stdout) }
-                do {
-                    try await recorder.start(withConfig: config)
-                    let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
-                    Log.print("recording started at `\(path)`")
-                    
-                } catch {
-                    Log.print("Error starting capture: \(error)")
-                }
-            }
-        }
-    }
     
     func configureRecorder(with config: Config) {
         commandQueue.async { [recorder] in
@@ -133,13 +126,13 @@ class ScreenRecorderService {
         }
     }
     
-    func startRecording() {
+    func startRecording(withConfig config: StartConfig) {
         defer { fflush(stdout) }
         
-        let path = recorder.chunksManager?.outputDirectory?.path() ?? "null"
-        Log.success("recording started at `\(path)`")
+        let path = recorder.chunksManager?.tempOutputDirectory?.path() ?? "null"
+        Log.success("recording started at temp `\(path)`")
         
-        recorder.start()
+        recorder.start(withConfig: config)
     }
     
     func stopRecording() {

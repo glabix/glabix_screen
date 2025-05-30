@@ -26,7 +26,7 @@ struct GlabixWaveform: ParsableCommand {
                 let commandJSON = input.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard let jsonData = commandJSON.data(using: .utf8) else { continue }
                 
-                // {"action": "start", "config": {"microphoneUniqueID": null}}
+                // {"action": "start", "startConfig": {"chunksDirectoryPath": "/Users/pavelfeklistov/Library/Containers/com.glabix.screenMac/Data/Documents/chunks"}}
                 
                 do {
                     let command = try JSONDecoder().decode(WaveformCommand.self, from: jsonData)

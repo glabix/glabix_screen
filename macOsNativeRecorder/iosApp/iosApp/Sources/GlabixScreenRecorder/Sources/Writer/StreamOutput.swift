@@ -38,6 +38,10 @@ extension ScreenRecorder: SCStreamOutput {
             @unknown default:
                 break
         }
+        
+        if type == .audio {
+//            Log.info("system audio buffer at \(sampleBuffer.presentationTimeStamp.seconds)")
+        }
     }
 }
 

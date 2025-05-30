@@ -8,7 +8,6 @@
 enum CommandAction: String, Codable {
     case configure
     case start
-    case startWithConfig
     case stop
     case pause
     case resume

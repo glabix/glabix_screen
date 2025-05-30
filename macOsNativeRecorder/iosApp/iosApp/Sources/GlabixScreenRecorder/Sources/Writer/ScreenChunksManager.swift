@@ -71,6 +71,7 @@ class ScreenChunksManager {
     private let queue = DispatchQueue(label: "com.glabix.screen.chunksManager")
     private let processSampleQueue = DispatchQueue(label: "com.glabix.screen.screenCapture.processSample")
     private let defaultChunksDir: String
+    private var resultDirectoryURL: URL!
     
     init(
         screenConfigurator: ScreenConfigurator,
@@ -82,6 +83,7 @@ class ScreenChunksManager {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "y-MM-dd_HH-mm-ss"
         self.defaultChunksDir = dateFormatter.string(from: Date())
+        self.resultDirectoryURL = nil
     }
     
     private func initChunkWriter(index: Int, expectedStartTime: CMTime?) {
@@ -90,7 +92,7 @@ class ScreenChunksManager {
             ChunkWriter(
                 screenConfigurator: screenConfigurator,
                 recordConfiguration: recordConfiguration,
-                outputDir: getOrCreateOutputDirectory(),
+                tempDir: getOrCreateTempOutputDirectory(),
                 captureMicrophone: recordConfiguration.captureMicrophone,
                 index: index,
                 startTime: expectedStartTime
@@ -116,7 +118,8 @@ class ScreenChunksManager {
     
     private func writerAt(_ timestamp: CMTime) -> ChunkWriter? {
         activeOrFinalizingChunkWriters.first { writer in
-            writer.endTime.map { $0 > timestamp } == true
+            guard let startTime = writer.startTime, let endTime = writer.endTime else { return false }
+            return endTime >= timestamp && startTime <= timestamp
         }
     }
     
@@ -155,10 +158,11 @@ class ScreenChunksManager {
                     
                     queue.async { [weak outdatedChunkWriter, weak self] in
                         Task { [weak outdatedChunkWriter, weak self] in
-                            guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
+                            guard let lastSampleBuffers = self?.lastSampleBuffers, let resultDirectoryURL = self?.resultDirectoryURL else { return }
                             await outdatedChunkWriter?.finalizeOrCancelWithDelay(
                                 endTime: endTime,
-                                lastSampleBuffers: lastSampleBuffers
+                                lastSampleBuffers: lastSampleBuffers,
+                                resultDirURL: resultDirectoryURL
                             )
                         }
                     }
@@ -170,27 +174,37 @@ class ScreenChunksManager {
     }
     
     func pause() {
-        guard state == .recording else { return }
-        state = .shouldPause
+        processSampleQueue.sync {
+            guard state == .recording else { return }
+            state = .shouldPause
+        }
     }
     
     func resume() {
-        guard state == .paused else { return }
-        state = .shouldResume
+        processSampleQueue.sync {
+            guard state == .paused else { return }
+            state = .shouldResume
+        }
     }
     
-    func startOnNextSample() {
-        guard state == .initial else { return }
-        state = .shouldStart
+    func startOnNextSample(resultDirectoryPath: String) {
+        processSampleQueue.sync {
+            resultDirectoryURL = URL(fileURLWithPath: resultDirectoryPath)
+            guard state == .initial else { return }
+            state = .shouldStart
+        }
     }
     
     func syncProcessSampleBuffer(_ sampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
         processSampleQueue.sync {
             processSampleBuffer(sampleBuffer, type: type)
             
-//            if chunkWriter.chunkIndex == 3, state == .recording {
-//                Log.error("PAUSE!", Log.nowString)
+//            if writerAt(sampleBuffer.presentationTimeStamp)?.chunkIndex == 3, state == .recording {
+//                Log.error("COMMENT OUT THIS!", Log.nowString)
 //                pause()
+//                Task {
+//                    await stop()
+//                }
 //            }
         }
     }
@@ -226,10 +240,11 @@ class ScreenChunksManager {
                                 .asyncForEach { chunkWriter in
                                     chunkWriter.updateStatusOnFinalizeOrCancel(endTime: timestamp)
                                 
-                                    guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
+                                    guard let lastSampleBuffers = self?.lastSampleBuffers, let resultDirectoryURL = self?.resultDirectoryURL else { return }
                                     await chunkWriter.finalizeOrCancelWithDelay(
                                         endTime: timestamp,
-                                        lastSampleBuffers: lastSampleBuffers
+                                        lastSampleBuffers: lastSampleBuffers,
+                                        resultDirURL: resultDirectoryURL
                                     )
                                 }
                             
@@ -248,7 +263,10 @@ class ScreenChunksManager {
         }
         
         guard let chunkWriter = chunkWriter else {
-            if !activeOrFinalizingChunkWriters.isEmpty, ![.initial, .paused].contains(state) {
+            if !activeOrFinalizingChunkWriters.isEmpty,
+               ![.initial, .paused].contains(state),
+               (notCancelledChunkWriters.first?.startTime.map { $0 <= timestamp } == true) // skip buffers before start time
+            {
                 Log.error("no writer found \(type) at \(timestamp.seconds); state: \(state)", chunkWritersDebugInfo, Log.nowString)
             }
             return
@@ -276,7 +294,10 @@ class ScreenChunksManager {
     }
     
     func stop() async {
-        state = .initial
+        processSampleQueue.sync {
+            state = .initial
+        }
+        
         let endTime = lastSampleTime ?? CMClock.hostTimeClock.time
         Log.info("stop", endTime.seconds, Log.nowString, chunkWritersDebugInfo)
         
@@ -284,7 +305,8 @@ class ScreenChunksManager {
             .asyncForEach { chunkWriter in
                 await chunkWriter.finalizeOrCancelWithDelay(
                     endTime: endTime,
-                    lastSampleBuffers: lastSampleBuffers
+                    lastSampleBuffers: lastSampleBuffers,
+                    resultDirURL: resultDirectoryURL
                 )
             }
         
@@ -296,21 +318,17 @@ class ScreenChunksManager {
         self.lastSampleBuffers = [:]
     }
     
-    var outputDirectory: URL? {
-        if let path = recordConfiguration.chunksDirectoryPath {
-            return URL(fileURLWithPath: path)
-        } else {
-            let fileManager = FileManager.default
-            let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
-            
-            return documentsDirectory?.appendingPathComponent(defaultChunksDir)
-        }
+    var tempOutputDirectory: URL? {
+        let fileManager = FileManager.default
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+        
+        return documentsDirectory?.appendingPathComponent(defaultChunksDir)
     }
     
-    private func getOrCreateOutputDirectory() -> URL? {
+    private func getOrCreateTempOutputDirectory() -> URL? {
         let fileManager = FileManager.default
         
-        guard let pathURL = outputDirectory,
+        guard let pathURL = tempOutputDirectory,
               let _ = try? fileManager.createDirectory(atPath: pathURL.path(), withIntermediateDirectories: true, attributes: nil) else { return nil }
         return pathURL
     }
