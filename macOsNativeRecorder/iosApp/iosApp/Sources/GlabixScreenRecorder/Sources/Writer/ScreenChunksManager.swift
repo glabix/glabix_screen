@@ -71,7 +71,7 @@ class ScreenChunksManager {
     private let queue = DispatchQueue(label: "com.glabix.screen.chunksManager")
     private let processSampleQueue = DispatchQueue(label: "com.glabix.screen.screenCapture.processSample")
     private let defaultChunksDir: String
-    private var resultDirectoryURL: URL!
+    private var outputDirectoryURL: URL!
     
     init(
         screenConfigurator: ScreenConfigurator,
@@ -83,7 +83,7 @@ class ScreenChunksManager {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "y-MM-dd_HH-mm-ss"
         self.defaultChunksDir = dateFormatter.string(from: Date())
-        self.resultDirectoryURL = nil
+        self.outputDirectoryURL = nil
     }
     
     private func initChunkWriter(index: Int, expectedStartTime: CMTime?) {
@@ -92,7 +92,8 @@ class ScreenChunksManager {
             ChunkWriter(
                 screenConfigurator: screenConfigurator,
                 recordConfiguration: recordConfiguration,
-                tempDir: getOrCreateTempOutputDirectory(),
+                tempDirectoryURL: getOrCreateTempOutputDirectory(),
+                outputDirectoryURL: outputDirectoryURL,
                 captureMicrophone: recordConfiguration.captureMicrophone,
                 index: index,
                 startTime: expectedStartTime
@@ -158,11 +159,10 @@ class ScreenChunksManager {
                     
                     queue.async { [weak outdatedChunkWriter, weak self] in
                         Task { [weak outdatedChunkWriter, weak self] in
-                            guard let lastSampleBuffers = self?.lastSampleBuffers, let resultDirectoryURL = self?.resultDirectoryURL else { return }
+                            guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
                             await outdatedChunkWriter?.finalizeOrCancelWithDelay(
                                 endTime: endTime,
-                                lastSampleBuffers: lastSampleBuffers,
-                                resultDirURL: resultDirectoryURL
+                                lastSampleBuffers: lastSampleBuffers
                             )
                         }
                     }
@@ -187,14 +187,18 @@ class ScreenChunksManager {
         }
     }
     
-    func startOnNextSample(resultDirectoryPath: String) {
+    func startOnNextSample(outputDirectoryPath: String) {
         processSampleQueue.sync {
-            resultDirectoryURL = URL(fileURLWithPath: resultDirectoryPath)
+            outputDirectoryURL = URL(fileURLWithPath: outputDirectoryPath)
+            notCancelledChunkWriters.forEach {
+                $0.outputDirectoryURL = outputDirectoryURL
+            }
+            
             let fileManager = FileManager.default
             do {
-                try fileManager.createDirectory(atPath: resultDirectoryURL.path(), withIntermediateDirectories: true, attributes: nil)
+                try fileManager.createDirectory(atPath: outputDirectoryURL.path(), withIntermediateDirectories: true, attributes: nil)
             } catch {
-                Log.error("Can not create output dir at", resultDirectoryPath)
+                Log.error("Can not create output dir at", outputDirectoryURL ?? "nil")
             }
             
             guard state == .initial else { return }
@@ -247,11 +251,10 @@ class ScreenChunksManager {
                                 .asyncForEach { chunkWriter in
                                     chunkWriter.updateStatusOnFinalizeOrCancel(endTime: timestamp)
                                 
-                                    guard let lastSampleBuffers = self?.lastSampleBuffers, let resultDirectoryURL = self?.resultDirectoryURL else { return }
+                                    guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
                                     await chunkWriter.finalizeOrCancelWithDelay(
                                         endTime: timestamp,
-                                        lastSampleBuffers: lastSampleBuffers,
-                                        resultDirURL: resultDirectoryURL
+                                        lastSampleBuffers: lastSampleBuffers
                                     )
                                 }
                             
@@ -312,8 +315,7 @@ class ScreenChunksManager {
             .asyncForEach { chunkWriter in
                 await chunkWriter.finalizeOrCancelWithDelay(
                     endTime: endTime,
-                    lastSampleBuffers: lastSampleBuffers,
-                    resultDirURL: resultDirectoryURL
+                    lastSampleBuffers: lastSampleBuffers
                 )
             }
         

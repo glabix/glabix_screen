@@ -49,6 +49,25 @@ class RecordHandler: ObservableObject {
         
         try await screenRecorder
             .configureAndInitialize(with: .development)
+        
+        clearOutputDirectory()
+    }
+    
+    private func clearOutputDirectory() {
+        let fileManager = FileManager.default
+        let directoryURL = URL(fileURLWithPath: StartConfig.development.chunksDirectoryPath)
+        
+        do {
+            try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
+            let files = try fileManager.contentsOfDirectory(atPath: directoryURL.path())
+            
+            for file in files {
+                let filePath = directoryURL.appendingPathComponent(file).absoluteURL
+                try fileManager.removeItem(at: filePath)
+            }
+        } catch let error {
+            Log.error(error)
+        }
     }
     
     func pause() {

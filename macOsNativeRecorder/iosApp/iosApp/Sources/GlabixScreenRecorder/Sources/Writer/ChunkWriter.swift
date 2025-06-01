@@ -49,7 +49,9 @@ final class ChunkWriter {
     var startTime: CMTime?
     var endTime: CMTime?
     let chunkIndex: Int
-    var lastScreenSampleBuffer: CMSampleBuffer?
+    
+    var outputDirectoryURL: URL?
+    private var lastScreenSampleBuffer: CMSampleBuffer?
 //    var _firstMicSampleBufferAt: CMTime?
 //    var _firstSystemAudioSampleBufferAt: CMTime?
 //    var _lastMicSampleBufferAt: CMTime?
@@ -85,12 +87,14 @@ final class ChunkWriter {
     init(
         screenConfigurator: ScreenConfigurator,
         recordConfiguration: RecordConfiguration,
-        tempDir: URL?,
+        tempDirectoryURL: URL?,
+        outputDirectoryURL: URL?,
         captureMicrophone: Bool,
         index: Int,
         startTime: CMTime?
     ) {
-        let urlBuilder = ChunkURLBuilder(chunkIndex: index, dirURL: tempDir)
+        self.outputDirectoryURL = outputDirectoryURL
+        let urlBuilder = ChunkURLBuilder(chunkIndex: index, dirURL: tempDirectoryURL)
         let chunkDuration = CMTime(seconds: Double(recordConfiguration.chunkDurationSeconds), preferredTimescale: 1)
         self.chunkDuration = chunkDuration
         tempScreenChunkURL = urlBuilder.screenURL
@@ -99,7 +103,7 @@ final class ChunkWriter {
         } else { nil }
         
         self.writer = try? ScreenWriter(
-            outputURL: tempScreenChunkURL,
+            screenOutputURL: tempScreenChunkURL,
             micOutputURL: tempMicChunkURL,
             screenConfigurator: screenConfigurator,
             recordConfiguration: recordConfiguration,
@@ -117,7 +121,9 @@ final class ChunkWriter {
         guard let startTime = startTime else { return }
         self.startTime = startTime
         self.endTime = startTime + chunkDuration
+        Log.info("before session start", Log.nowString, chunkIndex: chunkIndex)
         writer?.startSession(atSourceTime: startTime)
+        Log.info("after session start", Log.nowString, chunkIndex: chunkIndex)
     }
     
     func updateStatusOnFinalizeOrCancel(endTime: CMTime) {
@@ -133,7 +139,7 @@ final class ChunkWriter {
         }
     }
     
-    func finalizeOrCancelWithDelay(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer], resultDirURL: URL) async {
+    func finalizeOrCancelWithDelay(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) async {
         Log.print("(\(chunkIndex)) finalizeOrCancelWithDelay at \(endTime.seconds)", Log.nowString)
         guard let startTime = startTime else { return }
         
@@ -147,20 +153,20 @@ final class ChunkWriter {
             try? await Task.sleep(for: .seconds(0.3))
         }
         
-        await finalizeOrCancel(endTime: endTime, lastSampleBuffers: lastSampleBuffers, resultDirURL: resultDirURL)
+        await finalizeOrCancel(endTime: endTime, lastSampleBuffers: lastSampleBuffers)
     }
     
-    private func finalizeOrCancel(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer], resultDirURL: URL) async {
+    private func finalizeOrCancel(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) async {
         guard let startTime = startTime else { return }
         
         if startTime > endTime {
             await cancel()
         } else {
-            await finalize(endTime: endTime, lastSampleBuffers: lastSampleBuffers, resultDirURL: resultDirURL)
+            await finalize(endTime: endTime, lastSampleBuffers: lastSampleBuffers)
         }
     }
     
-    private func finalize(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer], resultDirURL: URL) async {
+    private func finalize(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) async {
         status = .finalized
         self.endTime = endTime
         
@@ -201,31 +207,31 @@ final class ChunkWriter {
         writer = nil
         self.lastScreenSampleBuffer = nil
         
-        let resultURLBuilder = ChunkURLBuilder(chunkIndex: chunkIndex, dirURL: resultDirURL)
-        let resultScreenChunkURL = resultURLBuilder.screenURL
-        if let atURL = tempScreenChunkURL, let toURL = resultScreenChunkURL {
+        let outputURLBuilder = ChunkURLBuilder(chunkIndex: chunkIndex, dirURL: outputDirectoryURL)
+        let outputScreenChunkURL = outputURLBuilder.screenURL
+        if let atURL = tempScreenChunkURL, let toURL = outputScreenChunkURL {
             do {
                 try fileManager.moveItem(at: atURL, to: toURL)
             } catch {
-                Log.error("can't move result screen chunk file to \(resultDirURL)")
+                Log.error("can't move output screen chunk file to \(outputDirectoryURL)")
             }
         }
         
-        let resultMicChunkURL = resultURLBuilder.micURL
-        if let atURL = tempMicChunkURL, let toURL = resultMicChunkURL {
+        let outputMicChunkURL = outputURLBuilder.micURL
+        if let atURL = tempMicChunkURL, let toURL = outputMicChunkURL {
             do {
                 try fileManager.moveItem(at: atURL, to: toURL)
             } catch {
-                Log.error("can't move result mic chunk file to \(resultDirURL)")
+                Log.error("can't move output mic chunk file to \(outputDirectoryURL)")
             }
         }
         
         Callback.print(Callback.ChunkFinalized(
             index: chunkIndex,
-            screenFile: resultScreenChunkURL.map {
+            screenFile: outputScreenChunkURL.map {
                 Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
             },
-            micFile: resultMicChunkURL.map {
+            micFile: outputMicChunkURL.map {
                 Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
             }
         ))
