@@ -94,50 +94,52 @@ extension Callback {
     }
 }
 
-class ScreenRecorderService {
+class ScreenRecorderService: @unchecked Sendable {
     private let recorder = ScreenRecorder()
     private let captureDevicesObserver = CaptureDevicesObserver()
-    private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
+//    private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
 
     func pause() {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                recorder.chunksManager?.pause()
+//        commandQueue.async { [recorder] in
+            Task {
+                await recorder.chunksManager?.pause()
             }
-        }
+//        }
     }
     
     func resume() {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                recorder.chunksManager?.resume()
+//        commandQueue.async { [recorder] in
+            Task {
+                await recorder.chunksManager?.resume()
             }
-        }
+//        }
     }
     
     func configureRecorder(with config: Config) {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
+//        commandQueue.async { [recorder] in
+            Task {
                 defer { fflush(stdout) }
                 do {
                     try await recorder.configureAndInitialize(with: config)
                 }
             }
-        }
+//        }
     }
     
     func startRecording(withConfig config: StartConfig) {
-        defer { fflush(stdout) }
-        
-        let path = recorder.chunksManager?.tempOutputDirectory?.path() ?? "null"
-        Log.success("recording started at temp `\(path)`")
-        
-        recorder.start(withConfig: config)
+        Task {
+            defer { fflush(stdout) }
+            
+            let path = await recorder.chunksManager?.tempOutputDirectory()?.path() ?? "null"
+            Log.success("recording started at temp `\(path)`")
+            
+            await recorder.start(withConfig: config)
+        }
     }
     
     func stopRecording() {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
+//        commandQueue.async { [recorder] in
+            Task { //[recorder] in
                 defer { fflush(stdout) }
                 do {
                     try await recorder.stop()
@@ -145,7 +147,7 @@ class ScreenRecorderService {
                     Log.error("Error stopping capture: \(error)")
                 }
             }
-        }
+        
     }
     
     func printAudioInputDevices() {

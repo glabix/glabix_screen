@@ -16,7 +16,7 @@ class WaveformService: NSObject {
     private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
     private var microphoneSession: AVCaptureSession?
     let waveformProcessor: WaveformProcessor = WaveformProcessor()
-    private let queue = DispatchQueue(label: "com.glabix.screen.waveform")
+//    private let queue = DispatchQueue(label: "com.glabix.screen.waveform")
     
     func start(config: WaveformConfig) {
         microphoneSession = AVCaptureSession()
@@ -113,14 +113,14 @@ class ScreenRecorder: NSObject {
         }
     }
     
-    func start(withConfig startConfig: StartConfig) {
+    func start(withConfig startConfig: StartConfig) async {
         chunksManager?.startOnNextSample(outputDirectoryPath: startConfig.chunksDirectoryPath)
-        Callback.print(Callback.RecordingStarted(tempPath: chunksManager?.tempOutputDirectory?.path()))
+        Callback.print(Callback.RecordingStarted(tempPath: await chunksManager?.tempOutputDirectory()?.path()))
     }
     
     func configureAndInitialize(with config: Config) async throws {
         try await configure(with: config)
-        chunksManager?.initializeFirstChunkWriter()
+        await chunksManager?.initializeFirstChunkWriter()
     }
     
     private func configure(with config: Config) async throws {

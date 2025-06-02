@@ -44,7 +44,11 @@ private struct ChunkURLBuilder {
     }
 }
 
-final class ChunkWriter {
+//actor ChunkWriterActor {
+//    
+//}
+
+actor ChunkWriter {
     private var writer: ScreenWriter?
     var startTime: CMTime?
     var endTime: CMTime?
@@ -121,9 +125,9 @@ final class ChunkWriter {
         guard let startTime = startTime else { return }
         self.startTime = startTime
         self.endTime = startTime + chunkDuration
-        Log.info("before session start", Log.nowString, chunkIndex: chunkIndex)
+//        Log.info("before session start", Log.nowString, chunkIndex: chunkIndex)
         writer?.startSession(atSourceTime: startTime)
-        Log.info("after session start", Log.nowString, chunkIndex: chunkIndex)
+//        Log.info("after session start", Log.nowString, chunkIndex: chunkIndex)
     }
     
     func updateStatusOnFinalizeOrCancel(endTime: CMTime) {
@@ -170,7 +174,7 @@ final class ChunkWriter {
         status = .finalized
         self.endTime = endTime
         
-        Log.print("chunk writer finalized #\(chunkIndex) at \(endTime.seconds) glob \(lastSampleBuffers[.screen]?.chunkIndex) \(lastSampleBuffers[.screen]?.sampleBuffer.presentationTimeStamp.seconds) \(lastScreenSampleBuffer?.presentationTimeStamp.seconds) \(Log.nowString)", chunkIndex: chunkIndex)
+        Log.print("chunk writer finalized #\(chunkIndex) at \(endTime.seconds) glob \(lastSampleBuffers[.screen]?.chunkIndex ?? -1) \(lastSampleBuffers[.screen]?.sampleBuffer.presentationTimeStamp.seconds ?? 0) \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? 0) \(Log.nowString)", chunkIndex: chunkIndex)
         if let lastSampleBuffer = lastScreenSampleBuffer ?? lastSampleBuffers[.screen]?.sampleBuffer {
 //            if lastScreenSampleBuffer == nil,
 //               let startTime = startTime,
@@ -184,14 +188,14 @@ final class ChunkWriter {
 //                }
 //            }
             
-            if let finalSampleBuffer = SampleBufferBuilder.buildAdditionalSampleBuffer(from: lastSampleBuffer, at: endTime) {
-                if finalSampleBuffer.presentationTimeStamp != lastSampleBuffer.presentationTimeStamp {
-                    appendSampleBuffer(finalSampleBuffer, type: .screen, lastSampleBuffers: lastSampleBuffers)
-                    Log.print("writing as last screen time:", lastSampleBuffer.presentationTimeStamp.seconds, "endtime", endTime.seconds, "final at", finalSampleBuffer.presentationTimeStamp.seconds, Log.nowString, chunkIndex: chunkIndex)
-                } else {
-                    Log.warn("writing SKIPPED as last screen time:", lastSampleBuffer.presentationTimeStamp.seconds, "endtime", endTime.seconds, "final at", finalSampleBuffer.presentationTimeStamp.seconds, Log.nowString, chunkIndex: chunkIndex)
-                }
-            }
+//            if let finalSampleBuffer = SampleBufferBuilder.buildAdditionalSampleBuffer(from: lastSampleBuffer, at: endTime) {
+//                if finalSampleBuffer.presentationTimeStamp != lastSampleBuffer.presentationTimeStamp {
+//                    appendSampleBuffer(finalSampleBuffer, type: .screen, lastSampleBuffers: lastSampleBuffers)
+//                    Log.print("writing as last screen time:", lastSampleBuffer.presentationTimeStamp.seconds, "endtime", endTime.seconds, "final at", finalSampleBuffer.presentationTimeStamp.seconds, Log.nowString, chunkIndex: chunkIndex)
+//                } else {
+//                    Log.warn("writing SKIPPED as last screen time:", lastSampleBuffer.presentationTimeStamp.seconds, "endtime", endTime.seconds, "final at", finalSampleBuffer.presentationTimeStamp.seconds, Log.nowString, chunkIndex: chunkIndex)
+//                }
+//            }
         }
         
 //        let sysDiff: CMTime = (_lastSystemAudioSampleBufferAt ?? .zero) - (_firstSystemAudioSampleBufferAt ?? .zero)
@@ -207,34 +211,38 @@ final class ChunkWriter {
         writer = nil
         self.lastScreenSampleBuffer = nil
         
-        let outputURLBuilder = ChunkURLBuilder(chunkIndex: chunkIndex, dirURL: outputDirectoryURL)
-        let outputScreenChunkURL = outputURLBuilder.screenURL
-        if let atURL = tempScreenChunkURL, let toURL = outputScreenChunkURL {
-            do {
-                try fileManager.moveItem(at: atURL, to: toURL)
-            } catch {
-                Log.error("can't move output screen chunk file to \(outputDirectoryURL)")
-            }
-        }
-        
-        let outputMicChunkURL = outputURLBuilder.micURL
-        if let atURL = tempMicChunkURL, let toURL = outputMicChunkURL {
-            do {
-                try fileManager.moveItem(at: atURL, to: toURL)
-            } catch {
-                Log.error("can't move output mic chunk file to \(outputDirectoryURL)")
-            }
-        }
-        
-        Callback.print(Callback.ChunkFinalized(
-            index: chunkIndex,
-            screenFile: outputScreenChunkURL.map {
-                Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
-            },
-            micFile: outputMicChunkURL.map {
-                Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
-            }
-        ))
+//        let outputURLBuilder = ChunkURLBuilder(chunkIndex: chunkIndex, dirURL: outputDirectoryURL)
+//        let outputScreenChunkURL = outputURLBuilder.screenURL
+//        if let atURL = tempScreenChunkURL, let toURL = outputScreenChunkURL {
+//            do {
+//                try fileManager.moveItem(at: atURL, to: toURL)
+//            } catch {
+//                Log.error("can't move output screen chunk file to \(outputDirectoryURL?.debugDescription ?? "n/a") due to \(error)")
+//            }
+//        } else {
+//            Log.error("can't move output screen chunk file (path not exists) to \(tempMicChunkURL?.debugDescription ?? "n/a") \(outputScreenChunkURL?.debugDescription ?? "n/a")")
+//        }
+//        
+//        let outputMicChunkURL = outputURLBuilder.micURL
+//        if let atURL = tempMicChunkURL, let toURL = outputMicChunkURL {
+//            do {
+//                try fileManager.moveItem(at: atURL, to: toURL)
+//            } catch {
+//                Log.error("can't move output mic chunk file to \(outputDirectoryURL?.debugDescription ?? "n/a") due to \(error)")
+//            }
+//        } else {
+//            Log.error("can't move output mic chunk file (path not exists) to \(tempMicChunkURL?.debugDescription ?? "n/a") \(outputMicChunkURL?.debugDescription ?? "n/a")")
+//        }
+//        
+//        Callback.print(Callback.ChunkFinalized(
+//            index: chunkIndex,
+//            screenFile: outputScreenChunkURL.map {
+//                Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
+//            },
+//            micFile: outputMicChunkURL.map {
+//                Callback.ChunkFile(path: $0.path(), size: calculateFileSize($0))
+//            }
+//        ))
     }
     
     private func cancel() async {
@@ -282,22 +290,22 @@ final class ChunkWriter {
         let isFirstSampleBufferOfType = hasAnySampleBufferOf[type] != true
         hasAnySampleBufferOf[type] = true
         
-        if type != .mic,
-           isFirstSampleBufferOfType,
-           let lastSampleBuffer = lastSampleBuffers[type],
-           let startTime = startTime,
-           let additionalSampleBuffer = SampleBufferBuilder.buildAdditionalSampleBuffer(
-            from: lastSampleBuffer.sampleBuffer,
-            at: startTime
-           )
-        {
-            if (sampleBuffer.presentationTimeStamp != startTime) {
-                Log.print("(\(chunkIndex)) writing as first \(type) time:", lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", startTime.seconds, Log.nowString)
-                appendSampleBuffer(additionalSampleBuffer, type: type, lastSampleBuffers: lastSampleBuffers)
-            } else {
-                Log.warn("(\(chunkIndex)) writing SKIPPED as first \(type) time:", lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", startTime.seconds, Log.nowString)
-            }
-        }
+//        if type != .mic,
+//           isFirstSampleBufferOfType,
+//           let lastSampleBuffer = lastSampleBuffers[type],
+//           let startTime = startTime,
+//           let additionalSampleBuffer = SampleBufferBuilder.buildAdditionalSampleBuffer(
+//            from: lastSampleBuffer.sampleBuffer,
+//            at: startTime
+//           )
+//        {
+//            if (sampleBuffer.presentationTimeStamp != startTime) {
+//                Log.print("(\(chunkIndex)) writing as first \(type) time:", lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", startTime.seconds, Log.nowString)
+//                appendSampleBuffer(additionalSampleBuffer, type: type, lastSampleBuffers: lastSampleBuffers)
+//            } else {
+//                Log.warn("(\(chunkIndex)) writing SKIPPED as first \(type) time:", lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", startTime.seconds, Log.nowString)
+//            }
+//        }
         
         let assetWriterInput = switch type {
             case .systemAudio: writer.systemAudioWriterInput
@@ -322,9 +330,9 @@ final class ChunkWriter {
 //                _lastMicSampleBufferDuration = sampleBuffer.duration
         }
         
-//        if type == .systemAudio {
-//            Log.print("\(type) buffer at \(sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
-//        }
+        if type == .screen {
+            Log.print("\(type) buffer at \(sampleBuffer.presentationTimeStamp.seconds)", writer.assetWriter?.status.rawValue ?? -1, chunkIndex: chunkIndex)
+        }
         
         guard let assetWriterInput = assetWriterInput, assetWriterInput.isReadyForMoreMediaData else {
             Log.error("no input or not ready for \(type)", "isReady", assetWriterInput?.isReadyForMoreMediaData ?? "no AssetWriterInput at \(sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)

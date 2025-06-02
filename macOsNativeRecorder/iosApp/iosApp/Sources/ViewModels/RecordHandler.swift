@@ -33,15 +33,15 @@ class RecordHandler: ObservableObject {
         }
     }
     
-    func start() throws {
+    func start() async throws {
         try checkPermissions()
         
         DispatchQueue.main.async {
             self.recording = true
             self.paused = false
         }
-        
-        screenRecorder.start(withConfig: .development)
+         
+        await screenRecorder.start(withConfig: .development)
     }
     
     func configure() async throws {
@@ -70,13 +70,13 @@ class RecordHandler: ObservableObject {
         }
     }
     
-    func pause() {
-        screenRecorder.chunksManager?.pause()
+    func pause() async {
+        await screenRecorder.chunksManager?.pause()
         self.paused = true
     }
     
-    func resume() {
-        screenRecorder.chunksManager?.resume()
+    func resume() async {
+        await screenRecorder.chunksManager?.resume()
         self.paused = false
     }
     

@@ -9,7 +9,7 @@
 import AVFoundation
 
 final class ScreenWriter {
-    private var assetWriter: AVAssetWriter?
+    var assetWriter: AVAssetWriter?
     private var micAssetWriter: AVAssetWriter?
     private let chunkIndex: Int
     var videoWriterInput: AVAssetWriterInput?
@@ -55,7 +55,7 @@ final class ScreenWriter {
     func finalize(endTime: CMTime) async {
         if assetWriter?.status == .writing {
         } else {
-            Log.error("screen assetWriter is not writing \(assetWriter?.status.rawValue)", Log.nowString, chunkIndex: chunkIndex)
+            Log.error("screen assetWriter is not writing \(assetWriter?.status.rawValue ?? -1)", Log.nowString, chunkIndex: chunkIndex)
         }
         assetWriter?.endSession(atSourceTime: endTime)
         await assetWriter?.finishWriting()
@@ -63,7 +63,7 @@ final class ScreenWriter {
 
         if micAssetWriter?.status == .writing {
         } else {
-            Log.error("mic assetWriter is not writing \(micAssetWriter?.status.rawValue)", Log.nowString, chunkIndex: chunkIndex)
+            Log.error("mic assetWriter is not writing \(micAssetWriter?.status.rawValue ?? -1)", Log.nowString, chunkIndex: chunkIndex)
         }
         micAssetWriter?.endSession(atSourceTime: endTime)
         await micAssetWriter?.finishWriting()

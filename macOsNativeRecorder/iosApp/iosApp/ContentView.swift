@@ -130,10 +130,12 @@ struct ContentView: View {
                 .disabled(handler.recording)
                 
                 Button(action: {
-                    do {
-                        try handler.start()
-                    } catch {
-                        debugPrint("ERROR", error)
+                    Task {
+                        do {
+                            try await handler.start()
+                        } catch {
+                            debugPrint("ERROR", error)
+                        }
                     }
                 }) {
                     Text("start")
@@ -151,14 +153,18 @@ struct ContentView: View {
             }
             HStack {
                 Button(action: {
-                    handler.pause()
+                    Task {
+                        await handler.pause()
+                    }
                 }) {
                     Text("pause")
                 }
                 .disabled(!handler.recording || handler.paused)
                 
                 Button(action: {
-                    handler.resume()
+                    Task {
+                        await handler.resume()
+                    }
                 }) {
                     Text("resume")
                 }
