@@ -47,26 +47,24 @@ final class ScreenWriter {
     func startSession(atSourceTime startTime: CMTime) {
         assetWriter?.startWriting()
         assetWriter?.startSession(atSourceTime: startTime)
-
+        
         micAssetWriter?.startWriting()
         micAssetWriter?.startSession(atSourceTime: startTime)
     }
     
     func finalize(endTime: CMTime) async {
         if assetWriter?.status == .writing {
+            assetWriter?.endSession(atSourceTime: endTime)
+            await assetWriter?.finishWriting()
         } else {
-            Log.error("screen assetWriter is not writing \(assetWriter?.status.rawValue)", Log.nowString, chunkIndex: chunkIndex)
+            Log.error("screen assetWriter is not writing \(assetWriter?.status.rawValue.description ?? "n/a")", chunkIndex: chunkIndex)
         }
-        assetWriter?.endSession(atSourceTime: endTime)
-        await assetWriter?.finishWriting()
-//        assetWriter?.finishWriting {}
-
+        
         if micAssetWriter?.status == .writing {
+            micAssetWriter?.endSession(atSourceTime: endTime)
+            await micAssetWriter?.finishWriting()
         } else {
-            Log.error("mic assetWriter is not writing \(micAssetWriter?.status.rawValue)", Log.nowString, chunkIndex: chunkIndex)
+            Log.error("mic assetWriter is not writing \(micAssetWriter?.status.rawValue.description ?? "n/a")", chunkIndex: chunkIndex)
         }
-        micAssetWriter?.endSession(atSourceTime: endTime)
-        await micAssetWriter?.finishWriting()
-//        micAssetWriter?.finishWriting {}
     }
 }

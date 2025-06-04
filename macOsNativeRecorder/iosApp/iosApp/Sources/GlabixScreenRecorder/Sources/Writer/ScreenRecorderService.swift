@@ -85,7 +85,7 @@ extension Callback {
     
     struct RecordingStarted: Codable {
         var action: RecordingAction = .started
-        let tempPath: String?
+        let outputPath: String?
     }
     
     struct RecordingStopped: Codable {
@@ -126,13 +126,10 @@ class ScreenRecorderService {
         }
     }
     
-    func startRecording(withConfig config: StartConfig) {
+    func startRecording() {
         defer { fflush(stdout) }
         
-        let path = recorder.chunksManager?.tempOutputDirectory?.path() ?? "null"
-        Log.success("recording started at temp `\(path)`")
-        
-        recorder.start(withConfig: config)
+        recorder.start()
     }
     
     func stopRecording() {

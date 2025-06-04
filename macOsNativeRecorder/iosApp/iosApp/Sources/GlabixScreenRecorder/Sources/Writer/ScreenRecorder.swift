@@ -52,7 +52,7 @@ class ScreenRecorder: NSObject {
     
     private var stream: SCStream?
     
-    private let screenCaptureQueue = DispatchQueue(label: "com.glabix.screen.screenCapture")
+    private let sampleHandlerQueue = DispatchQueue(label: "com.glabix.screen.screenCapture")
     
     private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
 //    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
@@ -63,7 +63,7 @@ class ScreenRecorder: NSObject {
     ) async throws {
         chunksManager = ScreenChunksManager(
             screenConfigurator: screenConfigurator,
-            recordConfiguration: recordConfiguration
+            recordConfiguration: recordConfiguration,
         )
         
         // MARK: SCStream setup
@@ -73,8 +73,8 @@ class ScreenRecorder: NSObject {
         
         stream = SCStream(filter: filter, configuration: configuration, delegate: nil)
                
-        try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: screenCaptureQueue)
-        try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: screenCaptureQueue)
+        try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleHandlerQueue)
+        try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: sampleHandlerQueue)
     }
     
     func printAudioInputDevices() {
@@ -106,16 +106,16 @@ class ScreenRecorder: NSObject {
             
             let micOutput = AVCaptureAudioDataOutput()
             
-            micOutput.setSampleBufferDelegate(self, queue: screenCaptureQueue)
+            micOutput.setSampleBufferDelegate(self, queue: sampleHandlerQueue)
             microphoneSession?.addOutput(micOutput)
         } catch {
             Log.error("Error setting up microphone capture: \(error)")
         }
     }
     
-    func start(withConfig startConfig: StartConfig) {
-        chunksManager?.startOnNextSample(outputDirectoryPath: startConfig.chunksDirectoryPath)
-        Callback.print(Callback.RecordingStarted(tempPath: chunksManager?.tempOutputDirectory?.path()))
+    func start() {
+        chunksManager?.startOnNextSample()
+        Callback.print(Callback.RecordingStarted(outputPath: chunksManager?.outputDirectoryURL.path()))
     }
     
     func configureAndInitialize(with config: Config) async throws {

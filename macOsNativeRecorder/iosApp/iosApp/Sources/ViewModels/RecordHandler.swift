@@ -41,21 +41,20 @@ class RecordHandler: ObservableObject {
             self.paused = false
         }
         
-        screenRecorder.start(withConfig: .development)
+        screenRecorder.start()
     }
     
     func configure() async throws {
         try checkPermissions()
+        clearOutputDirectory()
         
         try await screenRecorder
-            .configureAndInitialize(with: .development)
-        
-        clearOutputDirectory()
+            .configureAndInitialize(with: .development)        
     }
     
     private func clearOutputDirectory() {
         let fileManager = FileManager.default
-        let directoryURL = URL(fileURLWithPath: StartConfig.development.chunksDirectoryPath)
+        let directoryURL = URL(fileURLWithPath: Config.development.chunksDirectoryPath)
         
         do {
             try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)

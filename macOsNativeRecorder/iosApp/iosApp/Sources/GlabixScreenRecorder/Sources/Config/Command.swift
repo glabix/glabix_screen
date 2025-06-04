@@ -8,7 +8,6 @@
 struct Command: Codable {
     let action: CommandAction
     let config: Config?
-    let startConfig: StartConfig?
 }
 
 struct WaveformCommand: Codable {

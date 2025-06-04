@@ -55,6 +55,9 @@ class ScreenChunksManager {
     private func activeChunkWriter(_ index: Int) -> ChunkWriter? {
         activeChunkWriters.first(where: { $0.chunkIndex == index })
     }
+    private func notCancelledChunkWriter(_ index: Int) -> ChunkWriter? {
+        notCancelledChunkWriters.first(where: { $0.chunkIndex == index })
+    }
     
 //    private var chunkWritersDebugInfo: [[Any]] {
     private var chunkWritersDebugInfo: String {
@@ -66,231 +69,244 @@ class ScreenChunksManager {
     
     private var state: ChunksManagerState = .initial
 
+    private var sampleRetimeDiff: CMTime?
+    private var lastPausedAt: CMTime = .zero
     private var lastSampleTime: CMTime?
     private var lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer] = [:]
-    private let queue = DispatchQueue(label: "com.glabix.screen.chunksManager")
-    private let processSampleQueue = DispatchQueue(label: "com.glabix.screen.screenCapture.processSample")
-    private let defaultChunksDir: String
-    private var outputDirectoryURL: URL!
+    private let asyncFinalizeQueue = DispatchQueue(label: "com.glabix.screen.chunksManager.asyncFinalize")
+    private let bufferQueue = DispatchQueue(label: "com.recorder.buffer.queue",
+                                            qos: .userInteractive,
+                                            attributes: .concurrent)
+    var outputDirectoryURL: URL { recordConfiguration.outputDirectoryURL }
     
     init(
         screenConfigurator: ScreenConfigurator,
-        recordConfiguration: RecordConfiguration
+        recordConfiguration: RecordConfiguration,
     ) {
         self.screenConfigurator = screenConfigurator
         self.recordConfiguration = recordConfiguration
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "y-MM-dd_HH-mm-ss"
-        self.defaultChunksDir = dateFormatter.string(from: Date())
-        self.outputDirectoryURL = nil
+        let fileManager = FileManager.default
+        do {
+            try fileManager.createDirectory(atPath: recordConfiguration.outputDirectoryURL.path(), withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            Log.error("Can not create output dir at", recordConfiguration.outputDirectoryURL, error)
+        }
     }
     
-    private func initChunkWriter(index: Int, expectedStartTime: CMTime?) {
-        Log.print("createNewChunk initChunkWriter expectedStartTime:", expectedStartTime?.seconds ?? 0, Log.nowString, chunkIndex: index)
-        _chunkWriters.append(
-            ChunkWriter(
-                screenConfigurator: screenConfigurator,
-                recordConfiguration: recordConfiguration,
-                tempDirectoryURL: getOrCreateTempOutputDirectory(),
-                outputDirectoryURL: outputDirectoryURL,
-                captureMicrophone: recordConfiguration.captureMicrophone,
-                index: index,
-                startTime: expectedStartTime
-            )
+    private func initChunkWriter(index: Int) -> ChunkWriter {
+        Log.print("createNewChunk initChunkWriter", chunkIndex: index)
+        let writer = ChunkWriter(
+            screenConfigurator: screenConfigurator,
+            recordConfiguration: recordConfiguration,
+            captureMicrophone: recordConfiguration.captureMicrophone,
+            index: index,
         )
+        _chunkWriters.append(writer)
+        
+        return writer
     }
 
     private func asyncInitializeNextIfNeeded(chunkWriter: ChunkWriter) {
         let nextChunkIndex = chunkWriter.chunkIndex + 1
         
-        processSampleQueue.async { [weak self] in // not always state = shouldPause being applied
-            guard self?.activeChunkWriter(nextChunkIndex) == nil else { return }
+        bufferQueue.async { [weak self] in // not always state = shouldPause being applied
+            guard self?.notCancelledChunkWriter(nextChunkIndex) == nil else { return }
             
             guard self?.state == .recording else {
                 Log.warn("invalid state for next writer initialization")
                 return
             }
             
-            Log.info("asyncInitializeNextIfNeeded current index", chunkWriter.chunkIndex, "state", self?.state, "with start time", chunkWriter.endTime?.seconds ?? 0, Log.nowString, chunkIndex: nextChunkIndex)
-            self?.initChunkWriter(index: nextChunkIndex, expectedStartTime: chunkWriter.endTime)
+            Log.info("asyncInitializeNextIfNeeded current index", chunkWriter.chunkIndex, "state", self?.state, Log.nowString, chunkIndex: nextChunkIndex)
+            _ = self?.initChunkWriter(index: nextChunkIndex)
         }
     }
     
     private func writerAt(_ timestamp: CMTime) -> ChunkWriter? {
-        activeOrFinalizingChunkWriters.first { writer in
-            guard let startTime = writer.startTime, let endTime = writer.endTime else { return false }
-            return endTime >= timestamp && startTime <= timestamp
+        guard let _ = sampleRetimeDiff else { return nil }
+        
+        return activeOrFinalizingChunkWriters.first { writer in
+            guard let startTime = writer.startTime else { return false }
+            return startTime <= timestamp && (writer.endTime.map { $0 > timestamp } != false)
         }
     }
     
     private func getOrInitializeWriterAt(_ timestamp: CMTime, startTime: CMTime? = nil, type: ScreenRecorderSourceType) -> ChunkWriter? {
-        if writerAt(timestamp) == nil, type == .screen {
-            let lastChunk = notCancelledChunkWriters.last
-            let newChunkStartTime = startTime ?? lastChunk?.endTime ?? timestamp
-            let newChunkIndex: Int
-            if let lastChunk = lastChunk {
-                if lastChunk.startTime == nil {
-                    newChunkIndex = lastChunk.chunkIndex
-                    Log.info("starting chunk at \(newChunkStartTime.seconds)", Log.nowString, chunkIndex: newChunkIndex)
-                    lastChunk.startAt(newChunkStartTime)
-                } else {
-                    newChunkIndex = lastChunk.chunkIndex + 1
-                }
-            } else {
-                newChunkIndex = 0
-            }
+        guard let chunkWriter = writerAt(timestamp) else { return nil }
+        
+        if chunkWriter.endTime == nil, chunkWriter.calcCurrentFileSize() >= recordConfiguration.minChunkSizeBytes {
+            let endTime = timestamp + CMTime(seconds: 0.1, preferredTimescale: 10)
+            Log.info("will end", endTime.seconds, chunkIndex: chunkWriter.chunkIndex)
+            chunkWriter.endTime = endTime
             
-            if let nextChunkWriter = activeChunkWriter(newChunkIndex) {
-                Log.print("createNewChunk Chunk Exists #\(newChunkIndex) start:", newChunkStartTime.seconds, "chunk start", nextChunkWriter.startTime?.seconds ?? 0, "end", nextChunkWriter.endTime?.seconds ?? 0, Log.nowString, chunkIndex: newChunkIndex)
+            if let nextChunkWriter = activeChunkWriter(chunkWriter.chunkIndex + 1) {
+                nextChunkWriter.startAt(endTime)
             } else {
-                Log.warn("!!!!!!!! createNewChunk start:", newChunkStartTime.seconds, "startTime", startTime?.seconds, "current", timestamp.seconds, chunkWritersDebugInfo, Log.nowString, chunkIndex: newChunkIndex)
-                initChunkWriter(index: newChunkIndex, expectedStartTime: newChunkStartTime)
+                Log.error("nextChunkWriter not found", chunkIndex: chunkWriter.chunkIndex)
             }
         }
         
-        if let chunkWriter = writerAt(timestamp) {
-            asyncInitializeNextIfNeeded(chunkWriter: chunkWriter)
-            activeChunkWriters
-                .filter { $0.chunkIndex < chunkWriter.chunkIndex }
-                .forEach { outdatedChunkWriter in
-                    guard let endTime = outdatedChunkWriter.endTime else { return }
-                    outdatedChunkWriter.updateStatusOnFinalizeOrCancel(endTime: endTime)
-                    
-                    queue.async { [weak outdatedChunkWriter, weak self] in
-                        Task { [weak outdatedChunkWriter, weak self] in
-                            guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
-                            await outdatedChunkWriter?.finalizeOrCancelWithDelay(
-                                endTime: endTime,
-                                lastSampleBuffers: lastSampleBuffers
-                            )
-                        }
+        asyncInitializeNextIfNeeded(chunkWriter: chunkWriter)
+        
+        activeChunkWriters
+            .filter { $0.chunkIndex < chunkWriter.chunkIndex }
+            .forEach { outdatedChunkWriter in
+                guard let endTime = outdatedChunkWriter.endTime else {
+                    Log.error("No end time found", chunkWritersDebugInfo, chunkIndex: outdatedChunkWriter.chunkIndex)
+                    return
+                }
+                outdatedChunkWriter.updateStatusOnFinalizeOrCancel(endTime: endTime)
+                
+                bufferQueue.async(flags: .barrier) { [weak outdatedChunkWriter, weak self] in
+                    Task { [weak outdatedChunkWriter, weak self] in
+                        guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
+                        await outdatedChunkWriter?.finalizeOrCancelWithDelay(
+                            endTime: endTime,
+                            lastSampleBuffers: lastSampleBuffers
+                        )
                     }
                 }
-            
-            return chunkWriter
-        } else { return nil }
+            }
         
+        return chunkWriter
     }
     
     func pause() {
-        processSampleQueue.sync {
-            guard state == .recording else { return }
-            state = .shouldPause
+        bufferQueue.async {
+            guard self.state == .recording else { return }
+            self.state = .shouldPause
         }
     }
     
     func resume() {
-        processSampleQueue.sync {
-            guard state == .paused else { return }
-            state = .shouldResume
+        bufferQueue.async {
+            guard self.state == .paused else { return }
+            self.state = .shouldResume
         }
     }
     
-    func startOnNextSample(outputDirectoryPath: String) {
-        processSampleQueue.sync {
-            outputDirectoryURL = URL(fileURLWithPath: outputDirectoryPath)
-            notCancelledChunkWriters.forEach {
-                $0.outputDirectoryURL = outputDirectoryURL
-            }
-            
-            let fileManager = FileManager.default
-            do {
-                try fileManager.createDirectory(atPath: outputDirectoryURL.path(), withIntermediateDirectories: true, attributes: nil)
-            } catch {
-                Log.error("Can not create output dir at", outputDirectoryURL ?? "nil")
-            }
-            
-            guard state == .initial else { return }
-            state = .shouldStart
+    func startOnNextSample() {
+        bufferQueue.async {
+            guard self.state == .initial else { return }
+            self.state = .shouldStart
         }
     }
     
+//    private var _stopped: Bool = false
     func syncProcessSampleBuffer(_ sampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
-        processSampleQueue.sync {
-            processSampleBuffer(sampleBuffer, type: type)
+        bufferQueue.async(flags: .barrier) {
+            self.processSampleBuffer(sampleBuffer, type: type)
             
-//            if writerAt(sampleBuffer.presentationTimeStamp)?.chunkIndex == 3, state == .recording {
+//            if self.writerAt(sampleBuffer.presentationTimeStamp - (self.firstSampleTime ?? .zero))?.chunkIndex == 3, self.state == .recording, self._stopped == false {
 //                Log.error("COMMENT OUT THIS!", Log.nowString)
-//                pause()
+//                self._stopped = true
+////                self.pause()
 //                Task {
-//                    await stop()
+//                    try? await Task.sleep(for: .seconds(0.3))
+//                    await self.stop()
 //                }
 //            }
         }
     }
     
-    private func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
-        let timestamp = sampleBuffer.presentationTimeStamp
-        
+    private func retimedSampleBuffer(_ originalSampleBuffer: CMSampleBuffer) -> CMSampleBuffer {
+        guard let sampleRetimeDiff = sampleRetimeDiff else { return originalSampleBuffer }
+        let timing = CMSampleTimingInfo(
+            duration: originalSampleBuffer.duration,
+            presentationTimeStamp: originalSampleBuffer.presentationTimeStamp - sampleRetimeDiff,
+            decodeTimeStamp: originalSampleBuffer.decodeTimeStamp
+        )
+        return try! CMSampleBuffer(copying: originalSampleBuffer, withNewTiming: [timing])
+    }
+    
+    private func processSampleBuffer(_ originalSampleBuffer: CMSampleBuffer, type: ScreenRecorderSourceType) {
+        let sampleBuffer: CMSampleBuffer
         let chunkWriter: ChunkWriter?
         switch state {
             case .initial:
-                chunkWriter = writerAt(timestamp)
+                sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+                chunkWriter = writerAt(sampleBuffer.presentationTimeStamp)
             case .shouldStart:
                 guard type == .screen else { return }
                 
-                state = .recording
-                chunkWriter = getOrInitializeWriterAt(timestamp, type: type)
-            case .shouldResume:
-                guard type == .screen else { return }
+                if sampleRetimeDiff == nil {
+                    sampleRetimeDiff = originalSampleBuffer.presentationTimeStamp
+                }
                 
                 state = .recording
-                chunkWriter = getOrInitializeWriterAt(timestamp, startTime: timestamp, type: type)
+                sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+                chunkWriter = getOrInitializeWriterAt(sampleBuffer.presentationTimeStamp, type: type)
+            case .shouldResume:
+//                guard type == .screen else { return }
+                
+                state = .recording
+                let pauseDuration = originalSampleBuffer.presentationTimeStamp - lastPausedAt - CMTime(value: 1, timescale: 1000)
+                sampleRetimeDiff = (sampleRetimeDiff ?? .zero) + pauseDuration
+                sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+                chunkWriter = getOrInitializeWriterAt(sampleBuffer.presentationTimeStamp, startTime: sampleBuffer.presentationTimeStamp, type: type)
+                Log.info("Resume after pause duration", pauseDuration.seconds, "at", sampleBuffer.presentationTimeStamp.seconds, chunkIndex: chunkWriter?.chunkIndex)
             case .shouldPause:
-                if type == .screen {
+//                if type == .screen {
                     state = .paused
-                    chunkWriter = writerAt(timestamp)
+                    lastPausedAt = originalSampleBuffer.presentationTimeStamp
+                    sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+                    chunkWriter = writerAt(sampleBuffer.presentationTimeStamp)
+//                    let endTime = sampleBuffer.presentationTimeStamp
                     
-                    Log.info("Pausing", "timestamp", timestamp.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkWriter?.chunkIndex)//, "chunk start", chunkStartTime.seconds)
-                    //            pausedAt = timestamp
+                    Log.info("Pausing on \(type)", "timestamp", sampleBuffer.presentationTimeStamp.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkWriter?.chunkIndex)//, "chunk start", chunkStartTime.seconds)
                     
-                    queue.async { [weak self] in
-                        Task { [weak self] in
-                            await self?.activeChunkWriters
-                                .asyncForEach { chunkWriter in
-                                    chunkWriter.updateStatusOnFinalizeOrCancel(endTime: timestamp)
-                                
-                                    guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
-                                    await chunkWriter.finalizeOrCancelWithDelay(
-                                        endTime: timestamp,
-                                        lastSampleBuffers: lastSampleBuffers
-                                    )
-                                }
-                            
-                            guard let lastChunkIndex = self?.notCancelledChunkWriters.last?.chunkIndex else { return }
-                            self?.initChunkWriter(index: lastChunkIndex + 1, expectedStartTime: nil)
-                            Log.success("Paused", self?.chunkWritersDebugInfo ?? "")
-                        }
-                    }
-                } else {
-                    chunkWriter = getOrInitializeWriterAt(timestamp, type: type)
-                }
+//                    asyncFinalizeQueue.async { [weak self] in
+//                        Task { [weak self] in
+//                            await self?.activeChunkWriters
+//                                .asyncForEach { chunkWriter in
+//                                    chunkWriter.updateStatusOnFinalizeOrCancel(endTime: endTime)
+//                                
+//                                    guard let lastSampleBuffers = self?.lastSampleBuffers else { return }
+//                                    await chunkWriter.finalizeOrCancelWithDelay(
+//                                        endTime: endTime,
+//                                        lastSampleBuffers: lastSampleBuffers
+//                                    )
+//                                }
+//                            
+//                            guard let lastChunkIndex = self?.notCancelledChunkWriters.last?.chunkIndex else { return }
+//                            self?.initChunkWriter(index: lastChunkIndex + 1, expectedStartTime: nil)
+//                            Log.success("Paused", self?.chunkWritersDebugInfo ?? "")
+//                        }
+//                    }
+//                } else {
+//                    sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+//                    chunkWriter = getOrInitializeWriterAt(sampleBuffer.presentationTimeStamp, type: type)
+//                }
             case .paused:
-                chunkWriter = writerAt(timestamp)
+                return;
+//                sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+//                chunkWriter = writerAt(sampleBuffer.presentationTimeStamp)
             case .recording:
-                chunkWriter = getOrInitializeWriterAt(timestamp, type: type)
+                sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
+                chunkWriter = getOrInitializeWriterAt(sampleBuffer.presentationTimeStamp, type: type)
         }
         
         guard let chunkWriter = chunkWriter else {
             if !activeOrFinalizingChunkWriters.isEmpty,
-               ![.initial, .paused].contains(state),
-               (notCancelledChunkWriters.first?.startTime.map { $0 <= timestamp } == true) // skip buffers before start time
+               ![.initial].contains(state)
+//               (notCancelledChunkWriters.first?.startTime.map { $0 <= sampleBuffer.presentationTimeStamp } == true) // skip buffers before start time
             {
-                Log.error("no writer found \(type) at \(timestamp.seconds); state: \(state)", chunkWritersDebugInfo, Log.nowString)
+                Log.error("no writer found \(type) at \(sampleBuffer.presentationTimeStamp.seconds); state: \(state)", chunkWritersDebugInfo, Log.nowString)
             }
             return
         }
         
         if type == .screen {
-            lastSampleTime = timestamp // will stop at this time
+//            Log.print("appe scr", state, chunkWritersDebugInfo, chunkWriter.calcCurrentFileSize(), chunkIndex: chunkWriter.chunkIndex)
+            lastSampleTime = sampleBuffer.presentationTimeStamp // will stop at this time
         }
         
         chunkWriter.appendSampleBuffer(sampleBuffer, type: type, lastSampleBuffers: lastSampleBuffers)
         
-        if lastSampleBuffers[type] == nil {
-            Log.info("first chunk of \(type) at \(timestamp.seconds)", Log.nowString, chunkIndex: chunkWriter.chunkIndex)
-        }
+//        if lastSampleBuffers[type] == nil {
+//            Log.info("first chunk of \(type) at \(timestamp.seconds)", Log.nowString, chunkIndex: chunkWriter.chunkIndex)
+//        }
         
         lastSampleBuffers[type] = LastSampleBuffer(chunkIndex: chunkWriter.chunkIndex, sampleBuffer: sampleBuffer)
     }
@@ -300,45 +316,43 @@ class ScreenChunksManager {
             Log.error("Can't initialize while running")
             return
         }
-        initChunkWriter(index: 0, expectedStartTime: nil)
+        initChunkWriter(index: 0).startAt(.zero)
     }
     
     func stop() async {
-        processSampleQueue.sync {
-            state = .initial
-        }
+        self.state = .initial
         
         let endTime = lastSampleTime ?? CMClock.hostTimeClock.time
-        Log.info("stop", endTime.seconds, Log.nowString, chunkWritersDebugInfo)
+        Log.info("stop called", endTime.seconds, Log.nowString, chunkWritersDebugInfo)
         
-        await activeChunkWriters
-            .asyncForEach { chunkWriter in
-                await chunkWriter.finalizeOrCancelWithDelay(
-                    endTime: endTime,
-                    lastSampleBuffers: lastSampleBuffers
-                )
+        while !activeChunkWriters.isEmpty,
+              let chunkWriter = activeChunkWriters.first {
+            
+            chunkWriter.updateStatusOnFinalizeOrCancel(endTime: endTime)
+//            bufferQueue.async(flags: .barrier) {
+            bufferQueue.async {
+                Task {
+                    await chunkWriter.finalizeOrCancelWithDelay(
+                        endTime: endTime,
+                        lastSampleBuffers: self.lastSampleBuffers
+                    )
+                }
             }
+        }
         
-        let chunkIndex = notCancelledChunkWriters.last?.chunkIndex
+//        await activeChunkWriters
+//            .asyncForEach { chunkWriter in
+//                await chunkWriter.finalizeOrCancelWithDelay(
+//                    endTime: endTime,
+//                    lastSampleBuffers: lastSampleBuffers
+//                )
+//            }
+        
+        let chunkIndex = notCancelledChunkWriters.last(where: { $0.startTime != nil })?.chunkIndex
         Log.success("Stopped", endTime.seconds, Log.nowString, chunkWritersDebugInfo, chunkIndex: chunkIndex)
         Callback.print(Callback.RecordingStopped(lastChunkIndex: chunkIndex))
                        
         self._chunkWriters = []
         self.lastSampleBuffers = [:]
-    }
-    
-    var tempOutputDirectory: URL? {
-        let fileManager = FileManager.default
-        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
-        
-        return documentsDirectory?.appendingPathComponent(defaultChunksDir)
-    }
-    
-    private func getOrCreateTempOutputDirectory() -> URL? {
-        let fileManager = FileManager.default
-        
-        guard let pathURL = tempOutputDirectory,
-              let _ = try? fileManager.createDirectory(atPath: pathURL.path(), withIntermediateDirectories: true, attributes: nil) else { return nil }
-        return pathURL
     }
 }
