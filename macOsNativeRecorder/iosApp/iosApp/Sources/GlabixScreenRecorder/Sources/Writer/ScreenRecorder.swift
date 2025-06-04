@@ -75,8 +75,6 @@ class ScreenRecorder: NSObject {
                
         try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: screenCaptureQueue)
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: screenCaptureQueue)
-        
-        clearOutputDirectory()
     }
     
     func printAudioInputDevices() {
@@ -115,16 +113,9 @@ class ScreenRecorder: NSObject {
         }
     }
     
-    func start(withConfig config: Config) async throws {
-        try await configure(with: config)
-        
-        chunksManager?.startOnNextSample()
-        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
-    }
-    
-    func start() {
-        chunksManager?.startOnNextSample()
-        Callback.print(Callback.RecordingStarted(path: chunksManager?.outputDirectory?.path()))
+    func start(withConfig startConfig: StartConfig) {
+        chunksManager?.startOnNextSample(outputDirectoryPath: startConfig.chunksDirectoryPath)
+        Callback.print(Callback.RecordingStarted(tempPath: chunksManager?.tempOutputDirectory?.path()))
     }
     
     func configureAndInitialize(with config: Config) async throws {
@@ -154,23 +145,6 @@ class ScreenRecorder: NSObject {
         
         // Start capturing, wait for stream to start
         try await stream?.startCapture()
-    }
-    
-    private func clearOutputDirectory() {
-        let fileManager = FileManager.default
-        guard let directoryURL = chunksManager?.outputDirectory else { return }
-        
-        do {
-            try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
-            let files = try fileManager.contentsOfDirectory(atPath: directoryURL.path())
-            
-            for file in files {
-                let filePath = directoryURL.appendingPathComponent(file).absoluteURL
-                try fileManager.removeItem(at: filePath)
-            }
-        } catch let error {
-            print(error)
-        }
     }
     
     func stop() async throws {

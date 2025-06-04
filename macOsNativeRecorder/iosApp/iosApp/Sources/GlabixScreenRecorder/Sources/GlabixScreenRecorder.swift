@@ -41,9 +41,7 @@ struct GlabixScreenRecorder: ParsableCommand {
                         case .configure:
                             recorder.configureRecorder(with: command.config ?? .default)
                         case .start:
-                            recorder.startRecording()
-                        case .startWithConfig:
-                            recorder.startRecording(withConfig: command.config ?? .default)
+                            recorder.startRecording(withConfig: command.startConfig!)
                         case .stop:
                             recorder.stopRecording()
                         case .pause:
@@ -60,9 +58,7 @@ struct GlabixScreenRecorder: ParsableCommand {
                     switch action {
                         case "config":
                             recorder.configureRecorder(with: .development)
-                        case "start":
-                            recorder.startRecording()
-                        case "startWithConfig", "s":
+                        case "start", "s":
                             recorder.startRecording(withConfig: .development)
                         case "stop":
                             recorder.stopRecording()

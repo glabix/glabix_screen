@@ -41,7 +41,7 @@ class RecordHandler: ObservableObject {
             self.paused = false
         }
         
-        screenRecorder.start()
+        screenRecorder.start(withConfig: .development)
     }
     
     func configure() async throws {
@@ -49,24 +49,25 @@ class RecordHandler: ObservableObject {
         
         try await screenRecorder
             .configureAndInitialize(with: .development)
+        
+        clearOutputDirectory()
     }
     
-    func startWithConfig() async throws {
-        try checkPermissions()
+    private func clearOutputDirectory() {
+        let fileManager = FileManager.default
+        let directoryURL = URL(fileURLWithPath: StartConfig.development.chunksDirectoryPath)
         
-        DispatchQueue.main.async {
-            self.recording = true
-            self.paused = false
+        do {
+            try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
+            let files = try fileManager.contentsOfDirectory(atPath: directoryURL.path())
+            
+            for file in files {
+                let filePath = directoryURL.appendingPathComponent(file).absoluteURL
+                try fileManager.removeItem(at: filePath)
+            }
+        } catch let error {
+            Log.error(error)
         }
-        
-        try await screenRecorder
-            .start(
-                withConfig: .development
-            )
-        
-//        DispatchQueue.main.async {
-//            NSWorkspace.shared.open(folder)
-//        }
     }
     
     func pause() {

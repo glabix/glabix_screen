@@ -139,22 +139,7 @@ struct ContentView: View {
                     Text("start")
                 }
                 .disabled(handler.recording)
-            }
-             
-            HStack {
-                Button(action: {
-                    Task {
-                        do {
-                            try await handler.startWithConfig()
-                        } catch {
-                            debugPrint("ERROR", error)
-                        }
-                    }
-                }) {
-                    Text("startWithConfig")
-                }
-                .disabled(handler.recording)
-                
+
                 Button(action: {
                     Task {
                         try await handler.stop()

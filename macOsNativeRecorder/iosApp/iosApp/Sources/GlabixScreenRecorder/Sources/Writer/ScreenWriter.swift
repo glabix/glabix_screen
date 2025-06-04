@@ -18,14 +18,14 @@ final class ScreenWriter {
 //    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
     init(
-        outputURL: URL?,
+        screenOutputURL: URL?,
         micOutputURL: URL?,
         screenConfigurator: ScreenConfigurator,
         recordConfiguration: RecordConfiguration,
         chunkIndex: Int
     ) throws {
         self.chunkIndex = chunkIndex
-        assetWriter = try outputURL.map { try AVAssetWriter(outputURL: $0, fileType: .mp4) }
+        assetWriter = try screenOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .mp4) }
         micAssetWriter = try micOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .m4a) }
         
         videoWriterInput = try VideoInput(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration).build()
