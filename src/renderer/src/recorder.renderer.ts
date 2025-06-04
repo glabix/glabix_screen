@@ -115,6 +115,11 @@ const logResize = (x1, x2, y1, y2) => {
 const debouncedLogResize = debounce(logResize, 400)
 
 function stopRecording() {
+  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
+  updateRecorderState("stopped")
+  stopStreamTracks()
+  timer.stop()
+
   if (videoRecorder) {
     videoRecorder.stop()
     videoRecorder = undefined
@@ -126,9 +131,6 @@ function stopRecording() {
     clearView()
   }
 
-  stopStreamTracks()
-  timer.stop()
-
   const cropScreen = document.querySelector("#crop_video_screen") as HTMLElement
   if (cropScreen) {
     cropScreen.classList.remove("is-recording")
@@ -139,7 +141,28 @@ function stopRecording() {
     canvasVideo.remove()
   }
 
-  updateRecorderState("stopped")
+  window.electronAPI.ipcRenderer.send("stop-recording", {
+    showModal: !isRecordRestart,
+  })
+
+  lastScreenAction = undefined
+
+  controlPanel.classList.remove("is-recording")
+
+  const settings: IStreamSettings =
+    lastStreamSettings!.action == "cropVideo" && !isRecordRestart
+      ? { ...lastStreamSettings, action: "fullScreenVideo" }
+      : lastStreamSettings!
+
+  lastStreamSettings = filterStreamSettings(settings)
+
+  if (lastStreamSettings.action == "cameraOnly") {
+    initRecord(lastStreamSettings)
+  } else {
+    initView(lastStreamSettings, true)
+  }
+
+  window.electronAPI.ipcRenderer.send(ModalWindowEvents.RENDER, settings.action)
 
   if (isRecordCanceled || isRecordRestart) {
     window.electronAPI.ipcRenderer.send(RecordEvents.CANCEL, {
@@ -150,8 +173,6 @@ function stopRecording() {
       fileUuid: currentRecordedUuid,
     })
   }
-
-  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
 }
 
 function pauseRecording() {
@@ -989,6 +1010,11 @@ window.electronAPI.ipcRenderer.on(
   RecordEvents.START,
   (event, settings: IStreamSettings, file_uuid: string) => {
     const data = filterStreamSettings(settings)
+
+    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CONFIGURE, {
+      uuid: file_uuid,
+    })
+
     initRecord(data).then(() => {
       currentRecordedUuid = file_uuid
       currentRecordChunksCount = 0
@@ -1049,31 +1075,10 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     pauseBtn.removeAttribute("hidden")
   }
 
-  if (["stopped"].includes(state["recordingState"])) {
-    stopRecording()
-    window.electronAPI.ipcRenderer.send("stop-recording", {
-      showModal: !isRecordRestart,
-    })
-    lastScreenAction = undefined
-    controlPanel.classList.remove("is-recording")
-    const settings: IStreamSettings =
-      lastStreamSettings!.action == "cropVideo" && !isRecordRestart
-        ? { ...lastStreamSettings, action: "fullScreenVideo" }
-        : lastStreamSettings!
+  // if (["stopped"].includes(state["recordingState"])) {
+  //   stopRecording()
 
-    lastStreamSettings = filterStreamSettings(settings)
-
-    if (lastStreamSettings.action == "cameraOnly") {
-      initRecord(lastStreamSettings)
-    } else {
-      initView(lastStreamSettings, true)
-    }
-
-    window.electronAPI.ipcRenderer.send(
-      ModalWindowEvents.RENDER,
-      settings.action
-    )
-  }
+  // }
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 })

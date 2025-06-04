@@ -36,7 +36,6 @@ import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import {
-  ISwiftMediaDevice,
   SwiftMediaDevicesEvents,
   SwiftRecorderEvents,
 } from "@shared/types/swift-recorder.types"
@@ -342,6 +341,14 @@ function initVisualAudio() {
   ) {
     const browserDeviceId = getBrowserAudioDeviceId()
 
+    window.electronAPI.ipcRenderer.send(
+      "console.log",
+      `
+      browserDeviceId
+    `,
+      browserDeviceId
+    )
+
     if (browserDeviceId) {
       navigator.mediaDevices
         .getUserMedia({
@@ -449,6 +456,7 @@ function initVisualAudio() {
 }
 
 function useBrowserAudioDevice(): boolean {
+  // return true
   return streamSettings.action == "cameraOnly" || isWindows
 }
 async function setupMediaDevices(setDefault = false) {

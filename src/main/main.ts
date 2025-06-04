@@ -19,6 +19,7 @@ import {
 } from "electron"
 import path, { join } from "path"
 import os from "os"
+import { v4 as uuidv4 } from "uuid"
 import { getCurrentUser } from "./commands/current-user.command"
 import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
@@ -52,6 +53,7 @@ import {
   ScreenshotActionEvents,
   ScreenshotWindowEvents,
   SimpleStoreEvents,
+  IRecorderLastChunkHandled,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -105,8 +107,10 @@ import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
 import "./helpers/swift-recorder.helper"
 import {
+  ISwiftRecorderCallbackChunkFinalized,
   // ISwiftRecorderConfig,
   SwiftMediaDevicesEvents,
+  SwiftRecorderCallbackActions,
   SwiftRecorderEvents,
 } from "@shared/types/swift-recorder.types"
 import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
@@ -1840,6 +1844,37 @@ chunkProcessor.on(
       JSON.stringify({ sendDataEvent })
     )
     recorderFacadeV3.handleEvent(sendDataEvent)
+  }
+)
+
+ipcMain.on(
+  SwiftRecorderCallbackActions.RECORD_STOPPED,
+  (event, _data: ISwiftRecorderCallbackChunkFinalized) => {
+    const data: IRecorderLastChunkHandled = {
+      index: _data.index,
+      innerRecordUuid: _data.recordUuid,
+    }
+
+    chunkProcessor.emit(ChunkSaverEvents.RECORD_STOPPED, data)
+  }
+)
+ipcMain.on(
+  SwiftRecorderCallbackActions.CHUNK_FINALIZED,
+  (event, _data: ISwiftRecorderCallbackChunkFinalized) => {
+    console.log("SwiftRecorderCallbackActions.CHUNK_FINALIZED data:", _data)
+    const data: IRecorderSavedChunk = {
+      innerRecordUuid: _data.recordUuid, // uuid записи экрана
+      uuid: uuidv4(), // uuid чанка
+      createdAt: Date.now(),
+      videoSource: decodeURIComponent(_data.screenFile.path),
+      audioSource: decodeURIComponent(_data.micFile.path) || null,
+      size: _data.screenFile.size,
+      isLast: _data.isLast,
+      index: _data.index,
+    }
+
+    console.log("SwiftRecorderCallbackActions.CHUNK_FINALIZED", data)
+    chunkProcessor.emit(ChunkSaverEvents.CHUNK_FINALIZED, data)
   }
 )
 

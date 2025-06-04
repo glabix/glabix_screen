@@ -22,6 +22,7 @@ export interface ISwiftMediaDevice {
   id: string
 }
 export interface ISwiftRecorderConfig {
+  uuid?: string
   systemAudio?: boolean
   audioDeviceId?: string
   displayId?: number
@@ -52,5 +53,15 @@ export interface ISwiftRecorderCallbackAudioDevices {
 
 export interface ISwiftRecorderCallbackChunkFinalized {
   action: SwiftRecorderCallbackActions.CHUNK_FINALIZED
+  recordUuid: string
   index: number
+  isLast: boolean
+  micFile: {
+    path: string
+    size: number
+  }
+  screenFile: {
+    path: string
+    size: number
+  }
 }

@@ -1,9 +1,6 @@
-import {
-  RecordEvents,
-  RecordSettingsEvents,
-} from "@shared/events/record.events"
+import { RecordSettingsEvents } from "@shared/events/record.events"
 import { ChildProcessWithoutNullStreams, spawn } from "child_process"
-import { app, ipcMain, Rectangle } from "electron"
+import { app, ipcMain } from "electron"
 import os from "os"
 import path, { join } from "path"
 import { LogSender } from "./log-sender"
@@ -13,7 +10,6 @@ import {
   SimpleStoreEvents,
 } from "@shared/types/types"
 import {
-  ISwiftMediaDevice,
   ISwiftRecorderCallbackAudioDevices,
   ISwiftRecorderConfig,
   SwiftMediaDevicesEvents,
@@ -21,13 +17,7 @@ import {
   SwiftRecorderEvents,
 } from "@shared/types/swift-recorder.types"
 import { AppEvents } from "@shared/events/app.events"
-
-// import audioDevices from 'macos-audio-devices'
-// import mic from 'mic'
-// import Analyser from 'audio-analyser'
-// import fs from "fs"
-// import { Transform } from "stream"
-// let analyser: any
+import { showRecordErrorBox } from "./show-record-error-box"
 
 const CALLBACK_START = "[glabix-screen.callback]"
 const CALLBACK_END = "###END"
@@ -36,22 +26,38 @@ let recorderProcess: ChildProcessWithoutNullStreams | null = null
 let waveFormProcess: ChildProcessWithoutNullStreams | null = null
 const logSender = new LogSender()
 let isRecording = false
-
-// console.log(`
-//   macos-audio-devices:
-// `, audioDevices.getDefaultInputDevice.sync().uid)
-
-// analyzeAudioFromDevice('default')
+let isLastChunk = false
+let isAppQuitting = false
+let swiftRecorderConfig: ISwiftRecorderConfig = {}
 
 if (os.platform() == "darwin") {
-  let swiftRecorderConfig: ISwiftRecorderConfig = {}
-
-  // let browserMediaDevices: MediaDeviceInfo[] = []
-  // const audioDevices: MediaDeviceInfo[] = []
-
   function kill() {
     recorderProcess?.kill()
     waveFormProcess?.kill()
+  }
+
+  function initWaveForm(path: string) {
+    waveFormProcess = spawn(path, ["glabix-waveform"])
+    waveFormProcess.stdout.on("data", (data) => {
+      // console.log(`
+      //   waveFormProcess Output: ${data.toString()}
+      // `)
+      parseWaveFormCallbackByAction(data.toString())
+      // logSender.sendLog(`
+      //     Swift Output: ${data.toString()}
+      //   `)
+    })
+
+    waveFormProcess.stderr.on("data", (data) => {
+      // logSender.sendLog("recorderProcess.stderr.on('data'): ", `${data.toString()}`)
+      console.error(`
+        waveFormProcess stderr: ${data}
+        `)
+    })
+
+    waveFormProcess.on("close", (code) => {
+      console.log(`WaveFormProcess завершился с кодом ${code}`)
+    })
   }
 
   function init(path: string) {
@@ -75,26 +81,13 @@ if (os.platform() == "darwin") {
     })
 
     recorderProcess.on("close", (code) => {
-      console.log(`детский процесс завершился с кодом ${code}`)
+      console.log(`RecorderProcess завершился с кодом ${code}`)
+      if (!isAppQuitting) {
+        showRecordErrorBox()
+      }
     })
 
-    waveFormProcess = spawn(path, ["glabix-waveform"])
-    waveFormProcess.stdout.on("data", (data) => {
-      // console.log(`
-      //   waveFormProcess Output: ${data.toString()}
-      // `)
-      parseWaveFormCallbackByAction(data.toString())
-      // logSender.sendLog(`
-      //     Swift Output: ${data.toString()}
-      //   `)
-    })
-
-    waveFormProcess.stderr.on("data", (data) => {
-      // logSender.sendLog("recorderProcess.stderr.on('data'): ", `${data.toString()}`)
-      console.error(`
-        waveFormProcess stderr: ${data}
-        `)
-    })
+    initWaveForm(path)
   }
 
   const packageDir = app.isPackaged
@@ -109,57 +102,38 @@ if (os.platform() == "darwin") {
 
   function configRecording() {
     const config = { ...swiftRecorderConfig }
-    let action = ""
-    const chunkDir = path.join(
-      os.homedir(),
-      "Library",
-      "Application Support",
-      app.getName(),
-      "chunks_storage"
-    )
+    // let action = ""
+    // const baseDir = path.join(os.homedir(), "Library", "Application Support", app.getName(), "recordsV3")
+    // const chunkDir = config.uuid ? path.join(baseDir, config.uuid) : baseDir
     const cropRect = config.cropRect
       ? `{"x": ${config.cropRect.x}, "y": ${config.cropRect.y}, "width": ${config.cropRect.width}, "height": ${config.cropRect.height}}`
       : null
-    action = `{"action": "configure", "config": {"fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "uhd4k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '",' : ""} "chunksDirectoryPath": "${chunkDir}"}}\n`
+    const action = `{"action": "configure", "config": {"chunkDurationSeconds": 10, "fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "fhd2k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '"' : ""}}}\n`
     recorderProcess?.stdin.write(action)
     // return result
   }
 
-  // function createConfigAction(config: ISwiftRecorderConfig): string {
-  //   let action = ""
-  //   const chunkDir = path.join(
-  //     os.homedir(),
-  //     "Library",
-  //     "Application Support",
-  //     app.getName(),
-  //     "chunks_storage"
-  //   )
-  //   const cropRect = config.cropRect
-  //     ? `{"x": ${config.cropRect.x}, "y": ${config.cropRect.y}, "width": ${config.cropRect.width}, "height": ${config.cropRect.height}}`
-  //     : null
-  //   return action = `{"action": "start", "config": {"fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "uhd4k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '",' : ""} "chunksDirectoryPath": "${chunkDir}"}}\n`
-  // }
-
   function startRecording() {
-    recorderProcess?.stdin.write('{"action": "start"}\n')
+    isLastChunk = false
+    const baseDir = path.join(
+      os.homedir(),
+      "Library",
+      "Application Support",
+      app.getName(),
+      "recordsV3"
+    )
+    const chunkDir = swiftRecorderConfig.uuid
+      ? path.join(baseDir, swiftRecorderConfig.uuid)
+      : baseDir
+    recorderProcess?.stdin.write(
+      `{"action": "start", "startConfig": {"chunksDirectoryPath": "${chunkDir}"}}\n`
+    )
     logSender.sendLog('{"swift-recorder": "start"}')
-    // recorderProcess.stdin.write('{"action": "start", "config": {"fps": 30, "showCursor": true, "displayId": 0}}\n');
-
-    // const params = `{"action": "start", "config": {"fps": 30, "captureSystemAudio": true, "captureMicrophone": false, "showCursor": true, "displayId": 69734406, "resolution": "uhd4k", "cropRect": null, "chunksDirectoryPath": "/Users/artembydiansky/Library/Application Support/glabix-screen/chunks_storage" }}\n`
-    // const config = configRecording(_config)
-    // const startAction = `{"action": "start", "config":${config}`
-    // recorderProcess?.stdin.write(startAction)
-    // console.log('startAction', startAction)
   }
 
   function getMics() {
-    // const isRecording = ["recording", "paused"].includes(
-    //   store.get()["recordingState"]
-    // )
-    // kill()
-    // init(toolPath)
     recorderProcess?.stdin.write('{"action": "printAudioInputDevices"}\n')
-    logSender.sendLog('{"swift-recorder": "printAudioInputDevices"}\n')
+    // logSender.sendLog('{"swift-recorder": "printAudioInputDevices"}\n')
   }
 
   function startWaveForm() {
@@ -173,13 +147,14 @@ if (os.platform() == "darwin") {
   }
 
   function stopRecording() {
-    recorderProcess?.stdin.write('{"action": "stop"}\n')
-    // logSender.sendLog("stopRecording", `stopRecording`)
-    // execa(toolPath, ['{"action": "stop"}']).then()
+    isLastChunk = true
     console.log(`
       stop
       ===========
     `)
+    recorderProcess?.stdin.write('{"action": "stop"}\n')
+    // logSender.sendLog("stopRecording", `stopRecording`)
+    // execa(toolPath, ['{"action": "stop"}']).then()
   }
 
   function pauseRecording() {
@@ -225,9 +200,6 @@ if (os.platform() == "darwin") {
   ipcMain.on(
     RecordSettingsEvents.UPDATE,
     (event, settings: IStreamSettings) => {
-      // console.log(`
-      //   RecordSettingsEvents.UPDATE swift-recorder.helper.ts
-      // `, settings)
       assignSettingsToConfig(settings)
       configRecording()
     }
@@ -251,25 +223,6 @@ if (os.platform() == "darwin") {
   ipcMain.on(
     SwiftRecorderEvents.START,
     (event, config: ISwiftRecorderConfig) => {
-      // console.log(
-      //   `
-      // config
-      // `,
-      //   config
-      // )
-      // swiftRecorderConfig = {
-      //   ...swiftRecorderConfig,
-      //   ...config,
-      // }
-
-      // swiftRecorderConfig = filterStreamSettings(swiftRecorderConfig)
-
-      console.log(
-        `
-        SwiftRecorderEvents.START
-      `
-      )
-
       startRecording()
     }
   )
@@ -317,146 +270,160 @@ if (os.platform() == "darwin") {
   })
 
   ipcMain.on(AppEvents.ON_SHOW, (event, data) => {
-    configRecording()
+    startWaveForm()
+  })
+  ipcMain.handle(SwiftMediaDevicesEvents.GET_DEVICES, (event, key) => {
+    return audioInputDevices
+  })
+
+  function parseCallback(str: string): any[] {
+    let res: any[] = []
+    if (str) {
+      const actionStr = str
+        .split(CALLBACK_START)
+        .map((s) => s.trim())
+        .filter((s) => Boolean(s))
+        .flatMap((s) => s.split(CALLBACK_END))
+
+      actionStr.forEach((s) => {
+        if (s.includes('{"action":') || s.includes('{ "action":')) {
+          try {
+            res.push(JSON.parse(s))
+          } catch (e) {}
+        }
+      })
+    }
+    return res
+  }
+
+  function parseWaveFormCallbackByAction(str: string) {
+    if (str) {
+      const allActions = parseCallback(str)
+
+      const waveFormAction = allActions.filter(
+        (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_WAVE_FORM
+      )
+
+      if (waveFormAction.length) {
+        ipcMain.emit(
+          SwiftMediaDevicesEvents.GET_WAVE_FORM,
+          null,
+          waveFormAction[0].amplitudes
+        )
+      }
+    }
+  }
+
+  function parseCallbackByActions(str: string) {
+    if (str) {
+      const allActions = parseCallback(str)
+
+      console.log("allActions", allActions)
+      if (allActions.length) {
+      }
+
+      const startActions = allActions.filter(
+        (i) => i.action == SwiftRecorderCallbackActions.RECORD_STARTED
+      )
+      if (startActions.length) {
+        // - emit action
+        // console.log(`
+        //   ====parseCallbackByActions====
+        //   startActions:
+        // `, startActions)
+      }
+
+      const stopAction = allActions.filter(
+        (i) => i.action == SwiftRecorderCallbackActions.RECORD_STOPPED
+      )
+      if (stopAction.length) {
+        const data = { ...stopAction[0], recordUuid: swiftRecorderConfig.uuid }
+        ipcMain.emit(SwiftRecorderCallbackActions.RECORD_STOPPED, null, data)
+        // - emit action
+        console.log(
+          `
+          ====parseCallbackByActions====
+          stopActions:
+        `,
+          stopAction
+        )
+      }
+
+      const chunkFinalizedAction = allActions.filter(
+        (i) => i.action == SwiftRecorderCallbackActions.CHUNK_FINALIZED
+      )
+      if (chunkFinalizedAction.length) {
+        const data = {
+          ...chunkFinalizedAction[0],
+          recordUuid: swiftRecorderConfig.uuid,
+          isLast: isLastChunk,
+        }
+        ipcMain.emit(SwiftRecorderCallbackActions.CHUNK_FINALIZED, null, data)
+        // ChunkProcessor.EventEmitter()
+        // - emit action
+        console.log(
+          `
+          ====parseCallbackByActions====
+          chunkFinalizedAction:
+          `,
+          chunkFinalizedAction
+        )
+      }
+
+      const swiftAudioInputAction = allActions.filter(
+        (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_INPUT_DEVICES
+      ) as ISwiftRecorderCallbackAudioDevices[]
+
+      // console.log(`
+      //   ====parseCallbackByActions====
+      //   swiftAudioInputAction:
+      // `, swiftAudioInputAction , allActions)
+
+      if (swiftAudioInputAction.length) {
+        // audioInputDevices = [...swiftAudioInputDevices]
+        const audioMediaDevices: IMediaDevice[] =
+          swiftAudioInputAction[0]!.devices.map((d) => ({
+            isDefault: d.isDefault,
+            label: d.name,
+            deviceId: d.id,
+            kind: "audioinput",
+          }))
+        audioInputDevices = [...audioMediaDevices]
+        // - emit action
+
+        // console.log(
+        //   `
+        //   audioInputDevices
+        // `,
+        //   audioInputDevices
+        // )
+        ipcMain.emit(SwiftMediaDevicesEvents.CHANGE, null, audioInputDevices)
+      }
+    }
+
+    // if (str) {
+    //   const actionStr = str.split(CALLBACK_SEPARATOR).map(s => s.trim()).filter(s => Boolean(s))
+    //   actionStr.forEach(s => {
+    //     const objArr = s.split('{').flatMap(s => s.split('}')).filter(s => s.includes('":')).flatMap(s => `{${s}}`)
+    //     objArr.forEach(s => {
+    //       if (s.includes('"action":')) {
+    //         try {
+    //           actions.push(JSON.parse(s))
+    //         } catch (e) {}
+    //       }
+    //     })
+    //   })
+    // }
+
+    // return actions
+  }
+
+  ipcMain.on(SimpleStoreEvents.CHANGED, (event, state) => {
+    isRecording = ["recording", "paused"].includes(state["recordingState"])
+  })
+
+  app.on("before-quit", () => {
+    isAppQuitting = true
+    kill()
   })
 }
-
-ipcMain.handle(SwiftMediaDevicesEvents.GET_DEVICES, (event, key) => {
-  return audioInputDevices
-})
-
-function parseCallback(str: string): any[] {
-  let res: any[] = []
-  if (str) {
-    const actionStr = str
-      .split(CALLBACK_START)
-      .map((s) => s.trim())
-      .filter((s) => Boolean(s))
-      .flatMap((s) => s.split(CALLBACK_END))
-
-    actionStr.forEach((s) => {
-      if (s.includes('{"action":') || s.includes('{ "action":')) {
-        try {
-          res.push(JSON.parse(s))
-        } catch (e) {}
-      }
-    })
-  }
-  return res
-}
-
-function parseWaveFormCallbackByAction(str: string) {
-  if (str) {
-    const allActions = parseCallback(str)
-
-    const waveFormAction = allActions.filter(
-      (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_WAVE_FORM
-    )
-
-    if (waveFormAction.length) {
-      ipcMain.emit(
-        SwiftMediaDevicesEvents.GET_WAVE_FORM,
-        null,
-        waveFormAction[0].amplitudes
-      )
-    }
-  }
-}
-
-function parseCallbackByActions(str: string) {
-  if (str) {
-    const allActions = parseCallback(str)
-
-    console.log("allActions", allActions)
-    if (allActions.length) {
-    }
-
-    const startActions = allActions.filter(
-      (i) => i.action == SwiftRecorderCallbackActions.RECORD_STARTED
-    )
-    if (startActions.length) {
-      // - emit action
-      // console.log(`
-      //   ====parseCallbackByActions====
-      //   startActions:
-      // `, startActions)
-    }
-
-    const stopAction = allActions.filter(
-      (i) => i.action == SwiftRecorderCallbackActions.RECORD_STOPPED
-    )
-    if (stopAction.length) {
-      // - emit action
-      // console.log(`
-      //   ====parseCallbackByActions====
-      //   stopActions:
-      // `, stopAction)
-    }
-
-    const chunkFinalizedAction = allActions.filter(
-      (i) => i.action == SwiftRecorderCallbackActions.CHUNK_FINALIZED
-    )
-    if (chunkFinalizedAction.length) {
-      // - emit action
-      // console.log(`
-      //   ====parseCallbackByActions====
-      //   chunkFinalizedAction:
-      //   `, chunkFinalizedAction)
-    }
-
-    const swiftAudioInputAction = allActions.filter(
-      (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_INPUT_DEVICES
-    ) as ISwiftRecorderCallbackAudioDevices[]
-
-    // console.log(`
-    //   ====parseCallbackByActions====
-    //   swiftAudioInputAction:
-    // `, swiftAudioInputAction , allActions)
-
-    if (swiftAudioInputAction.length) {
-      // audioInputDevices = [...swiftAudioInputDevices]
-      const audioMediaDevices: IMediaDevice[] =
-        swiftAudioInputAction[0]!.devices.map((d) => ({
-          isDefault: d.isDefault,
-          label: d.name,
-          deviceId: d.id,
-          kind: "audioinput",
-        }))
-      audioInputDevices = [...audioMediaDevices]
-      // - emit action
-
-      console.log(
-        `
-        audioInputDevices
-      `,
-        audioInputDevices
-      )
-      ipcMain.emit(SwiftMediaDevicesEvents.CHANGE, null, audioInputDevices)
-    }
-  }
-
-  // if (str) {
-  //   const actionStr = str.split(CALLBACK_SEPARATOR).map(s => s.trim()).filter(s => Boolean(s))
-  //   actionStr.forEach(s => {
-  //     const objArr = s.split('{').flatMap(s => s.split('}')).filter(s => s.includes('":')).flatMap(s => `{${s}}`)
-  //     objArr.forEach(s => {
-  //       if (s.includes('"action":')) {
-  //         try {
-  //           actions.push(JSON.parse(s))
-  //         } catch (e) {}
-  //       }
-  //     })
-  //   })
-  // }
-
-  // return actions
-}
-
-ipcMain.on(SimpleStoreEvents.CHANGED, (event, state) => {
-  isRecording = ["recording", "paused"].includes(state["recordingState"])
-})
-
-app.on("before-quit", () => {
-  recorderProcess?.kill()
-  waveFormProcess?.kill()
-})
