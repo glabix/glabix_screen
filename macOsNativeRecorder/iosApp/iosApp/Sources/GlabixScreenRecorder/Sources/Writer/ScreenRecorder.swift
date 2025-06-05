@@ -147,10 +147,14 @@ class ScreenRecorder: NSObject {
         try await stream?.startCapture()
     }
     
-    func stop() async throws {
-        await chunksManager?.stop()
-        
-        try await stream?.stopCapture()
-        microphoneSession?.stopRunning()
+    func stop() {
+        chunksManager?.bufferProcessingQueue.async { [weak stream, weak microphoneSession, weak chunksManager] in
+            Task { [weak stream, weak microphoneSession, weak chunksManager] in
+                await chunksManager?.stop()
+                
+                try await stream?.stopCapture()
+                microphoneSession?.stopRunning()
+            }
+        }
     }
 }

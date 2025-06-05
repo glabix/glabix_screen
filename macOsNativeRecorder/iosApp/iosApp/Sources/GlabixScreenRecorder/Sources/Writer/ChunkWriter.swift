@@ -72,16 +72,18 @@ final class ChunkWriter {
     private let fileManager = FileManager.default
     
     var isActive: Bool { writer != nil && status == .active }
-    var debugStatus: ChunkWriterStatus { status }
     var isActiveOrFinalizing: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
+    var debugStatus: ChunkWriterStatus { status }
     var debugInfo: String {
         [
             "(\(chunkIndex))",
             "time: \(startTime?.seconds ?? -1)-\(endTime?.seconds ?? -1)",
             "writer?: \(writer != nil)",
             "stetus: \(status)",
-            "lastScreenAt: \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? -1)"
+            "lastScreenAt: \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? -1)",
+            "writer status: \(writer?.debugStatus ?? "n/a")",
+            "size: \(calcCurrentFileSize().formatted(.byteCount(style: .file)))"
         ]
             .map(\.description)
             .joined(separator: " ")
@@ -290,6 +292,8 @@ final class ChunkWriter {
 //        if status == .finalizing {
 //            Log.print("appending to finalizing chunk \(type) at \(timestamp?.seconds ?? 0) endAt \(endTime?.seconds ?? 0) diff \(CMClock.hostTimeClock.time.seconds - sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
 //        }
+        
+//        Log.print("processing buffer \(type) at \(sampleBuffer.presentationTimeStamp.seconds) \(debugInfo)", chunkIndex: chunkIndex)
         
         assetWriterInput.append(sampleBuffer)
         

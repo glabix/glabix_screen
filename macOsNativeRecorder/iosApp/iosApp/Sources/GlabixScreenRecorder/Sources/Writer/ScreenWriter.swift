@@ -17,6 +17,10 @@ final class ScreenWriter {
     var micWriterInput: AVAssetWriterInput?
 //    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
+    var debugStatus: String {
+        [assetWriter?.status.rawValue.description ?? "-1", assetWriter?.error.debugDescription ?? ""].joined(separator: " ")
+    }
+    
     init(
         screenOutputURL: URL?,
         micOutputURL: URL?,

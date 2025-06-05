@@ -133,16 +133,8 @@ class ScreenRecorderService {
     }
     
     func stopRecording() {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                defer { fflush(stdout) }
-                do {
-                    try await recorder.stop()
-                } catch {
-                    Log.error("Error stopping capture: \(error)")
-                }
-            }
-        }
+        defer { fflush(stdout) }
+        recorder.stop()
     }
     
     func printAudioInputDevices() {

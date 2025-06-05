@@ -79,8 +79,8 @@ class RecordHandler: ObservableObject {
         self.paused = false
     }
     
-    func stop() async throws {
-        try await screenRecorder.stop()
+    func stop() {
+        screenRecorder.stop()
         DispatchQueue.main.async {
             self.recording = false
             self.paused = false
