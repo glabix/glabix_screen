@@ -148,9 +148,11 @@ class ScreenRecorder: NSObject {
     }
     
     func stop() {
-        chunksManager?.bufferProcessingQueue.async { [weak stream, weak microphoneSession, weak chunksManager] in
+        chunksManager?.bufferProcessingQueue.async(flags: .barrier) { [weak stream, weak microphoneSession, weak chunksManager] in
+            let endTime = chunksManager?.prepareForStop() // must be called on queue
+            
             Task { [weak stream, weak microphoneSession, weak chunksManager] in
-                await chunksManager?.stop()
+                await chunksManager?.stop(at: endTime ?? CMClock.hostTimeClock.time)
                 
                 try await stream?.stopCapture()
                 microphoneSession?.stopRunning()

@@ -9,7 +9,7 @@
 import AVFoundation
 
 final class ScreenWriter {
-    private var assetWriter: AVAssetWriter?
+    private var screenAssetWriter: AVAssetWriter?
     private var micAssetWriter: AVAssetWriter?
     private let chunkIndex: Int
     var videoWriterInput: AVAssetWriterInput?
@@ -18,7 +18,7 @@ final class ScreenWriter {
 //    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
     
     var debugStatus: String {
-        [assetWriter?.status.rawValue.description ?? "-1", assetWriter?.error.debugDescription ?? ""].joined(separator: " ")
+        [screenAssetWriter?.status.rawValue.description ?? "-1", screenAssetWriter?.error.debugDescription ?? ""].joined(separator: " ")
     }
     
     init(
@@ -29,7 +29,7 @@ final class ScreenWriter {
         chunkIndex: Int
     ) throws {
         self.chunkIndex = chunkIndex
-        assetWriter = try screenOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .mp4) }
+        screenAssetWriter = try screenOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .mp4) }
         micAssetWriter = try micOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .m4a) }
         
         videoWriterInput = try VideoInput(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration).build()
@@ -37,10 +37,10 @@ final class ScreenWriter {
         systemAudioWriterInput = try SystemAudioInput.build()
 
         if let videoWriterInput = videoWriterInput {
-            assetWriter?.add(videoWriterInput)
+            screenAssetWriter?.add(videoWriterInput)
         }
         if let systemAudioWriterInput = systemAudioWriterInput {
-            assetWriter?.add(systemAudioWriterInput)
+            screenAssetWriter?.add(systemAudioWriterInput)
 //            micAssetWriter?.add(systemAudioWriterInput)
         }
         if let micWriterInput = micWriterInput {
@@ -49,19 +49,22 @@ final class ScreenWriter {
     }
     
     func startSession(atSourceTime startTime: CMTime) {
-        assetWriter?.startWriting()
-        assetWriter?.startSession(atSourceTime: startTime)
+        screenAssetWriter?.startWriting()
+        screenAssetWriter?.startSession(atSourceTime: startTime)
         
         micAssetWriter?.startWriting()
         micAssetWriter?.startSession(atSourceTime: startTime)
     }
     
     func finalize(endTime: CMTime) async {
-        if assetWriter?.status == .writing {
-            assetWriter?.endSession(atSourceTime: endTime)
-            await assetWriter?.finishWriting()
+        if let screenAssetWriterError = screenAssetWriter?.error {
+            Log.error("ERROR on screen assetWriter", screenAssetWriterError, chunkIndex: chunkIndex)
+        }
+        if screenAssetWriter?.status == .writing {
+            screenAssetWriter?.endSession(atSourceTime: endTime)
+            await screenAssetWriter?.finishWriting()
         } else {
-            Log.error("screen assetWriter is not writing \(assetWriter?.status.rawValue.description ?? "n/a")", chunkIndex: chunkIndex)
+            Log.error("screen assetWriter is not writing \(screenAssetWriter?.status.rawValue.description ?? "n/a")", chunkIndex: chunkIndex)
         }
         
         if micAssetWriter?.status == .writing {

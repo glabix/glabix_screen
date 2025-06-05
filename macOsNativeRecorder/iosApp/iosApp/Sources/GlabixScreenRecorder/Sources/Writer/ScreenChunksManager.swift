@@ -59,7 +59,6 @@ class ScreenChunksManager {
         notCancelledChunkWriters.first(where: { $0.chunkIndex == index })
     }
     
-//    private var chunkWritersDebugInfo: [[Any]] {
     private var chunkWritersDebugInfo: String {
         "\n" + _chunkWriters
             .map(\.debugInfo)
@@ -259,9 +258,7 @@ class ScreenChunksManager {
                     chunkWriter = getOrInitializeWriterAt(sampleBuffer.presentationTimeStamp, type: type)
                 }
             case .paused:
-                return;
-//                sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
-//                chunkWriter = writerAt(sampleBuffer.presentationTimeStamp)
+                return
             case .recording:
                 sampleBuffer = retimedSampleBuffer(originalSampleBuffer)
                 chunkWriter = getOrInitializeWriterAt(sampleBuffer.presentationTimeStamp, type: type)
@@ -278,7 +275,7 @@ class ScreenChunksManager {
         }
         
         if type == .screen {
-//            Log.print("appe scr", state, chunkWritersDebugInfo, chunkWriter.calcCurrentFileSize(), chunkIndex: chunkWriter.chunkIndex)
+//            Log.print("Last sample time", sampleBuffer.presentationTimeStamp.seconds , chunkIndex: chunkWriter.chunkIndex)
             lastSampleTime = sampleBuffer.presentationTimeStamp // will stop at this time
         }
         
@@ -299,32 +296,41 @@ class ScreenChunksManager {
         initChunkWriter(index: 0).startAt(.zero)
     }
     
-    func stop() async { // must be called in bufferProcessingQueue
-        let endTime = self.lastSampleTime ?? CMClock.hostTimeClock.time
-        Log.info("stop called", endTime.seconds, Log.nowString, self.chunkWritersDebugInfo)
-        
-        while !self.activeChunkWriters.isEmpty,
-              let chunkWriter = self.activeChunkWriters.first {
-            chunkWriter.updateStatusOnFinalizeOrCancel(endTime: endTime)
-            await chunkWriter.finalizeOrCancelWithDelay(
-                endTime: endTime,
-                lastSampleBuffers: self.lastSampleBuffers
-            )
+    func prepareForStop() -> CMTime {
+        let endTime = lastSampleTime ?? CMClock.hostTimeClock.time
+        activeChunkWriters.forEach { chunkWriter in
+            chunkWriter.endTime = endTime
         }
+        return endTime
+    }
+    
+    func stop(at endTime: CMTime) async { // must be called in bufferProcessingQueue
+        Log.info("Stop called", endTime.seconds, chunkWritersDebugInfo)
         
         self.state = .initial
         
-        //        await activeChunkWriters
-        //            .asyncForEach { chunkWriter in
-        //                await chunkWriter.finalizeOrCancelWithDelay(
-        //                    endTime: endTime,
-        //                    lastSampleBuffers: lastSampleBuffers
-        //                )
-        //            }
+        while !activeChunkWriters.isEmpty,
+              let chunkWriter = activeChunkWriters.first {
+            chunkWriter.updateStatusOnFinalizeOrCancel(endTime: endTime)
+            await chunkWriter.finalizeOrCancelWithDelay(
+                endTime: endTime,
+                lastSampleBuffers: lastSampleBuffers
+            )
+        }
         
-        let chunkIndex = self.notCancelledChunkWriters.last(where: { $0.startTime != nil })?.chunkIndex
-        Log.success("Stopped", endTime.seconds, self.chunkWritersDebugInfo, chunkIndex: chunkIndex)
-        Callback.print(Callback.RecordingStopped(lastChunkIndex: chunkIndex))
+//        await activeChunkWriters
+//            .asyncForEach { chunkWriter in
+//                await chunkWriter.finalizeOrCancelWithDelay(
+//                    endTime: endTime,
+//                    lastSampleBuffers: lastSampleBuffers
+//                )
+//            }
+        
+        let lastChunkIndex = self.notCancelledChunkWriters
+            .last(where: { $0.startTime != nil })?
+            .chunkIndex
+        Log.success("Stopped", endTime.seconds, self.chunkWritersDebugInfo, chunkIndex: lastChunkIndex)
+        Callback.print(Callback.RecordingStopped(lastChunkIndex: lastChunkIndex))
         
         self._chunkWriters = []
         self.lastSampleBuffers = [:]

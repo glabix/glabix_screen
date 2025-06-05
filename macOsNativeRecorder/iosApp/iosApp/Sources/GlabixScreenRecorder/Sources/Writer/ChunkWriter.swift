@@ -293,7 +293,9 @@ final class ChunkWriter {
 //            Log.print("appending to finalizing chunk \(type) at \(timestamp?.seconds ?? 0) endAt \(endTime?.seconds ?? 0) diff \(CMClock.hostTimeClock.time.seconds - sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
 //        }
         
-//        Log.print("processing buffer \(type) at \(sampleBuffer.presentationTimeStamp.seconds) \(debugInfo)", chunkIndex: chunkIndex)
+//        if type == .screen {
+//            Log.print("processing buffer \(type) at \(sampleBuffer.presentationTimeStamp.seconds) \(debugInfo)", chunkIndex: chunkIndex)
+//        }
         
         assetWriterInput.append(sampleBuffer)
         
@@ -302,7 +304,7 @@ final class ChunkWriter {
     
     private func readyInput(forType type: ScreenRecorderSourceType, sampleBuffer: CMSampleBuffer) -> AVAssetWriterInput? {
         guard let writer = writer else {
-            Log.error("no writer found \(type)", chunkIndex: chunkIndex)
+            Log.error("no writer found \(type) at \(sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
             return nil
         }
         
@@ -318,7 +320,7 @@ final class ChunkWriter {
         }
         
         guard assetWriterInput.isReadyForMoreMediaData else {
-            Log.error("assetWriter is not ready for \(type)", "value:", assetWriterInput.isReadyForMoreMediaData, chunkIndex: chunkIndex)
+            Log.error("assetWriter is not ready for \(type)", "value:", assetWriterInput.isReadyForMoreMediaData, "time:", sampleBuffer.presentationTimeStamp.seconds, chunkIndex: chunkIndex)
             return nil
         }
         
@@ -330,11 +332,11 @@ final class ChunkWriter {
               let pending = pendingBuffers.first {
               
             guard let assetWriterInput = readyInput(forType: pending.type, sampleBuffer: pending.sampleBuffer) else {
-                Log.warn("Failed to append buffer of \(pending.type)", chunkIndex: chunkIndex)
+                Log.warn("Failed to append buffer of \(pending.type) time: \(pending.sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
                 break
             }
             
-            Log.info("Appending buffer of \(pending.type)", chunkIndex: chunkIndex)
+            Log.info("Appending buffer of \(pending.type) time: \(pending.sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
             assetWriterInput.append(pending.sampleBuffer)
             pendingBuffers.removeFirst()
         }
