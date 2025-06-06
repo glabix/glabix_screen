@@ -115,7 +115,6 @@ const logResize = (x1, x2, y1, y2) => {
 const debouncedLogResize = debounce(logResize, 400)
 
 function stopRecording() {
-  window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
   updateRecorderState("stopped")
   stopStreamTracks()
   timer.stop()
@@ -172,6 +171,10 @@ function stopRecording() {
     window.electronAPI.ipcRenderer.send(RecordEvents.STOP, {
       fileUuid: currentRecordedUuid,
     })
+  }
+
+  if (getRecordSource() == RecordSourceType.SWIFT) {
+    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.STOP)
   }
 }
 
@@ -606,20 +609,23 @@ const createPreview = () => {
 const startRecording = () => {
   isRecordCanceled = false
   isRecordRestart = false
+
   updateRecorderState("recording")
+  timer.start(true)
+  createPreview()
+
+  window.electronAPI.ipcRenderer.send(
+    "console.log",
+    "getRecordSource()",
+    getRecordSource()
+  )
 
   if (getRecordSource() == RecordSourceType.BROWSER) {
     if (videoRecorder) {
       videoRecorder.start(5000)
-
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "videoRecorder.start()",
       })
-
-      // updateRecorderState("recording")
-      // timer.start(true)
-
-      createPreview()
     } else {
       window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
         title: "videoRecorder.start().missing_videoRecorder",
@@ -628,33 +634,10 @@ const startRecording = () => {
   }
 
   if (getRecordSource() == RecordSourceType.SWIFT) {
-    if (cropVideoData) {
-      const cropRect: Rectangle = {
-        x: Math.round(cropVideoData.x),
-        y: Math.round(cropVideoData.y),
-        width: Math.round(cropVideoData.out_w),
-        height: Math.round(cropVideoData.out_h),
-      }
-
-      window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CONFIGURE, {
-        cropRect,
-      })
-    }
-
     window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.START)
-
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "swiftRecorder.start",
     })
-
-    timer.start(true)
-
-    createPreview()
-
-    // window.electronAPI.ipcRenderer.send(
-    //   RecordEvents.SWIFT_START,
-    //   lastStreamSettings
-    // )
   }
 }
 
@@ -721,25 +704,33 @@ const updateCropVideoData = (data: {
   }
 
   if (data.top) {
-    cropVideoData = { ...cropVideoData, y: data.top }
+    cropVideoData = { ...cropVideoData, y: Math.round(data.top) }
   }
 
   if (data.left) {
-    cropVideoData = { ...cropVideoData, x: data.left }
+    cropVideoData = { ...cropVideoData, x: Math.round(data.left) }
   }
 
   if (data.width) {
-    cropVideoData = { ...cropVideoData, out_w: data.width }
+    cropVideoData = { ...cropVideoData, out_w: Math.round(data.width) }
   }
 
   if (data.height) {
-    cropVideoData = { ...cropVideoData, out_h: data.height }
+    cropVideoData = { ...cropVideoData, out_h: Math.round(data.height) }
   }
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `updateCropVideoData`,
-    body: JSON.stringify(cropVideoData),
-  })
+  if (cropVideoData) {
+    const cropRect: Rectangle = {
+      x: Math.round(cropVideoData.x),
+      y: Math.round(cropVideoData.y),
+      width: Math.round(cropVideoData.out_w),
+      height: Math.round(cropVideoData.out_h),
+    }
+
+    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CONFIGURE, {
+      cropRect,
+    })
+  }
 }
 
 const initView = (settings: IStreamSettings, force?: boolean) => {
@@ -1011,8 +1002,8 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings, file_uuid: string) => {
     const data = filterStreamSettings(settings)
 
-    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CONFIGURE, {
-      uuid: file_uuid,
+    window.electronAPI.ipcRenderer.send(SwiftRecorderEvents.CONFIGURE_START, {
+      recordUuid: file_uuid,
     })
 
     initRecord(data).then(() => {
@@ -1029,10 +1020,12 @@ window.electronAPI.ipcRenderer.on(
           const screenMove = cropMoveable!.getControlBoxElement()
           screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
 
-          window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
-            cropVideoData,
-            fileUuid: file_uuid,
-          })
+          if (getRecordSource() == RecordSourceType.BROWSER) {
+            window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
+              cropVideoData,
+              fileUuid: file_uuid,
+            })
+          }
         }
         startRecording()
       })

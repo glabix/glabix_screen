@@ -105,7 +105,6 @@ import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
 import AutoLaunch from "./helpers/auto-launch.helper"
-import "./helpers/swift-recorder.helper"
 import {
   ISwiftRecorderCallbackChunkFinalized,
   // ISwiftRecorderConfig,
@@ -124,10 +123,8 @@ import {
   RecordStartEventV3,
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
-import fs from "fs/promises"
-import { fsErrorParser } from "@main/helpers/fs-error-parser"
 import { ChunkProcessor } from "@main/chunk-saver"
-import EventEmitter from "node:events"
+import "./helpers/swift-recorder.helper"
 
 let activeDisplay: Electron.Display
 // let swiftRecorderConfig: ISwiftRecorderConfig = {}
@@ -1566,15 +1563,6 @@ ipcMain.on(SwiftMediaDevicesEvents.GET_WAVE_FORM, (event, data: number[]) => {
 })
 
 ipcMain.on(RecordSettingsEvents.UPDATE, (event, data: IStreamSettings) => {
-  // ipcMain.emit(SwiftRecorderEvents.CONFIGURE, null, { systemAudio: data.audio, audioDeviceId: data.audioDeviceId })
-  // swiftRecorderConfig = {
-  //   ...swiftRecorderConfig,
-  //   systemAudio: data.audio,
-  // }
-
-  // console.log(`
-  //   RecordSettingsEvents.UPDATE main.ts
-  // `)
   mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
@@ -1719,12 +1707,6 @@ ipcMain.on(
   }
 )
 
-// ipcMain.on(RecordEvents.SWIFT_START, (event, data) => {
-//   console.log("swiftRecorderConfig", swiftRecorderConfig)
-//   ipcMain.emit(SwiftRecorderEvents.START, null, swiftRecorderConfig)
-// })
-
-// ipcMain.on(RecordEvents.START, (event, data) => {})
 // V3 Record Start
 ipcMain.on(RecordEvents.START, async (event, data) => {
   if (mainWindow) {
@@ -1854,7 +1836,7 @@ ipcMain.on(
       index: _data.index,
       innerRecordUuid: _data.recordUuid,
     }
-
+    console.log("SwiftRecorderCallbackActions.RECORD_STOPPED", data)
     chunkProcessor.emit(ChunkSaverEvents.RECORD_STOPPED, data)
   }
 )

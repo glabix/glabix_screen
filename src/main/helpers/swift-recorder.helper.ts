@@ -11,6 +11,8 @@ import {
 } from "@shared/types/types"
 import {
   ISwiftRecorderCallbackAudioDevices,
+  ISwiftRecorderCallbackChunkFinalized,
+  ISwiftRecorderChunkData,
   ISwiftRecorderConfig,
   SwiftMediaDevicesEvents,
   SwiftRecorderCallbackActions,
@@ -18,17 +20,21 @@ import {
 } from "@shared/types/swift-recorder.types"
 import { AppEvents } from "@shared/events/app.events"
 import { showRecordErrorBox } from "./show-record-error-box"
+import { TokenStorage } from "@main/storages/token-storage"
 
+const LAST_CHUNK_INDEX_DEFAULT = -1
 const CALLBACK_START = "[glabix-screen.callback]"
 const CALLBACK_END = "###END"
+const logSender = new LogSender(TokenStorage)
+
 let audioInputDevices: IMediaDevice[] = []
 let recorderProcess: ChildProcessWithoutNullStreams | null = null
 let waveFormProcess: ChildProcessWithoutNullStreams | null = null
-const logSender = new LogSender()
 let isRecording = false
-let isLastChunk = false
 let isAppQuitting = false
 let swiftRecorderConfig: ISwiftRecorderConfig = {}
+let lastChunkIndex = LAST_CHUNK_INDEX_DEFAULT
+let chunkIndexes: number[] = []
 
 if (os.platform() == "darwin") {
   function kill() {
@@ -39,20 +45,11 @@ if (os.platform() == "darwin") {
   function initWaveForm(path: string) {
     waveFormProcess = spawn(path, ["glabix-waveform"])
     waveFormProcess.stdout.on("data", (data) => {
-      // console.log(`
-      //   waveFormProcess Output: ${data.toString()}
-      // `)
       parseWaveFormCallbackByAction(data.toString())
-      // logSender.sendLog(`
-      //     Swift Output: ${data.toString()}
-      //   `)
     })
 
     waveFormProcess.stderr.on("data", (data) => {
-      // logSender.sendLog("recorderProcess.stderr.on('data'): ", `${data.toString()}`)
-      console.error(`
-        waveFormProcess stderr: ${data}
-        `)
+      // logSender.sendLog('swiftWaveFormProcess.error', data.toString())
     })
 
     waveFormProcess.on("close", (code) => {
@@ -64,20 +61,12 @@ if (os.platform() == "darwin") {
     recorderProcess = spawn(path)
 
     recorderProcess.stdout.on("data", (data) => {
-      console.log(`
-        recorderProcess Output: ${data.toString()}
-        `)
+      logSender.sendLog("swiftRecorderProcess.output", data.toString())
       parseCallbackByActions(data.toString())
-      // logSender.sendLog(`
-      //     Swift Output: ${data.toString()}
-      //   `)
     })
 
     recorderProcess.stderr.on("data", (data) => {
-      // logSender.sendLog("recorderProcess.stderr.on('data'): ", `${data.toString()}`)
-      console.error(`
-        recorderProcess stderr: ${data}
-        `)
+      logSender.sendLog("swiftRecorderProcess.error", data.toString())
     })
 
     recorderProcess.on("close", (code) => {
@@ -98,23 +87,10 @@ if (os.platform() == "darwin") {
 
   init(toolPath)
   getMics()
-  // configureRecording()
 
   function configRecording() {
     const config = { ...swiftRecorderConfig }
     // let action = ""
-    // const baseDir = path.join(os.homedir(), "Library", "Application Support", app.getName(), "recordsV3")
-    // const chunkDir = config.uuid ? path.join(baseDir, config.uuid) : baseDir
-    const cropRect = config.cropRect
-      ? `{"x": ${config.cropRect.x}, "y": ${config.cropRect.y}, "width": ${config.cropRect.width}, "height": ${config.cropRect.height}}`
-      : null
-    const action = `{"action": "configure", "config": {"chunkDurationSeconds": 10, "fps": 30, "showCursor": true, "displayId": ${config.displayId}, "resolution": "fhd2k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '"' : ""}}}\n`
-    recorderProcess?.stdin.write(action)
-    // return result
-  }
-
-  function startRecording() {
-    isLastChunk = false
     const baseDir = path.join(
       os.homedir(),
       "Library",
@@ -122,8 +98,29 @@ if (os.platform() == "darwin") {
       app.getName(),
       "recordsV3"
     )
-    const chunkDir = swiftRecorderConfig.uuid
-      ? path.join(baseDir, swiftRecorderConfig.uuid)
+    const chunkDir = swiftRecorderConfig.recordUuid
+      ? path.join(baseDir, swiftRecorderConfig.recordUuid)
+      : baseDir
+    const cropRect = config.cropRect
+      ? `{"x": ${config.cropRect.x}, "y": ${config.cropRect.y}, "width": ${config.cropRect.width}, "height": ${config.cropRect.height}}`
+      : null
+    const action = `{"action": "configure", "config": {"minChunkSizeMebibytes": 5, "fps": 30, "showCursor": true, "chunksDirectoryPath": "${chunkDir}", "displayId": ${config.displayId}, "resolution": "fhd2k", "cropRect": ${cropRect}, "captureSystemAudio": ${Boolean(config.systemAudio)}, "captureMicrophone": ${Boolean(config.audioDeviceId)}, ${config.audioDeviceId ? '"microphoneUniqueID":' + '"' + config.audioDeviceId + '"' : ""}}}\n`
+    recorderProcess?.stdin.write(action)
+  }
+
+  function startRecording() {
+    chunkIndexes.length = 0
+    lastChunkIndex = LAST_CHUNK_INDEX_DEFAULT
+
+    const baseDir = path.join(
+      os.homedir(),
+      "Library",
+      "Application Support",
+      app.getName(),
+      "recordsV3"
+    )
+    const chunkDir = swiftRecorderConfig.recordUuid
+      ? path.join(baseDir, swiftRecorderConfig.recordUuid)
       : baseDir
     recorderProcess?.stdin.write(
       `{"action": "start", "startConfig": {"chunksDirectoryPath": "${chunkDir}"}}\n`
@@ -147,7 +144,6 @@ if (os.platform() == "darwin") {
   }
 
   function stopRecording() {
-    isLastChunk = true
     console.log(`
       stop
       ===========
@@ -247,20 +243,15 @@ if (os.platform() == "darwin") {
   ipcMain.on(
     SwiftRecorderEvents.CONFIGURE,
     (event, newConfig: ISwiftRecorderConfig) => {
-      console.log(
-        `
-      prev config
-    `,
-        swiftRecorderConfig
-      )
+      swiftRecorderConfig = { ...swiftRecorderConfig, ...newConfig }
+    }
+  )
+
+  ipcMain.on(
+    SwiftRecorderEvents.CONFIGURE_START,
+    (event, newConfig: ISwiftRecorderConfig) => {
       swiftRecorderConfig = { ...swiftRecorderConfig, ...newConfig }
       configRecording()
-      console.log(
-        `
-      new config
-    `,
-        swiftRecorderConfig
-      )
     }
   )
 
@@ -272,9 +263,42 @@ if (os.platform() == "darwin") {
   ipcMain.on(AppEvents.ON_SHOW, (event, data) => {
     startWaveForm()
   })
+
   ipcMain.handle(SwiftMediaDevicesEvents.GET_DEVICES, (event, key) => {
     return audioInputDevices
   })
+
+  function handleFinalizeChunkAction(
+    _data: ISwiftRecorderCallbackChunkFinalized
+  ) {
+    const data: ISwiftRecorderCallbackChunkFinalized = {
+      ..._data,
+      recordUuid: swiftRecorderConfig.recordUuid!,
+      isLast: _data.index == lastChunkIndex,
+    }
+
+    chunkIndexes = [...chunkIndexes, data.index]
+
+    ipcMain.emit(SwiftRecorderCallbackActions.CHUNK_FINALIZED, null, data)
+
+    if (data.isLast) {
+      const chunkData: ISwiftRecorderChunkData = {
+        index: data.index,
+        recordUuid: data.recordUuid,
+      }
+      ipcMain.emit(SwiftRecorderCallbackActions.RECORD_STOPPED, null, chunkData)
+    }
+
+    // ChunkProcessor.EventEmitter()
+    // - emit action
+    console.log(
+      `
+      ====parseCallbackByActions====
+      chunkFinalizedAction:
+      `,
+      _data
+    )
+  }
 
   function parseCallback(str: string): any[] {
     let res: any[] = []
@@ -299,7 +323,6 @@ if (os.platform() == "darwin") {
   function parseWaveFormCallbackByAction(str: string) {
     if (str) {
       const allActions = parseCallback(str)
-
       const waveFormAction = allActions.filter(
         (i) => i.action == SwiftRecorderCallbackActions.GET_AUDIO_WAVE_FORM
       )
@@ -318,10 +341,6 @@ if (os.platform() == "darwin") {
     if (str) {
       const allActions = parseCallback(str)
 
-      console.log("allActions", allActions)
-      if (allActions.length) {
-      }
-
       const startActions = allActions.filter(
         (i) => i.action == SwiftRecorderCallbackActions.RECORD_STARTED
       )
@@ -337,37 +356,30 @@ if (os.platform() == "darwin") {
         (i) => i.action == SwiftRecorderCallbackActions.RECORD_STOPPED
       )
       if (stopAction.length) {
-        const data = { ...stopAction[0], recordUuid: swiftRecorderConfig.uuid }
-        ipcMain.emit(SwiftRecorderCallbackActions.RECORD_STOPPED, null, data)
-        // - emit action
-        console.log(
-          `
-          ====parseCallbackByActions====
-          stopActions:
-        `,
-          stopAction
-        )
+        const index = stopAction[0].lastChunkIndex
+
+        if (typeof index == "number") {
+          lastChunkIndex = index
+
+          if (chunkIndexes.includes(index)) {
+            const chunkData: ISwiftRecorderChunkData = {
+              index: index,
+              recordUuid: swiftRecorderConfig.recordUuid!,
+            }
+            ipcMain.emit(
+              SwiftRecorderCallbackActions.RECORD_STOPPED,
+              null,
+              chunkData
+            )
+          }
+        }
       }
 
       const chunkFinalizedAction = allActions.filter(
         (i) => i.action == SwiftRecorderCallbackActions.CHUNK_FINALIZED
-      )
+      ) as ISwiftRecorderCallbackChunkFinalized[]
       if (chunkFinalizedAction.length) {
-        const data = {
-          ...chunkFinalizedAction[0],
-          recordUuid: swiftRecorderConfig.uuid,
-          isLast: isLastChunk,
-        }
-        ipcMain.emit(SwiftRecorderCallbackActions.CHUNK_FINALIZED, null, data)
-        // ChunkProcessor.EventEmitter()
-        // - emit action
-        console.log(
-          `
-          ====parseCallbackByActions====
-          chunkFinalizedAction:
-          `,
-          chunkFinalizedAction
-        )
+        handleFinalizeChunkAction(chunkFinalizedAction[0]!)
       }
 
       const swiftAudioInputAction = allActions.filter(
@@ -400,22 +412,6 @@ if (os.platform() == "darwin") {
         ipcMain.emit(SwiftMediaDevicesEvents.CHANGE, null, audioInputDevices)
       }
     }
-
-    // if (str) {
-    //   const actionStr = str.split(CALLBACK_SEPARATOR).map(s => s.trim()).filter(s => Boolean(s))
-    //   actionStr.forEach(s => {
-    //     const objArr = s.split('{').flatMap(s => s.split('}')).filter(s => s.includes('":')).flatMap(s => `{${s}}`)
-    //     objArr.forEach(s => {
-    //       if (s.includes('"action":')) {
-    //         try {
-    //           actions.push(JSON.parse(s))
-    //         } catch (e) {}
-    //       }
-    //     })
-    //   })
-    // }
-
-    // return actions
   }
 
   ipcMain.on(SimpleStoreEvents.CHANGED, (event, state) => {

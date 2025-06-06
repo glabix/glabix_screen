@@ -5,6 +5,7 @@ export enum SwiftRecorderEvents {
   STOP = "swift-recorder:stop",
   PAUSE = "swift-recorder:pause",
   RESUME = "swift-recorder:resume",
+  CONFIGURE_START = "swift-recorder:configure:start",
   CONFIGURE = "swift-recorder:configure",
   START_WAVE_FORM = "swift-recorder:wave-form:start",
   STOP_WAVE_FORM = "swift-recorder:wave-form:stop",
@@ -22,7 +23,7 @@ export interface ISwiftMediaDevice {
   id: string
 }
 export interface ISwiftRecorderConfig {
-  uuid?: string
+  recordUuid?: string
   systemAudio?: boolean
   audioDeviceId?: string
   displayId?: number
@@ -51,10 +52,14 @@ export interface ISwiftRecorderCallbackAudioDevices {
   devices: ISwiftMediaDevice[]
 }
 
-export interface ISwiftRecorderCallbackChunkFinalized {
-  action: SwiftRecorderCallbackActions.CHUNK_FINALIZED
+export interface ISwiftRecorderChunkData {
   recordUuid: string
   index: number
+}
+
+export interface ISwiftRecorderCallbackChunkFinalized
+  extends ISwiftRecorderChunkData {
+  action: SwiftRecorderCallbackActions.CHUNK_FINALIZED
   isLast: boolean
   micFile: {
     path: string
