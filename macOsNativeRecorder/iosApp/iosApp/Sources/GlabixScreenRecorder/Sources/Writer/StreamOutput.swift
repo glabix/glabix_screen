@@ -8,7 +8,7 @@
 
 import ScreenCaptureKit
 
-enum ScreenRecorderSourceType {
+enum ScreenRecorderSourceType: CaseIterable {
     case systemAudio, screen, mic
 }
 
@@ -29,10 +29,10 @@ extension ScreenRecorder: SCStreamOutput {
                       let status = SCFrameStatus(rawValue: statusRawValue),
                       status == .complete
                 else { return }
-                
-                chunksManager?.syncProcessSampleBuffer(sampleBuffer, type: .screen)
+
+                continuation?.yield(SampleBufferData(type: .screen, sampleBuffer: sampleBuffer))
             case .audio:
-                chunksManager?.syncProcessSampleBuffer(sampleBuffer, type: .systemAudio)
+                continuation?.yield(SampleBufferData(type: .systemAudio, sampleBuffer: sampleBuffer))
             case .microphone:
                 break
             @unknown default:
@@ -47,7 +47,7 @@ extension ScreenRecorder: SCStreamOutput {
 
 extension ScreenRecorder: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        chunksManager?.syncProcessSampleBuffer(sampleBuffer, type: .mic)
+        continuation?.yield(SampleBufferData(type: .mic, sampleBuffer: sampleBuffer))
     }
 }
 

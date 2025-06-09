@@ -7,43 +7,7 @@
 //
 
 import AVFoundation
-import CoreGraphics
 import ScreenCaptureKit
-import VideoToolbox
-import Combine
-
-class WaveformService: NSObject {
-    private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
-    private var microphoneSession: AVCaptureSession?
-    let waveformProcessor: WaveformProcessor = WaveformProcessor()
-    private let queue = DispatchQueue(label: "com.glabix.screen.waveform")
-    
-    func start(config: WaveformConfig) {
-        microphoneSession = AVCaptureSession()
-        
-        let device = microphoneDevices.deviceOrDefault(uniqueID: config.microphoneUniqueID)
-        
-        guard let microphone = device else { return}
-        Log.info("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
-        
-        do {
-            let micInput = try AVCaptureDeviceInput(device: microphone)
-            microphoneSession?.addInput(micInput)
-            
-            waveformProcessor.micOutput.map {
-                microphoneSession?.addOutput($0)
-            }
-            
-            microphoneSession?.startRunning()
-        } catch {
-            Log.error("Error setting up microphone capture: \(error)")
-        }
-    }
-    
-    func stop() {
-        microphoneSession?.stopRunning()
-    }
-}
 
 class ScreenRecorder: NSObject {
     var chunksManager: ScreenChunksManager?
@@ -55,6 +19,8 @@ class ScreenRecorder: NSObject {
     private let sampleHandlerQueue = DispatchQueue(label: "com.glabix.screen.screenCapture")
     
     private let microphoneDevices: MicrophoneCaptureDevices = MicrophoneCaptureDevices()
+    private var sampleBufferStream: AsyncStream<SampleBufferData>?
+    var continuation: AsyncStream<SampleBufferData>.Continuation?
 //    private let cameraDevices: CameraCaptureDevices = CameraCaptureDevices()
     
     private func setupStream(
@@ -65,6 +31,11 @@ class ScreenRecorder: NSObject {
             screenConfigurator: screenConfigurator,
             recordConfiguration: recordConfiguration,
         )
+        
+        (sampleBufferStream, continuation) = AsyncStream.makeStream(of: SampleBufferData.self)
+        if let sampleBufferStream = sampleBufferStream {
+            await chunksManager?.startProcessing(sampleBufferStream: sampleBufferStream)
+        }
         
         // MARK: SCStream setup
         let display = try await screenConfigurator.display()
@@ -113,14 +84,14 @@ class ScreenRecorder: NSObject {
         }
     }
     
-    func start() {
-        chunksManager?.startOnNextSample()
-        Callback.print(Callback.RecordingStarted(outputPath: chunksManager?.outputDirectoryURL.path()))
+    func start() async {
+        await chunksManager?.startOnNextSample()
+        Callback.print(Callback.RecordingStarted(outputPath: await chunksManager?.outputDirectoryURL.path()))
     }
     
     func configureAndInitialize(with config: Config) async throws {
         try await configure(with: config)
-        chunksManager?.initializeFirstChunkWriter()
+        await chunksManager?.initializeFirstChunkWriter()
     }
     
     private func configure(with config: Config) async throws {
@@ -147,16 +118,10 @@ class ScreenRecorder: NSObject {
         try await stream?.startCapture()
     }
     
-    func stop() {
-        chunksManager?.bufferProcessingQueue.async(flags: .barrier) { [weak stream, weak microphoneSession, weak chunksManager] in
-            let endTime = chunksManager?.prepareForStop() // must be called on queue
-            
-            Task { [weak stream, weak microphoneSession, weak chunksManager] in
-                await chunksManager?.stop(at: endTime ?? CMClock.hostTimeClock.time)
-                
-                try await stream?.stopCapture()
-                microphoneSession?.stopRunning()
-            }
-        }
+    func stop() async {
+        await chunksManager?.stop()
+        
+        try? await stream?.stopCapture()
+        microphoneSession?.stopRunning()
     }
 }

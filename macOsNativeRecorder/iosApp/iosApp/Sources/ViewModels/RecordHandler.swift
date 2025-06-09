@@ -36,12 +36,13 @@ class RecordHandler: ObservableObject {
     func start() throws {
         try checkPermissions()
         
-        DispatchQueue.main.async {
-            self.recording = true
-            self.paused = false
+        Task {
+            await screenRecorder.start()
+            DispatchQueue.main.async {
+                self.recording = true
+                self.paused = false
+            }
         }
-        
-        screenRecorder.start()
     }
     
     func configure() async throws {
@@ -49,12 +50,12 @@ class RecordHandler: ObservableObject {
         clearOutputDirectory()
         
         try await screenRecorder
-            .configureAndInitialize(with: .development)        
+            .configureAndInitialize(with: .appDevelopment)
     }
     
     private func clearOutputDirectory() {
         let fileManager = FileManager.default
-        let directoryURL = URL(fileURLWithPath: Config.development.chunksDirectoryPath)
+        let directoryURL = URL(fileURLWithPath: Config.appDevelopment.chunksDirectoryPath)
         
         do {
             try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
@@ -70,20 +71,30 @@ class RecordHandler: ObservableObject {
     }
     
     func pause() {
-        screenRecorder.chunksManager?.pause()
-        self.paused = true
+        Task {
+            await screenRecorder.chunksManager?.pause()
+            DispatchQueue.main.async {
+                self.paused = true
+            }
+        }
     }
     
     func resume() {
-        screenRecorder.chunksManager?.resume()
-        self.paused = false
+        Task {
+            await screenRecorder.chunksManager?.resume()
+            DispatchQueue.main.async {
+                self.paused = false
+            }
+        }
     }
     
     func stop() {
-        screenRecorder.stop()
-        DispatchQueue.main.async {
-            self.recording = false
-            self.paused = false
+        Task {
+            await screenRecorder.stop()
+            DispatchQueue.main.async {
+                self.recording = false
+                self.paused = false
+            }
         }
         
 //        DispatchQueue.main.async {

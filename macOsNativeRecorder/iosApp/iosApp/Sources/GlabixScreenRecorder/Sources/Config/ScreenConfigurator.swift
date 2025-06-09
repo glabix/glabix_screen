@@ -9,7 +9,7 @@
 import CoreGraphics
 import ScreenCaptureKit
 
-class ScreenConfigurator {
+final class ScreenConfigurator: Sendable {
     let displaySize: CGSize
     let displayScaleFactor: Int
     
