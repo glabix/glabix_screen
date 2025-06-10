@@ -10,7 +10,7 @@ import AVFoundation
 import ScreenCaptureKit
 
 class ScreenRecorder: NSObject {
-    var chunksManager: ScreenChunksManager?
+    private var chunksManager: ScreenChunksManager?
     
     private var microphoneSession: AVCaptureSession?
     
@@ -48,25 +48,14 @@ class ScreenRecorder: NSObject {
         try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: sampleHandlerQueue)
     }
     
-    func printAudioInputDevices() {
-//        let auth = AVCaptureDevice.authorizationStatus(for: .audio)
-//        print("auth: \(auth)")
-//        
-//        AVCaptureDevice.requestAccess(for: .audio) { (isSuccess) in
-//            print("isSuccess: \(isSuccess)")
-//        }
-        
-        Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
-    }
-    
-//    func printVideoInputDevices() {
-//        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
-//    }
-    
-    private func configureMicrophoneCapture(uniqueID: String?) {
+    private func setupMicrophoneSession(
+        recordConfiguration: RecordConfiguration
+    ) {
+        guard recordConfiguration.captureMicrophone else { return }
+
         microphoneSession = AVCaptureSession()
         
-        let device = microphoneDevices.deviceOrDefault(uniqueID: uniqueID)
+        let device = microphoneDevices.deviceOrDefault(uniqueID: recordConfiguration.microphoneUniqueID)
         
         guard let microphone = device else { return}
         Log.info("selected microphone", microphone.uniqueID, microphone.modelID, microphone.localizedName)
@@ -82,10 +71,28 @@ class ScreenRecorder: NSObject {
         } catch {
             Log.error("Error setting up microphone capture: \(error)")
         }
+    
+        microphoneSession?.startRunning()
     }
+    
+    func printAudioInputDevices() {
+//        let auth = AVCaptureDevice.authorizationStatus(for: .audio)
+//        print("auth: \(auth)")
+//        
+//        AVCaptureDevice.requestAccess(for: .audio) { (isSuccess) in
+//            print("isSuccess: \(isSuccess)")
+//        }
+        
+        Callback.print(Callback.MicrophoneDevices(devices: microphoneDevices.callbackDevices()))
+    }
+    
+//    func printVideoInputDevices() {
+//        Callback.print(Callback.CameraDevices(devices: cameraDevices.callbackDevices()))
+//    }
     
     func start() async {
         await chunksManager?.startOnNextSample()
+        
         Callback.print(Callback.RecordingStarted(outputPath: await chunksManager?.outputDirectoryURL.path()))
     }
     
@@ -107,14 +114,9 @@ class ScreenRecorder: NSObject {
         let screenConfigurator = ScreenConfigurator(displayID: display.displayID)
         let recordConfiguration = RecordConfiguration(config: config)
                 
+        setupMicrophoneSession(recordConfiguration: recordConfiguration)
+
         try await setupStream(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration)
-        
-        if config.captureMicrophone {
-            configureMicrophoneCapture(uniqueID: config.microphoneUniqueID)
-            microphoneSession?.startRunning()
-        }
-        
-        // Start capturing, wait for stream to start
         try await stream?.startCapture()
     }
     
@@ -123,5 +125,13 @@ class ScreenRecorder: NSObject {
         
         try? await stream?.stopCapture()
         microphoneSession?.stopRunning()
+    }
+    
+    func pause() async {
+        await chunksManager?.pause()
+    }
+    
+    func resume() async {
+        await chunksManager?.resume()
     }
 }

@@ -1,5 +1,5 @@
 //
-//  ScreenRecorderService.swift
+//  Callback.swift
 //  GlabixScreenRecorder
 //
 //  Created by Pavel Feklistov on 06.05.2025.
@@ -92,9 +92,4 @@ extension Callback {
         var action: RecordingAction = .stopped
         let lastChunkIndex: Int?
     }
-}
-
-class ScreenRecorderService {
-    let recorder = ScreenRecorder()
-    private let captureDevicesObserver = CaptureDevicesObserver()
 }

@@ -8,57 +8,8 @@
 
 import AVFoundation
 
-enum ChunkWriterStatus {
-    case active
-    case cancelling
-    case cancelled
-    case finalizing
-    case finalized
-    
-    var description: String {
-        switch self {
-            case .active:
-                "active"
-            case .cancelling:
-                "cancelling"
-            case .cancelled:
-                "cancelled"
-            case .finalizing:
-                "finalizing"
-            case .finalized:
-                "finalized"
-        }
-    }
-}
-
-private struct ChunkURLBuilder {
-    let chunkIndex: Int
-    let dirURL: URL?
-    
-    var screenURL: URL? {
-        dirURL?.appendingPathComponent("chunk_\(chunkIndex).mp4")
-    }
-    
-    var micURL: URL? {
-        dirURL?.appendingPathComponent("chunk_\(chunkIndex).m4a")
-    }
-}
-
-struct SampleBufferData: @unchecked Sendable {
-    let type: ScreenRecorderSourceType
-    let sampleBuffer: CMSampleBuffer
-    
-    var timestamp: CMTime {
-        sampleBuffer.presentationTimeStamp
-    }
-}
-
-enum ChunkWriterError: Error {
-    case undefinedFinalizeTime
-}
-
 actor ChunkWriter {
-    private var writer: ScreenWriter?
+    private var writer: AssetWriter?
     var startTime: CMTime?
     private var endedAt: CMTime?
     var endTime: CMTime? {
@@ -127,7 +78,7 @@ actor ChunkWriter {
         } else { nil }
         
         do {
-            self.writer = try ScreenWriter(
+            self.writer = try AssetWriter(
                 screenOutputURL: outputScreenChunkURL,
                 micOutputURL: outputMicChunkURL,
                 screenConfigurator: screenConfigurator,
@@ -173,7 +124,7 @@ actor ChunkWriter {
         let duration = timestamp - startTime
         guard endTime == nil, calcCurrentFileSize() >= minChunkSizeBytes, duration >= minChunkDuration else { return nil }
         
-        let endTime = timestamp + CMTime(seconds: 0.3, preferredTimescale: 10)
+        let endTime = timestamp + CMTime(seconds: 0.3, preferredTimescale: 10) // need time to start recording session on next chunk writer
         self.endTime = endTime
         return endTime
     }

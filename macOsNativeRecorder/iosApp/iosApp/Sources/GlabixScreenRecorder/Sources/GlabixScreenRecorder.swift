@@ -23,8 +23,8 @@ struct GlabixScreenRecorder: AsyncParsableCommand {
         
         Log.success("Recorder module launched \(verbose)")
         
-        let service = ScreenRecorderService()
-        let recorder = service.recorder
+        let captureDevicesObserver = CaptureDevicesObserver()
+        let recorder = ScreenRecorder()
         
         let commandTask = Task {
             while let input = readLine() {
@@ -46,9 +46,9 @@ struct GlabixScreenRecorder: AsyncParsableCommand {
                         case .stop:
                             await recorder.stop()
                         case .pause:
-                            await recorder.chunksManager?.pause()
+                            await recorder.pause()
                         case .resume:
-                            await recorder.chunksManager?.resume()
+                            await recorder.resume()
                         case .printAudioInputDevices:
                             recorder.printAudioInputDevices()
 //                        case .printVideoInputDevices:
@@ -64,9 +64,9 @@ struct GlabixScreenRecorder: AsyncParsableCommand {
                         case "stop", "t":
                             await recorder.stop()
                         case "pause", "p":
-                            await recorder.chunksManager?.pause()
+                            await recorder.pause()
                         case "resume", "r":
-                            await recorder.chunksManager?.resume()
+                            await recorder.resume()
                         case "mics":
                             recorder.printAudioInputDevices()
 //                        case "cams":

@@ -9,6 +9,7 @@
 import SwiftUI
 import Combine
 
+@MainActor
 class RecordHandler: ObservableObject {
     @Published var recording: Bool = false
     @Published var paused: Bool = false
@@ -72,7 +73,7 @@ class RecordHandler: ObservableObject {
     
     func pause() {
         Task {
-            await screenRecorder.chunksManager?.pause()
+            await screenRecorder.pause()
             DispatchQueue.main.async {
                 self.paused = true
             }
@@ -81,7 +82,7 @@ class RecordHandler: ObservableObject {
     
     func resume() {
         Task {
-            await screenRecorder.chunksManager?.resume()
+            await screenRecorder.resume()
             DispatchQueue.main.async {
                 self.paused = false
             }

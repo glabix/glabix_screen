@@ -1,5 +1,5 @@
 //
-//  ScreenWriter.swift
+//  AssetWriter.swift
 //  iosApp
 //
 //  Created by Pavel Feklistov on 18.04.2025.
@@ -8,7 +8,7 @@
 
 import AVFoundation
 
-final class ScreenWriter: @unchecked Sendable {
+final class AssetWriter: @unchecked Sendable {
     private let screenAssetWriter: AVAssetWriter?
     private let micAssetWriter: AVAssetWriter?
     private let chunkIndex: Int

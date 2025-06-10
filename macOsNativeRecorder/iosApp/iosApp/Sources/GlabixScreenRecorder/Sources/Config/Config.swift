@@ -15,6 +15,7 @@ struct Config: Codable {
     let cropRect: CropRect? // nil for full screen recording
     let chunksDirectoryPath: String
     let minChunkSizeMebibytes: Double
+    let minChunkDurationSeconds: Double
     let showCursor: Bool
     let captureSystemAudio: Bool
     let captureMicrophone: Bool
@@ -30,6 +31,7 @@ struct Config: Codable {
             chunksDirectoryPath: "/Users/pavelfeklistov/chunks",
 //            chunksDirectoryPath: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("defaultChunksDir").path(),
             minChunkSizeMebibytes: 5,
+            minChunkDurationSeconds: 5,
             showCursor: true,
             captureSystemAudio: true,
             captureMicrophone: true,
@@ -46,7 +48,8 @@ struct Config: Codable {
             chunksDirectoryPath: "/Users/pavelfeklistov/Library/Containers/com.glabix.screenMac/Data/Documents/chunks",
 //            chunksDirectoryPath: "/Users/pavelfeklistov/Documents/chunks",
 //            chunksDirectoryPath: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("defaultChunksDir").path(),
-            minChunkSizeMebibytes: 0.5,
+            minChunkSizeMebibytes: 5,
+            minChunkDurationSeconds: 5,
             showCursor: true,
             captureSystemAudio: true,
             captureMicrophone: true,
