@@ -6,8 +6,16 @@
 //
 
 enum CommandAction: String, Codable {
+    case configure
     case start
     case stop
     case pause
     case resume
+    case printAudioInputDevices
+//    case printVideoInputDevices
+}
+
+enum WaveformCommandAction: String, Codable {
+    case start
+    case stop
 }

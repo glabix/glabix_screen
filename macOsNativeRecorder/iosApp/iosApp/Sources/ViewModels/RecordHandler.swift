@@ -33,7 +33,7 @@ class RecordHandler: ObservableObject {
         }
     }
     
-    func start() async throws {
+    func start() throws {
         try checkPermissions()
         
         DispatchQueue.main.async {
@@ -41,24 +41,32 @@ class RecordHandler: ObservableObject {
             self.paused = false
         }
         
-        try await screenRecorder
-            .start(
-                config: .init(
-                    displayId: nil,
-                    resolution: .uhd4k,
-                    fps: 25,
-                    cropRect: nil,
-                    chunksDirectoryPath: nil,
-                    showCursor: true,
-                    captureSystemAudio: true,
-                    captureMicrophone: true,
-                    microphoneUniqueID: "6A08AC30-F752-4660-82B0-F72A00000003"
-                )
-            )
+        screenRecorder.start()
+    }
+    
+    func configure() async throws {
+        try checkPermissions()
+        clearOutputDirectory()
         
-//        DispatchQueue.main.async {
-//            NSWorkspace.shared.open(folder)
-//        }
+        try await screenRecorder
+            .configureAndInitialize(with: .development)        
+    }
+    
+    private func clearOutputDirectory() {
+        let fileManager = FileManager.default
+        let directoryURL = URL(fileURLWithPath: Config.development.chunksDirectoryPath)
+        
+        do {
+            try fileManager.createDirectory(atPath: directoryURL.path, withIntermediateDirectories: true, attributes: nil)
+            let files = try fileManager.contentsOfDirectory(atPath: directoryURL.path())
+            
+            for file in files {
+                let filePath = directoryURL.appendingPathComponent(file).absoluteURL
+                try fileManager.removeItem(at: filePath)
+            }
+        } catch let error {
+            Log.error(error)
+        }
     }
     
     func pause() {
@@ -71,8 +79,8 @@ class RecordHandler: ObservableObject {
         self.paused = false
     }
     
-    func stop() async throws {
-        try await screenRecorder.stop()
+    func stop() {
+        screenRecorder.stop()
         DispatchQueue.main.async {
             self.recording = false
             self.paused = false
@@ -84,4 +92,12 @@ class RecordHandler: ObservableObject {
 //            }
 //        }
     }
+    
+    func printAudioInputDevices() {
+        screenRecorder.printAudioInputDevices()
+    }
+    
+//    func printVideoInputDevices() {
+//        screenRecorder.printVideoInputDevices()
+//    }
 }

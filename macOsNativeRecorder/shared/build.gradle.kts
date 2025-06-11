@@ -15,7 +15,7 @@ kotlin {
             }
         }
     }
-    
+
     listOf(
 //        iosX64(),
 //        iosArm64(),
@@ -23,8 +23,8 @@ kotlin {
         macosX64()
     ).forEach {
         it.binaries.framework {
-            baseName = "shared"
             isStatic = true
+            baseName = "shared"
         }
     }
 

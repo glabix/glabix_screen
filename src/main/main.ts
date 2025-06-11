@@ -57,7 +57,6 @@ import { getAutoUpdater } from "./helpers/auto-updater-factory"
 import { LogLevel, setLog } from "./helpers/set-log"
 import { APIEvents } from "@shared/events/api.events"
 import { exec } from "child_process"
-import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "@shared/helpers/open-external-link"
 import { errorsInterceptor } from "./initializers/interceptor"
 import { loggerInit } from "./initializers/logger.init"
@@ -1136,6 +1135,7 @@ function createScreenshotWindow(dataURL: string) {
       ScreenshotWindowEvents.RENDER_IMAGE,
       imageData
     )
+    mainWindow?.webContents.send(ScreenshotWindowEvents.RENDER_IMAGE, imageData)
     screenshotWindow.setBounds(bounds)
     screenshotWindow.show()
     screenshotWindow.moveTop()
@@ -1264,16 +1264,6 @@ function createMenu() {
       }
       ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
       return
-    }
-
-    if (modalWindow) {
-      const modalTrayPosition = positioner.calculate(
-        modalWindow.getBounds(),
-        tray.getBounds(),
-        { x: "right", y: "up" }
-      )
-
-      modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
     }
 
     toggleWindows()
@@ -1642,7 +1632,10 @@ ipcMain.on(APIEvents.GET_ACCOUNT_DATA, (event, data: IAccountData) => {
 ipcMain.on(
   FileUploadEvents.UPLOAD_PROGRESS_STATUS,
   (event, data: IRecordUploadProgressData[]) => {
-    logSender.sendLog(FileUploadEvents.UPLOAD_PROGRESS_STATUS, stringify(data))
+    logSender.sendLog(
+      FileUploadEvents.UPLOAD_PROGRESS_STATUS,
+      stringify(data.slice(-5))
+    )
     if (!data.length) {
       modalWindow?.webContents.send(ModalWindowEvents.UPLOAD_PROGRESS_HIDE)
     } else {

@@ -20,6 +20,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.delegate = self
         }
         
+//        Callback.shared.enabled = false
+        Log.shared.verbose = true
+        
 //        NSApplication.shared.windows.forEach { window in
 //            window.collectionBehavior = [.canJoinAllSpaces]
 //            window.makeKeyAndOrderFront(nil)

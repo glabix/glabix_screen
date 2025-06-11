@@ -8,30 +8,28 @@
 
 import AVFoundation
 
-class ScreenWriter {
-    let chunkIndex: Int
-
-    private var assetWriter: AVAssetWriter
+final class ScreenWriter {
+    private var screenAssetWriter: AVAssetWriter?
     private var micAssetWriter: AVAssetWriter?
-    
+    private let chunkIndex: Int
     var videoWriterInput: AVAssetWriterInput?
     var systemAudioWriterInput: AVAssetWriterInput?
     var micWriterInput: AVAssetWriterInput?
+//    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
+    
+    var debugStatus: String {
+        [screenAssetWriter?.status.rawValue.description ?? "-1", screenAssetWriter?.error.debugDescription ?? ""].joined(separator: " ")
+    }
     
     init(
-        outputURL: URL,
+        screenOutputURL: URL?,
         micOutputURL: URL?,
-        chunkIndex: Int,
         screenConfigurator: ScreenConfigurator,
-        recordConfiguration: RecordConfiguration
+        recordConfiguration: RecordConfiguration,
+        chunkIndex: Int
     ) throws {
         self.chunkIndex = chunkIndex
-        
-        let fileManager = FileManager.default
-        try? fileManager.removeItem(at: outputURL)
-        try? micOutputURL.map { try fileManager.removeItem(at: $0) }
-        
-        assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+        screenAssetWriter = try screenOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .mp4) }
         micAssetWriter = try micOutputURL.map { try AVAssetWriter(outputURL: $0, fileType: .m4a) }
         
         videoWriterInput = try VideoInput(screenConfigurator: screenConfigurator, recordConfiguration: recordConfiguration).build()
@@ -39,10 +37,10 @@ class ScreenWriter {
         systemAudioWriterInput = try SystemAudioInput.build()
 
         if let videoWriterInput = videoWriterInput {
-            assetWriter.add(videoWriterInput)
+            screenAssetWriter?.add(videoWriterInput)
         }
         if let systemAudioWriterInput = systemAudioWriterInput {
-            assetWriter.add(systemAudioWriterInput)
+            screenAssetWriter?.add(systemAudioWriterInput)
 //            micAssetWriter?.add(systemAudioWriterInput)
         }
         if let micWriterInput = micWriterInput {
@@ -51,33 +49,29 @@ class ScreenWriter {
     }
     
     func startSession(atSourceTime startTime: CMTime) {
-        debugPrint("(\(chunkIndex)) startSession now:", CMClock.hostTimeClock.time.seconds)
-        assetWriter.startWriting()
-        assetWriter.startSession(atSourceTime: startTime)
-        debugPrint("(\(chunkIndex)) startSession 1 now:", CMClock.hostTimeClock.time.seconds)
+        screenAssetWriter?.startWriting()
+        screenAssetWriter?.startSession(atSourceTime: startTime)
+        
         micAssetWriter?.startWriting()
         micAssetWriter?.startSession(atSourceTime: startTime)
-        debugPrint("(\(chunkIndex)) startSession 2 now:", CMClock.hostTimeClock.time.seconds)
     }
     
     func finalize(endTime: CMTime) async {
-        debugPrint("\(chunkIndex) finalizing status", assetWriter.status.rawValue)
-        if assetWriter.status == .writing {
-            assetWriter.endSession(atSourceTime: endTime)
+        if let screenAssetWriterError = screenAssetWriter?.error {
+            Log.error("ERROR on screen assetWriter", screenAssetWriterError, chunkIndex: chunkIndex)
         }
-        await assetWriter.finishWriting()
-//        {
-//            debugPrint("(\(self.chunkIndex)) finalized writing screen. now:", CMClock.hostTimeClock.time.seconds)
-//            ScreenRecorderService.printCallback("chunk screen finalized #\(self.chunkIndex)")
-//        }
+        if screenAssetWriter?.status == .writing {
+            screenAssetWriter?.endSession(atSourceTime: endTime)
+            await screenAssetWriter?.finishWriting()
+        } else {
+            Log.error("screen assetWriter is not writing \(screenAssetWriter?.status.rawValue.description ?? "n/a")", chunkIndex: chunkIndex)
+        }
         
         if micAssetWriter?.status == .writing {
             micAssetWriter?.endSession(atSourceTime: endTime)
+            await micAssetWriter?.finishWriting()
+        } else {
+            Log.error("mic assetWriter is not writing \(micAssetWriter?.status.rawValue.description ?? "n/a")", chunkIndex: chunkIndex)
         }
-        await micAssetWriter?.finishWriting()
-//        {
-//            debugPrint("(\(self.chunkIndex)) finalized writing mic. now:", CMClock.hostTimeClock.time.seconds)
-//            ScreenRecorderService.printCallback("chunk mic finalized #\(self.chunkIndex)")
-//        }
     }
 }

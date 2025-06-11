@@ -30,20 +30,24 @@ extension ScreenRecorder: SCStreamOutput {
                       status == .complete
                 else { return }
                 
-                chunksManager?.processSampleBuffer(sampleBuffer, type: .screen)
+                chunksManager?.syncProcessSampleBuffer(sampleBuffer, type: .screen)
             case .audio:
-                chunksManager?.processSampleBuffer(sampleBuffer, type: .systemAudio)
+                chunksManager?.syncProcessSampleBuffer(sampleBuffer, type: .systemAudio)
             case .microphone:
                 break
             @unknown default:
                 break
+        }
+        
+        if type == .audio {
+//            Log.info("system audio buffer at \(sampleBuffer.presentationTimeStamp.seconds)")
         }
     }
 }
 
 extension ScreenRecorder: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        chunksManager?.processSampleBuffer(sampleBuffer, type: .mic)
+        chunksManager?.syncProcessSampleBuffer(sampleBuffer, type: .mic)
     }
 }
 

@@ -17,10 +17,11 @@ struct SystemAudioInput {
         //        //        if rate < 44100 { bitRate = min(64000, bitRate / 2) }
         //        //        audioSettings[AVEncoderBitRateKey] = bitRate
         
-        let audioSettings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC,
-                                    AVNumberOfChannelsKey: 2,
-                                          AVSampleRateKey: 48_000.0,
-                                          AVEncoderBitRateKey: 192000
+        let audioSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVNumberOfChannelsKey: 2,
+            AVSampleRateKey: 48_000.0,
+            AVEncoderBitRateKey: 192000
 //                                      AVEncoderBitRateKey: 128_000
         ]
         
