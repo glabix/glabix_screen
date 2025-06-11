@@ -5,12 +5,37 @@ import {
   SimpleStoreEvents,
   IStreamSettings,
   ILastDeviceSettings,
+  ScreenshotWindowEvents,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import { RecordSettingsEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
+
+type AvatarTypes =
+  | "circle-sm"
+  | "circle-lg"
+  | "circle-xl"
+  | "rect-sm"
+  | "rect-lg"
+  | "rect-xl"
+interface ILastPanelSettings {
+  left: number
+  top: number
+  avatarType: AvatarTypes
+}
+const AVATAR_TYPES: AvatarTypes[] = [
+  "circle-sm",
+  "circle-lg",
+  "circle-xl",
+  "rect-sm",
+  "rect-lg",
+  "rect-xl",
+]
+
+const LAST_PANEL_SETTINGS_NAME = "LAST_PANEL_SETTINGS"
+let lastPanelSettings: ILastPanelSettings | null = null
 
 const videoContainer = document.getElementById(
   "webcamera-view"
@@ -33,6 +58,7 @@ const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
 const draggableZoneTarget = draggableZone.querySelector(
   ".draggable-zone-target"
 ) as HTMLElement
+
 let draggable: Moveable | undefined = undefined
 let currentStream: MediaStream | undefined = undefined
 let lastStreamSettings: IStreamSettings | undefined = undefined
@@ -61,7 +87,62 @@ function getLastMediaDevices() {
   })
 }
 
+function getLastPanelSettings(): ILastPanelSettings | null {
+  const lastDraggablePosStr = localStorage.getItem(LAST_PANEL_SETTINGS_NAME)
+  return lastDraggablePosStr ? JSON.parse(lastDraggablePosStr) : null
+}
+
+function adjustPanelPosition(): { x: number; y: number } {
+  const maxWidth = document.body.offsetWidth
+  const maxHeight = document.body.offsetHeight
+  const rect = draggableZone.getBoundingClientRect()
+  let x = rect.left < 0 ? 0 : rect.left
+  let y = rect.top < 0 ? 0 : rect.top
+
+  if (rect.right > maxWidth) {
+    x = maxWidth - rect.width
+  }
+
+  if (y + rect.height > maxHeight) {
+    y = maxHeight - rect.height
+  }
+
+  draggableZone.style.left = `${x}px`
+  draggableZone.style.top = `${y}px`
+
+  return { x, y }
+}
+
+function setLastPanelSettings() {
+  const pos = adjustPanelPosition()
+  const left = pos.x
+  const top = pos.y
+  const avatarType: AvatarTypes =
+    ([...videoContainer.classList].find((c) =>
+      AVATAR_TYPES.includes(c as AvatarTypes)
+    ) as AvatarTypes) || AVATAR_TYPES[0]
+
+  if (typeof left == "number" && typeof top == "number" && avatarType) {
+    lastPanelSettings = { left, top, avatarType }
+    localStorage.setItem(
+      LAST_PANEL_SETTINGS_NAME,
+      JSON.stringify(lastPanelSettings)
+    )
+  }
+}
+
 function initDraggableZone() {
+  lastPanelSettings = getLastPanelSettings()
+
+  if (lastPanelSettings) {
+    draggableZone.style.left = `${lastPanelSettings.left}px`
+    draggableZone.style.top = `${lastPanelSettings.top}px`
+    AVATAR_TYPES.forEach((type) => {
+      videoContainer.classList.remove(type)
+    })
+    videoContainer.classList.add(lastPanelSettings.avatarType)
+  }
+
   draggable = new Moveable(document.body, {
     target: draggableZone as MoveableRefTargetType,
     dragTarget: draggableZoneTarget,
@@ -84,37 +165,30 @@ function initDraggableZone() {
     .on("dragEnd", ({ target }) => {
       target.classList.remove("moveable-dragging")
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+      setLastPanelSettings()
     })
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
+  videoContainerError.setAttribute("hidden", "")
+  videoContainerPermissionError.setAttribute("hidden", "")
   videoContainer.removeAttribute("hidden")
   draggableZone.classList.add("has-avatar")
 
   if (currentStream) {
-    video.srcObject = null
     video.srcObject = currentStream
   }
-
   if (hasError) {
     if (errorType == "no-permission") {
       videoContainerPermissionError.removeAttribute("hidden")
     } else {
       videoContainerError.removeAttribute("hidden")
     }
-  } else {
-    videoContainerError.setAttribute("hidden", "")
-    videoContainerPermissionError.setAttribute("hidden", "")
   }
 }
 
 function startStream(deviseId) {
   if (!deviseId || deviseId == "no-camera") {
-    return
-  }
-
-  if (currentStream) {
-    showVideo()
     return
   }
 
@@ -170,7 +244,7 @@ function stopStreamTracks() {
 }
 
 function stopStream() {
-  videoContainer.setAttribute("hidden", "")
+  // videoContainer.setAttribute("hidden", "")
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   draggableZone.classList.remove("has-avatar")
@@ -183,6 +257,7 @@ function checkStream(data: IStreamSettings) {
   if (
     ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
   ) {
+    videoContainer.setAttribute("hidden", "")
     stopStream()
     return
   }
@@ -190,6 +265,7 @@ function checkStream(data: IStreamSettings) {
   if (data.cameraDeviceId && data.cameraDeviceId != "no-camera") {
     startStream(data.cameraDeviceId)
   } else {
+    videoContainer.setAttribute("hidden", "")
     stopStream()
   }
 }
@@ -259,13 +335,17 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
   skipAppShowEvent = false
 })
 
+window.electronAPI.ipcRenderer.on(ScreenshotWindowEvents.RENDER_IMAGE, () => {
+  videoContainer.removeAttribute("hidden")
+})
+
 window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   if (isRecording || isCountdown) {
     return
   }
 
   skipAppShowEvent = isAppShown ? false : true
-
+  videoContainer.setAttribute("hidden", "")
   stopStream()
 })
 
@@ -274,6 +354,7 @@ window.electronAPI.ipcRenderer.on(
   (event, data: IModalWindowTabData) => {
     if (data.activeTab == "screenshot") {
       isScreenshotMode = true
+      videoContainer.setAttribute("hidden", "")
       stopStream()
     }
 
@@ -316,21 +397,20 @@ changeCameraViewSizeBtn.forEach((button) => {
     "click",
     (event) => {
       const target = event.target as HTMLElement
-      const size = target.dataset.size!
-      const container = document.querySelector(
-        ".webcamera-view-container"
-      )! as HTMLElement
-      const prevRect = container.getBoundingClientRect()
-      container.classList.remove("sm", "lg", "xl")
-      container.classList.add(size)
-      const nextRect = container.getBoundingClientRect()
+      const type = target.dataset.type! as AvatarTypes
+      const prevRect = videoContainer.getBoundingClientRect()
+      AVATAR_TYPES.forEach((t) => {
+        videoContainer.classList.remove(t)
+      })
+      videoContainer.classList.add(type)
+      const nextRect = videoContainer.getBoundingClientRect()
 
       const top =
-        size == "xl"
+        type == "rect-xl"
           ? window.innerHeight / 2 - nextRect.height / 2
           : prevRect.bottom - nextRect.height
       const left =
-        size == "xl"
+        type == "rect-xl"
           ? window.innerWidth / 2 - nextRect.width / 2
           : prevRect.left + prevRect.width / 2 - nextRect.width / 2
       const css = `left: ${left}px; top: ${top}px;`
@@ -341,6 +421,7 @@ changeCameraViewSizeBtn.forEach((button) => {
         draggable.updateRect()
       }
 
+      setLastPanelSettings()
       closeWebcameraSize()
     },
     false

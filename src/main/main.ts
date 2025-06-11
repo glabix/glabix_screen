@@ -57,7 +57,6 @@ import { getAutoUpdater } from "./helpers/auto-updater-factory"
 import { LogLevel, setLog } from "./helpers/set-log"
 import { APIEvents } from "@shared/events/api.events"
 import { exec } from "child_process"
-import positioner from "electron-traywindow-positioner"
 import { openExternalLink } from "@shared/helpers/open-external-link"
 import { errorsInterceptor } from "./initializers/interceptor"
 import { loggerInit } from "./initializers/logger.init"
@@ -1136,6 +1135,7 @@ function createScreenshotWindow(dataURL: string) {
       ScreenshotWindowEvents.RENDER_IMAGE,
       imageData
     )
+    mainWindow?.webContents.send(ScreenshotWindowEvents.RENDER_IMAGE, imageData)
     screenshotWindow.setBounds(bounds)
     screenshotWindow.show()
     screenshotWindow.moveTop()
@@ -1264,16 +1264,6 @@ function createMenu() {
       }
       ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
       return
-    }
-
-    if (modalWindow) {
-      const modalTrayPosition = positioner.calculate(
-        modalWindow.getBounds(),
-        tray.getBounds(),
-        { x: "right", y: "up" }
-      )
-
-      modalWindow.setPosition(modalTrayPosition.x, modalTrayPosition.y)
     }
 
     toggleWindows()

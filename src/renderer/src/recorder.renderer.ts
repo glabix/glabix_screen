@@ -1242,6 +1242,10 @@ popovers.forEach((element) => {
   )
 })
 
+window.addEventListener("mousedown", (event) => {
+  window.electronAPI.ipcRenderer.send("dropdown:close", {})
+})
+
 window.addEventListener("error", (event) => {
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: `recorder.renderer Error`,
