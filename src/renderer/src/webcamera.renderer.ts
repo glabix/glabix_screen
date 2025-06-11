@@ -422,7 +422,7 @@ changeCameraViewSizeBtn.forEach((button) => {
       }
 
       setLastPanelSettings()
-      closeWebcameraSize()
+      // closeWebcameraSize()
     },
     false
   )
