@@ -83,7 +83,7 @@
         <!-- AVATAR SETTINGS -->
         <div
           id="webcamera-view"
-          class="webcamera-view-container is-flip sm"
+          class="webcamera-view-container is-flip circle-sm"
           hidden
         >
           <video id="video" autoplay></video>
@@ -287,21 +287,45 @@
           <div class="flex gap-1 items-center">
             <button
               class="flex-center-6 min-w-6 js-camera-view-size"
-              data-size="sm"
+              data-type="circle-sm"
             >
-              <i class="i pointer-events-none i--lg i-dot"></i>
+              <i class="i pointer-events-none i-dot"></i>
             </button>
             <button
               class="flex-center-6 min-w-6 js-camera-view-size"
-              data-size="lg"
+              data-type="circle-lg"
+            >
+              <i
+                class="i pointer-events-none i-dot"
+                style="font-size: 20px"
+              ></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="circle-xl"
             >
               <i class="i pointer-events-none i--xl i-dot"></i>
             </button>
             <button
               class="flex-center-6 min-w-6 js-camera-view-size"
-              data-size="xl"
+              data-type="rect-sm"
             >
-              <i class="i pointer-events-none i--lg i-expand"></i>
+              <i class="i pointer-events-none i--sm i-expand-wide"></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="rect-lg"
+            >
+              <i
+                class="i pointer-events-none i-expand-wide"
+                style="font-size: 14px"
+              ></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-8 js-camera-view-size"
+              data-type="rect-xl"
+            >
+              <i class="i pointer-events-none i--lg i-expand-wide"></i>
             </button>
           </div>
         </div>
