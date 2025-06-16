@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title>%VITE_PRODUCT_NAME%</title>
+  </head>
+
+  <body>
+    <div class="draggable-zone">
+      <div class="draggable-zone-target">
+        <!-- CAMERA ONLY -->
+        <div class="webcamera-only-container sm" hidden>
+          <div class="webcamera-only-title">
+            <i class="i i-dot i--lg"></i>
+            <div class="fw-500">Запись только камеры</div>
+          </div>
+          <div class="webcamera-only-error webcamera-only-no-device" hidden>
+            <div>Камера не доступна или используется другой программой</div>
+          </div>
+          <div class="webcamera-only-error webcamera-only-no-permission" hidden>
+            <div>
+              Доступ к камере запрещен. Включите доступ к камере в настройках
+              системы.
+            </div>
+          </div>
+          <div class="webcamera-only-error webcamera-only-no-camera" hidden>
+            <div>Выберите камеру</div>
+          </div>
+          <video id="webcam_only_video" autoplay muted></video>
+        </div>
+
+        <!-- AVATAR SETTINGS -->
+        <div
+          id="webcamera-view"
+          class="webcamera-view-container is-flip circle-sm"
+          hidden
+        >
+          <video id="video" autoplay></video>
+          <div class="webcamera-view-error webcamera-view-no-device" hidden>
+            <div>Камера не доступна или используется другой программой</div>
+          </div>
+          <div class="webcamera-view-error webcamera-view-no-permission" hidden>
+            <div>
+              Доступ к камере запрещен. Включите доступ к камере в настройках
+              системы.
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTROL PANEL -->
+        <div class="panel-wrapper hover">
+          <div class="panel panel-recording-preview">
+            <div class="flex-center-8">
+              <span class="i i-ellipsis i--lg pointer-events-none"></span>
+            </div>
+          </div>
+          <div class="panel panel-recording items-center transition-visibility">
+            <button id="stopBtn" class="panel-btn relative flex-center-8">
+              <span class="i i-stop i--lg pointer-events-none"></span>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap fw-500 text-xs">
+                    Остановить запись
+                  </div>
+                  <div>
+                    <div
+                      class="tag fw-400 text-gray-400"
+                      data-text="hotkeys:recording:stop"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </button>
+            <div id="timerDisplay" class="mr-2 ml-2 text-center text-xs">
+              00:00
+            </div>
+            <button id="pauseBtn" class="panel-btn flex-center-8">
+              <span class="i i-pause i--lg pointer-events-none"></span>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap fw-500 text-xs">Пауза</div>
+                  <div>
+                    <div
+                      class="tag fw-400 text-gray-400"
+                      data-text="hotkeys:recording:pause"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </button>
+            <button
+              id="resumeBtn"
+              class="panel-btn panel-btn--play flex-center-8"
+              hidden
+            >
+              <span class="i i-play i--lg pointer-events-none"></span>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap fw-500 text-xs">
+                    Возобновить запись
+                  </div>
+                  <div>
+                    <div
+                      class="tag fw-400 text-gray-400"
+                      data-text="hotkeys:recording:resume"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </button>
+            <div class="panel-collapse flex items-center">
+              <button id="restartBtn" class="panel-btn flex-center-8">
+                <span class="i i-rotate-right i--lg pointer-events-none"></span>
+                <div
+                  class="popover popover--dark popover--top pointer-events-none"
+                >
+                  <div class="flex gap-1 items-center">
+                    <div class="whitespace-nowrap fw-500 text-xs">
+                      Начать заново
+                    </div>
+                    <div>
+                      <div
+                        class="tag fw-400 text-gray-400"
+                        data-text="hotkeys:recording:restart"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </button>
+              <button id="deleteBtn" class="panel-btn flex-center-8">
+                <span class="i i-trash i--lg pointer-events-none"></span>
+                <div
+                  class="popover popover--dark popover--top pointer-events-none"
+                >
+                  <div class="flex gap-1 items-center">
+                    <div class="whitespace-nowrap fw-500 text-xs">Удалить</div>
+                    <div>
+                      <div
+                        class="tag fw-400 text-gray-400"
+                        data-text="hotkeys:recording:delete"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              <div class="panel-divider"></div>
+
+              <button id="draw-btn" class="panel-btn flex-center-8 clickable">
+                <span
+                  class="i i-pencil-mechanical i--lg pointer-events-none"
+                ></span>
+                <div
+                  class="popover popover--dark popover--top pointer-events-none"
+                >
+                  <div class="flex gap-1 items-center">
+                    <div class="whitespace-nowrap fw-500 text-xs">Рисовать</div>
+                    <div>
+                      <div
+                        class="tag fw-400 text-gray-400"
+                        data-text="hotkeys:draw"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                id="webcamera-size-btn"
+                class="panel-btn flex-center-8 clickable"
+              >
+                <span class="i i-user i--lg pointer-events-none"></span>
+                <div
+                  class="popover popover--dark popover--top pointer-events-none"
+                >
+                  <div class="flex gap-1 items-center">
+                    <div class="whitespace-nowrap fw-500 text-xs">
+                      Размер веб-камеры
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-settings-container">
+        <div id="panel-draw" class="panel draw-settings">
+          <div class="flex gap-1">
+            <input
+              class="panel-slider mr-2"
+              type="range"
+              min="1"
+              max="25"
+              value="5"
+            />
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-accent-13 is-active"
+              data-color="accent-13"
+            ></button>
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-warning"
+              data-color="warning"
+            ></button>
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-accent-18"
+              data-color="accent-18"
+            ></button>
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-accent-16"
+              data-color="accent-16"
+            ></button>
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-accent-19"
+              data-color="accent-19"
+            ></button>
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-light"
+              data-color="light"
+            ></button>
+            <button
+              class="bullet-xl hover:scale-140 transition-transform text-dark"
+              data-color="dark"
+            ></button>
+          </div>
+        </div>
+
+        <!-- AVATAR SETTINGS -->
+        <div id="panel-webcamera" class="panel webcamera-settings">
+          <div class="flex gap-1 items-center">
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="circle-sm"
+            >
+              <i class="i pointer-events-none i-dot"></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="circle-lg"
+            >
+              <i
+                class="i pointer-events-none i-dot"
+                style="font-size: 20px"
+              ></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="circle-xl"
+            >
+              <i class="i pointer-events-none i--xl i-dot"></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="rect-sm"
+            >
+              <i class="i pointer-events-none i--sm i-expand-wide"></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="rect-lg"
+            >
+              <i
+                class="i pointer-events-none i-expand-wide"
+                style="font-size: 14px"
+              ></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-8 js-camera-view-size"
+              data-type="rect-xl"
+            >
+              <i class="i pointer-events-none i--lg i-expand-wide"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- WEBCAMERA ONLY SETTINGS -->
+        <div id="panel-webcamera-only" class="panel webcamera-settings">
+          <div class="flex gap-1 items-center">
+            <button
+              class="flex-center-6 min-w-6 js-camera-only-size"
+              data-size="sm"
+            >
+              <i class="i pointer-events-none i--lg i-rect"></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-only-size"
+              data-size="lg"
+            >
+              <i class="i pointer-events-none i--xl i-rect"></i>
+            </button>
+            <button
+              class="flex-center-6 min-w-6 js-camera-only-size"
+              data-size="xl"
+            >
+              <i class="i pointer-events-none i--lg i-expand"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- You can also require other files to run in this process -->
+    <script type="module" src="./src/webcamera.renderer.ts"></script>
+  </body>
+</html>

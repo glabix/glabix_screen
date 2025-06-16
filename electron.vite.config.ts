@@ -30,6 +30,10 @@ export default defineConfig({
         input: {
           main_window: resolve(import.meta.dirname, "src/renderer/index.html"),
           modal_window: resolve(import.meta.dirname, "src/renderer/modal.html"),
+          webcamera_window: resolve(
+            import.meta.dirname,
+            "src/renderer/webcamera.html"
+          ),
           dialog_window: resolve(
             import.meta.dirname,
             "src/renderer/dialog.html"

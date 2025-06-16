@@ -103,7 +103,6 @@ import AutoLaunch from "./helpers/auto-launch.helper"
 import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
 import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
 import {
-  ChunkPart,
   RecordCancelEventV3,
   RecordDataEventV3,
   RecordLastChunkHandledV3,
@@ -111,12 +110,10 @@ import {
   RecordStartEventV3,
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
-import fs from "fs/promises"
-import { fsErrorParser } from "@main/helpers/fs-error-parser"
 import { ChunkProcessor } from "@main/chunk-saver"
-import EventEmitter from "node:events"
 
 let activeDisplay: Electron.Display
+let webcameraWindow: BrowserWindow
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
@@ -793,6 +790,7 @@ function createWindow() {
   })
 
   createModal(mainWindow)
+  createWebcameraWindow(mainWindow)
   createLoginWindow()
 }
 
@@ -845,6 +843,64 @@ function sendUserSettings() {
       eStore.get(UserSettingsKeys.PANEL_HIDDEN)
     )
   }
+}
+
+function createWebcameraWindow(parentWindow) {
+  const { x, y, width, height } = screen.getPrimaryDisplay().bounds
+  // Create the browser window.
+  webcameraWindow = new BrowserWindow({
+    transparent: true,
+    frame: false,
+    thickFrame: false,
+    resizable: false,
+    minimizable: false,
+    roundedCorners: false, // macOS, not working on Windows
+    show: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    x,
+    y,
+    webPreferences: {
+      preload: join(import.meta.dirname, "../preload/preload.mjs"),
+      zoomFactor: 1.0,
+      devTools: !app.isPackaged,
+      nodeIntegration: true, // Enable Node.js integration
+      // contextIsolation: false, // Disable context isolation (not recommended for production)
+    },
+  })
+
+  // webcameraWindow.setBounds(screen.getPrimaryDisplay().bounds)
+
+  // modalWindow.webContents.openDevTools()
+  webcameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+
+  webcameraWindow.on("hide", () => {})
+
+  webcameraWindow.on("ready-to-show", () => {
+    getLastStreamSettings(modalWindow).then((settings) => {
+      webcameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
+  })
+
+  webcameraWindow.on("show", () => {
+    webcameraWindow.webContents.send(AppEvents.ON_SHOW)
+  })
+
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    webcameraWindow.loadURL(
+      `${process.env["ELECTRON_RENDERER_URL"]}/webcamera.html`
+    )
+  } else {
+    webcameraWindow.loadFile(
+      join(import.meta.dirname, "../renderer/webcamera.html")
+    )
+  }
+
+  webcameraWindow.webContents.on("did-finish-load", () => {
+    getLastStreamSettings(modalWindow).then((settings) => {
+      webcameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
+  })
 }
 
 function createModal(parentWindow) {
@@ -1159,6 +1215,10 @@ function showWindows() {
       modalWindow.show()
       modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
+    if (webcameraWindow) {
+      webcameraWindow.show()
+      webcameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    }
   } else {
     if (loginWindow) loginWindow.show()
   }
@@ -1176,6 +1236,10 @@ function hideWindows() {
     if (modalWindow) {
       modalWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
       modalWindow.hide()
+    }
+    if (webcameraWindow) {
+      webcameraWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
+      webcameraWindow.hide()
     }
   } else {
     if (loginWindow) loginWindow.hide()
@@ -1505,6 +1569,7 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
 })
 ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
   mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
+  webcameraWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
 ipcMain.on("dropdown:close", (event, data) => {

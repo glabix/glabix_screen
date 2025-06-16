@@ -1,3 +1,5 @@
+import "@renderer/styles/index-page.scss"
+import "@renderer/styles/panel.scss"
 import {
   IModalWindowTabData,
   ModalWindowEvents,
@@ -134,39 +136,39 @@ function setLastPanelSettings() {
 function initDraggableZone() {
   lastPanelSettings = getLastPanelSettings()
 
-  if (lastPanelSettings) {
-    draggableZone.style.left = `${lastPanelSettings.left}px`
-    draggableZone.style.top = `${lastPanelSettings.top}px`
-    AVATAR_TYPES.forEach((type) => {
-      videoContainer.classList.remove(type)
-    })
-    videoContainer.classList.add(lastPanelSettings.avatarType)
-  }
+  // if (lastPanelSettings) {
+  //   draggableZone.style.left = `${lastPanelSettings.left}px`
+  //   draggableZone.style.top = `${lastPanelSettings.top}px`
+  //   AVATAR_TYPES.forEach((type) => {
+  //     videoContainer.classList.remove(type)
+  //   })
+  //   videoContainer.classList.add(lastPanelSettings.avatarType)
+  // }
 
-  draggable = new Moveable(document.body, {
-    target: draggableZone as MoveableRefTargetType,
-    dragTarget: draggableZoneTarget,
-    preventClickEventOnDrag: false,
-    container: document.body,
-    className: "moveable-invisible-container",
-    draggable: true,
-  })
+  // draggable = new Moveable(document.body, {
+  //   target: draggableZone as MoveableRefTargetType,
+  //   dragTarget: draggableZoneTarget,
+  //   preventClickEventOnDrag: false,
+  //   container: document.body,
+  //   className: "moveable-invisible-container",
+  //   draggable: true,
+  // })
 
-  draggable
-    .on("dragStart", ({ target }) => {
-      target.classList.add("moveable-dragging")
-      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-    })
-    .on("drag", ({ target, left, top }) => {
-      target!.style.left = `${left}px`
-      target!.style.top = `${top}px`
-      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-    })
-    .on("dragEnd", ({ target }) => {
-      target.classList.remove("moveable-dragging")
-      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-      setLastPanelSettings()
-    })
+  // draggable
+  //   .on("dragStart", ({ target }) => {
+  //     target.classList.add("moveable-dragging")
+  //     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+  //   })
+  //   .on("drag", ({ target, left, top }) => {
+  //     target!.style.left = `${left}px`
+  //     target!.style.top = `${top}px`
+  //     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+  //   })
+  //   .on("dragEnd", ({ target }) => {
+  //     target.classList.remove("moveable-dragging")
+  //     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+  //     setLastPanelSettings()
+  //   })
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {

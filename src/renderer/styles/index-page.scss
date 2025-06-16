@@ -396,4 +396,5 @@ body.no-microphone .microphone-alert-container {
   top: calc(80% - 200px);
   left: 5%;
   min-width: 200px;
+  -webkit-app-region: drag;
 }
