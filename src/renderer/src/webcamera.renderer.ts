@@ -14,6 +14,7 @@ import { RecordSettingsEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
+import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
 
 type AvatarTypes =
   | "circle-sm"
@@ -537,6 +538,8 @@ document.addEventListener("DOMContentLoaded", () => {
   ) {
     startStream(lastStreamSettings?.cameraDeviceId)
   }
+
+  const zoomPageDisabled = new ZoomPageDisabled()
 })
 
 window.addEventListener("error", (event) => {

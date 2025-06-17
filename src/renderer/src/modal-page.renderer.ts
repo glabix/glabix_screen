@@ -34,6 +34,7 @@ import {
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
+import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
 type SettingsTabType =
   | "root"
   | "shortCuts"
@@ -965,6 +966,10 @@ if (isWindows) {
   systemAudioEl.removeAttribute("hidden")
   windowsToolbar.removeAttribute("hidden")
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const zoomPageDisabled = new ZoomPageDisabled()
+})
 
 windowsMinimizeBtn.addEventListener(
   "click",

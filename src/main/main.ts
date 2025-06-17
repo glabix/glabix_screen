@@ -226,9 +226,15 @@ const initializeDatabase = async () => {
 function init(url: string) {
   if (mainWindow) {
     // Someone tried to run a second instance, we should focus our window.
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+
+    if (!isRecording) {
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
+    }
   }
 
   if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
@@ -729,7 +735,6 @@ function createWindow() {
     height,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
@@ -758,7 +763,7 @@ function createWindow() {
     mainWindow.loadFile(join(import.meta.dirname, "../renderer/index.html"))
   }
 
-  mainWindow.webContents.setFrameRate(60)
+  // mainWindow.webContents.setFrameRate(60)
   mainWindow.on("close", () => {
     app.quit()
   })
@@ -783,6 +788,7 @@ function createWindow() {
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow.webContents.setZoomFactor(1)
     getLastStreamSettings(mainWindow).then((settings) => {
       modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
@@ -862,7 +868,6 @@ function createWebcameraWindow(parentWindow) {
     y,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
@@ -877,6 +882,7 @@ function createWebcameraWindow(parentWindow) {
   webcameraWindow.on("hide", () => {})
 
   webcameraWindow.on("ready-to-show", () => {
+    webcameraWindow.webContents.setZoomFactor(1)
     getLastStreamSettings(modalWindow).then((settings) => {
       webcameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
     })
@@ -917,7 +923,6 @@ function createModal(parentWindow) {
     minimizable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
@@ -937,6 +942,7 @@ function createModal(parentWindow) {
   })
 
   modalWindow.on("ready-to-show", () => {
+    modalWindow.webContents.setZoomFactor(1)
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
@@ -945,7 +951,6 @@ function createModal(parentWindow) {
     loadAccountData()
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     sendUserSettings()
-
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
@@ -1013,7 +1018,6 @@ function createDropdownWindow(parentWindow) {
     movable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
@@ -1036,6 +1040,7 @@ function createDropdownWindow(parentWindow) {
   }
 
   dropdownWindow.webContents.on("did-finish-load", () => {
+    dropdownWindow.webContents.setZoomFactor(1)
     dropdownWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 
@@ -1069,7 +1074,6 @@ function createLoginWindow() {
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },
@@ -1087,6 +1091,7 @@ function createLoginWindow() {
   })
 
   loginWindow.webContents.on("did-finish-load", () => {
+    loginWindow.webContents.setZoomFactor(1)
     loginWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 }
@@ -1170,7 +1175,6 @@ function createScreenshotWindow(dataURL: string) {
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },
@@ -1187,6 +1191,7 @@ function createScreenshotWindow(dataURL: string) {
   }
 
   screenshotWindow.webContents.on("did-finish-load", () => {
+    screenshotWindow.webContents.setZoomFactor(1)
     screenshotWindow.webContents.send(
       ScreenshotWindowEvents.RENDER_IMAGE,
       imageData
@@ -1360,6 +1365,7 @@ function logOut() {
   mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
   mainWindow.hide()
   modalWindow.hide()
+  webcameraWindow.hide()
   loginWindow.show()
 }
 function createScreenshot(crop?: Rectangle) {
@@ -1386,7 +1392,13 @@ app.on("activate", () => {
     logSender.sendLog("app.activated")
     createWindow()
   } else {
-    showWindows()
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+
+    if (!isRecording) {
+      showWindows()
+    }
   }
 })
 
@@ -1941,6 +1953,7 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.show()
       modalWindow.show()
+      webcameraWindow.show()
     })
   })
 })

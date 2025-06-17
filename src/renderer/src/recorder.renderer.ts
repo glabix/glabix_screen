@@ -32,6 +32,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
+import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 let SHORTCUTS_TEXT_MAP = {}
@@ -1240,6 +1241,10 @@ popovers.forEach((element) => {
     },
     false
   )
+})
+
+document.addEventListener("DOMContentLoaded", () => {
+  const zoomPageDisabled = new ZoomPageDisabled()
 })
 
 window.addEventListener("mousedown", (event) => {
