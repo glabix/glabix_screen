@@ -1055,7 +1055,15 @@ function createDropdownWindow(parentWindow) {
     handleMoveWindows(modalWindow)
   })
 
-  // modalWindow.on("move", () => {})
+  modalWindow.on("move", () => {
+    const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
+
+    console.log("move screenBounds", currentScreen.bounds)
+    console.log(
+      "move webcameraWindow.getPosition()",
+      webcameraWindow.getPosition()
+    )
+  })
 }
 
 function handleMoveWindows(window: BrowserWindow) {
@@ -1074,8 +1082,11 @@ function handleMoveWindows(window: BrowserWindow) {
 
   const screenBounds = activeDisplay.bounds
   const webcameraPosition = webcameraWindow.getPosition()
-  console.log("screenBounds", screenBounds)
-  console.log("webcameraWindow.getPosition()", webcameraWindow.getPosition())
+  console.log("!!!moved screenBounds", screenBounds)
+  console.log(
+    "!!!moved webcameraWindow.getPosition()",
+    webcameraWindow.getPosition()
+  )
   // webcameraWindow.setPosition(webcameraPosition[0]! + screenBounds.x, webcameraPosition[1]! + screenBounds.y)
   mainWindow.setBounds(screenBounds)
 }
