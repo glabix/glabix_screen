@@ -420,9 +420,9 @@ changeCameraViewSizeBtn.forEach((button) => {
 
       draggableZone.style.cssText = css
 
-      if (draggable) {
-        draggable.updateRect()
-      }
+      // if (draggable) {
+      //   draggable.updateRect()
+      // }
 
       setLastPanelSettings()
       // closeWebcameraSize()
@@ -455,9 +455,9 @@ changeCameraOnlySizeBtn.forEach((button) => {
 
       draggableZone.style.cssText = css
 
-      if (draggable) {
-        draggable.updateRect()
-      }
+      // if (draggable) {
+      //   draggable.updateRect()
+      // }
 
       closeWebcameraSize()
     },

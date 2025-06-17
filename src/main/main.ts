@@ -512,6 +512,7 @@ function registerUserShortCuts() {
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
               mainWindow.webContents.send("screen:change", activeDisplay)
               modalWindow.hide()
+              webcameraWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
               if (!mainWindow.isVisible()) {
@@ -1048,18 +1049,35 @@ function createDropdownWindow(parentWindow) {
     modalWindow.webContents.send("dropdown:hide", {})
   })
 
-  modalWindow.on("move", () => {
-    const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
-
-    if (activeDisplay && activeDisplay.id != currentScreen.id) {
-      mainWindow.webContents.send("screen:change", currentScreen)
-    }
-
-    activeDisplay = currentScreen
-    const screenBounds = activeDisplay.bounds
+  modalWindow.on("moved", () => {
     dropdownWindow.hide()
-    mainWindow.setBounds(screenBounds)
+
+    handleMoveWindows(modalWindow)
   })
+
+  // modalWindow.on("move", () => {})
+}
+
+function handleMoveWindows(window: BrowserWindow) {
+  const currentScreen = screen.getDisplayNearestPoint(window.getBounds())
+  // const displays =
+
+  if (activeDisplay && activeDisplay.id != currentScreen.id) {
+    mainWindow.webContents.send("screen:change", currentScreen)
+  }
+
+  activeDisplay = currentScreen
+
+  // if (isModalMove) {
+
+  // }
+
+  const screenBounds = activeDisplay.bounds
+  const webcameraPosition = webcameraWindow.getPosition()
+  console.log("screenBounds", screenBounds)
+  console.log("webcameraWindow.getPosition()", webcameraWindow.getPosition())
+  // webcameraWindow.setPosition(webcameraPosition[0]! + screenBounds.x, webcameraPosition[1]! + screenBounds.y)
+  mainWindow.setBounds(screenBounds)
 }
 
 function createLoginWindow() {
@@ -1643,6 +1661,7 @@ ipcMain.on(ScreenshotActionEvents.FULL, (event, data) => {
 
 ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {
   modalWindow?.hide()
+  webcameraWindow?.hide()
   mainWindow?.focus()
   mainWindow?.webContents.send(ScreenshotActionEvents.CROP, data)
 })
