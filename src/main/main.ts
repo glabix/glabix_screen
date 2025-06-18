@@ -1068,10 +1068,20 @@ function createDropdownWindow(parentWindow) {
 
 function handleMoveWindows(window: BrowserWindow) {
   const currentScreen = screen.getDisplayNearestPoint(window.getBounds())
-  // const displays =
+  const displays = screen.getAllDisplays()
+  const maxXPos = displays.reduce((acc, d) => acc + d.bounds.width, 0)
+  const lastWebcameraPos = webcameraWindow.getPosition()
+  const lastModalPos = modalWindow.getPosition()
+  // const maxXPos = displays.reduce((acc, d) => (acc + d.bounds.width), 0)
+
+  console.log("maxXPos", maxXPos)
 
   if (activeDisplay && activeDisplay.id != currentScreen.id) {
     mainWindow.webContents.send("screen:change", currentScreen)
+    webcameraWindow.setPosition(
+      lastWebcameraPos[0]! + currentScreen.bounds.x,
+      lastWebcameraPos[1]!
+    )
   }
 
   activeDisplay = currentScreen
