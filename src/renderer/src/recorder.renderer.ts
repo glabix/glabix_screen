@@ -413,23 +413,10 @@ const createVideo = (stream: MediaStream, _video) => {
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "videoRecorder.init",
-    body: JSON.stringify(videoRecorder),
-  })
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "videoRecorder.options",
-    body: JSON.stringify({
-      mimeType: getSupportedMimeType(),
-      videoBitsPerSecond: 2500000,
-    }),
-  })
-
   videoRecorder.onerror = (event) => {
     window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.onerror",
-      body: JSON.stringify(event) + `${event.toString()}`,
+      body: JSON.stringify(event),
     })
   }
 
@@ -446,7 +433,11 @@ const createVideo = (stream: MediaStream, _video) => {
     updateRecorderState("paused")
   }
 
-  videoRecorder.onstart = function (e) {}
+  videoRecorder.onstart = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onstart",
+    })
+  }
 
   videoRecorder.onresume = function (e) {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -478,7 +469,7 @@ const createVideo = (stream: MediaStream, _video) => {
       .catch((e) => {
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: `recorder.renderer readFileAsync:`,
-          body: JSON.stringify(e) + `${e.toString()}`,
+          body: JSON.stringify(e),
         })
       })
   }
