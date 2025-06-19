@@ -416,7 +416,9 @@ const createVideo = (stream: MediaStream, _video) => {
   videoRecorder.onerror = (event) => {
     window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.onerror",
-      body: JSON.stringify(event, Object.getOwnPropertyNames(event)),
+      body:
+        JSON.stringify(event, Object.getOwnPropertyNames(event)) +
+        `event.error.name: ${event.error.name}, event.error.message: ${event.error.message}`,
     })
   }
 

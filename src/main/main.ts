@@ -369,9 +369,23 @@ if (!gotTheLock) {
                 sources[0]
             }
 
+            setLog(LogLevel.INFO, "sources", JSON.stringify(sources))
+            setLog(LogLevel.INFO, "screen", JSON.stringify(screen))
+            setLog(
+              LogLevel.INFO,
+              "activeDisplay",
+              JSON.stringify(activeDisplay)
+            )
+
             callback({ video: screen, audio: "loopback" })
           })
           .catch((error) => {
+            setLog(
+              LogLevel.ERROR,
+              "session.defaultSession.setDisplayMediaRequestHandler",
+              JSON.stringify(error)
+            )
+
             if (os.platform() == "darwin") {
               mainWindow.webContents
                 .executeJavaScript(
