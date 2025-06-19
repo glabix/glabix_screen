@@ -875,8 +875,6 @@ function createWebcameraWindow(parentWindow) {
     },
   })
 
-  // webcameraWindow.setBounds(screen.getPrimaryDisplay().bounds)
-
   // modalWindow.webContents.openDevTools()
   webcameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
@@ -1055,33 +1053,66 @@ function createDropdownWindow(parentWindow) {
     handleMoveWindows(modalWindow)
   })
 
-  modalWindow.on("move", () => {
-    const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
+  // modalWindow.on("move", () => {
+  //   const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
 
-    console.log("move screenBounds", currentScreen.bounds)
-    console.log(
-      "move webcameraWindow.getPosition()",
-      webcameraWindow.getPosition()
-    )
-  })
+  //   console.log("move screenBounds", currentScreen.bounds)
+  //   console.log(
+  //     "move webcameraWindow.getPosition()",
+  //     webcameraWindow.getPosition()
+  //   )
+  // })
 }
 
 function handleMoveWindows(window: BrowserWindow) {
   const currentScreen = screen.getDisplayNearestPoint(window.getBounds())
   const displays = screen.getAllDisplays()
   const maxXPos = displays.reduce((acc, d) => acc + d.bounds.width, 0)
-  const lastWebcameraPos = webcameraWindow.getPosition()
-  const lastModalPos = modalWindow.getPosition()
+
   // const maxXPos = displays.reduce((acc, d) => (acc + d.bounds.width), 0)
 
-  console.log("maxXPos", maxXPos)
+  // console.log("maxXPos", maxXPos)
 
   if (activeDisplay && activeDisplay.id != currentScreen.id) {
     mainWindow.webContents.send("screen:change", currentScreen)
-    webcameraWindow.setPosition(
-      lastWebcameraPos[0]! + currentScreen.bounds.x,
-      lastWebcameraPos[1]!
+    const lastScreenBounds = activeDisplay.bounds
+    const newScreenBounds = currentScreen.bounds
+    const lastWebcameraBounds = webcameraWindow.getPosition()
+    const lastModalBounds = modalWindow.getBounds()
+    const dirX = lastScreenBounds.x > 0 ? -1 : 1
+    const dirY = lastScreenBounds.y > 0 ? -1 : 1
+    const lastX =
+      (lastWebcameraBounds[0]! + dirX * lastScreenBounds.x) /
+      lastScreenBounds.width
+    const lastY =
+      (lastWebcameraBounds[1]! + dirY * lastScreenBounds.y) /
+      lastScreenBounds.height
+
+    console.log(
+      "lastX, lastY",
+      lastWebcameraBounds[0]! + dirX * lastScreenBounds.x,
+      " - ",
+      lastX,
+      lastWebcameraBounds[1]! + dirY * lastScreenBounds.y,
+      " - ",
+      lastY
     )
+    const newX = newScreenBounds.x + Math.round(newScreenBounds.width * lastX)
+    const newY = newScreenBounds.y + Math.round(newScreenBounds.height * lastY)
+
+    // const newX = 1437
+
+    console.log("newDisplay.bounds", currentScreen.bounds)
+    console.log("prevDisplay.bounds", activeDisplay.bounds)
+    console.log("lastWebcameraBounds", lastWebcameraBounds)
+    console.log("lastModalBounds", lastModalBounds)
+    console.log("newX, newY", newX, newY)
+
+    webcameraWindow.setPosition(newX, newY)
+    // setTimeout(() => {
+    //   // webcameraWindow.setBounds({x: newX, y: newY})
+    // }, 1000)
+    //
   }
 
   activeDisplay = currentScreen
@@ -1092,11 +1123,11 @@ function handleMoveWindows(window: BrowserWindow) {
 
   const screenBounds = activeDisplay.bounds
   const webcameraPosition = webcameraWindow.getPosition()
-  console.log("!!!moved screenBounds", screenBounds)
-  console.log(
-    "!!!moved webcameraWindow.getPosition()",
-    webcameraWindow.getPosition()
-  )
+  // console.log("!!!moved screenBounds", screenBounds)
+  // console.log(
+  //   "!!!moved webcameraWindow.getPosition()",
+  //   webcameraWindow.getPosition()
+  // )
   // webcameraWindow.setPosition(webcameraPosition[0]! + screenBounds.x, webcameraPosition[1]! + screenBounds.y)
   mainWindow.setBounds(screenBounds)
 }
