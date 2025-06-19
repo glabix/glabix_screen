@@ -14,8 +14,12 @@ struct RecordConfiguration {
     var recordResolution: RecordResolution { config.resolution }
     var cropRect: CGRect? { config.cropRect.map { .init(x: $0.x, y: $0.y, width: $0.width, height: $0.height) } }
     var captureMicrophone: Bool { config.captureMicrophone }
+    var microphoneUniqueID : String? { config.microphoneUniqueID }
     var minChunkSizeBytes: Int {
-        Int(Measurement(value: Double(config.minChunkSizeMebibytes), unit: UnitInformationStorage.mebibytes).converted(to: .bytes).value)
+        Int(Measurement(value: config.minChunkSizeMebibytes, unit: UnitInformationStorage.mebibytes).converted(to: .bytes).value)
+    }
+    var minChunkDuration: CMTime {
+        CMTime(seconds: config.minChunkDurationSeconds, preferredTimescale: 100)
     }
     var outputDirectoryURL: URL {
         URL(fileURLWithPath: config.chunksDirectoryPath)

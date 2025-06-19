@@ -399,9 +399,9 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
 
 const getSupportedMimeType = () => {
   const defaultMimeType = "video/mp4"
-  const h264MimeType = "video/webm;codecs=h264"
-  if (MediaRecorder.isTypeSupported(h264MimeType)) {
-    return h264MimeType
+  const vp9MimeType = "video/webm;codecs=vp9"
+  if (MediaRecorder.isTypeSupported(vp9MimeType)) {
+    return vp9MimeType
   } else {
     return defaultMimeType
   }
@@ -416,7 +416,9 @@ const createVideo = (stream: MediaStream, _video) => {
   videoRecorder.onerror = (event) => {
     window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.onerror",
-      body: JSON.stringify(event),
+      body:
+        JSON.stringify(event, Object.getOwnPropertyNames(event)) +
+        ` name: ${event.error.name}, event.error.message: ${event.error.message}`,
     })
   }
 
@@ -433,7 +435,11 @@ const createVideo = (stream: MediaStream, _video) => {
     updateRecorderState("paused")
   }
 
-  videoRecorder.onstart = function (e) {}
+  videoRecorder.onstart = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onstart",
+    })
+  }
 
   videoRecorder.onresume = function (e) {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -463,8 +469,8 @@ const createVideo = (stream: MediaStream, _video) => {
         })
       })
       .catch((e) => {
-        window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
-          title: "videoRecorder.onerror",
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `recorder.renderer readFileAsync:`,
           body: JSON.stringify(e),
         })
       })

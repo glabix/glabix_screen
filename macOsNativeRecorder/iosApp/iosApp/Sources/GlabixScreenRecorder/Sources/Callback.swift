@@ -1,5 +1,5 @@
 //
-//  ScreenRecorderService.swift
+//  Callback.swift
 //  GlabixScreenRecorder
 //
 //  Created by Pavel Feklistov on 06.05.2025.
@@ -92,56 +92,4 @@ extension Callback {
         var action: RecordingAction = .stopped
         let lastChunkIndex: Int?
     }
-}
-
-class ScreenRecorderService {
-    private let recorder = ScreenRecorder()
-    private let captureDevicesObserver = CaptureDevicesObserver()
-    private let commandQueue = DispatchQueue(label: "com.glabix.screen.commandQueue")
-
-    func pause() {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                recorder.chunksManager?.pause()
-            }
-        }
-    }
-    
-    func resume() {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                recorder.chunksManager?.resume()
-            }
-        }
-    }
-    
-    func configureRecorder(with config: Config) {
-        commandQueue.async { [recorder] in
-            Task { [recorder] in
-                defer { fflush(stdout) }
-                do {
-                    try await recorder.configureAndInitialize(with: config)
-                }
-            }
-        }
-    }
-    
-    func startRecording() {
-        defer { fflush(stdout) }
-        
-        recorder.start()
-    }
-    
-    func stopRecording() {
-        defer { fflush(stdout) }
-        recorder.stop()
-    }
-    
-    func printAudioInputDevices() {
-        recorder.printAudioInputDevices()
-    }
-    
-//    func printVideoInputDevices() {
-//        recorder.printVideoInputDevices()
-//    }
 }

@@ -1,5 +1,5 @@
 //
-//  ScreenWriter.swift
+//  AssetWriter.swift
 //  iosApp
 //
 //  Created by Pavel Feklistov on 18.04.2025.
@@ -8,17 +8,19 @@
 
 import AVFoundation
 
-final class ScreenWriter {
-    private var screenAssetWriter: AVAssetWriter?
-    private var micAssetWriter: AVAssetWriter?
+final class AssetWriter: @unchecked Sendable {
+    private let screenAssetWriter: AVAssetWriter?
+    private let micAssetWriter: AVAssetWriter?
     private let chunkIndex: Int
-    var videoWriterInput: AVAssetWriterInput?
-    var systemAudioWriterInput: AVAssetWriterInput?
-    var micWriterInput: AVAssetWriterInput?
-//    private let queue = DispatchQueue(label: "com.glabix.screen.chunkWriter")
+    let videoWriterInput: AVAssetWriterInput?
+    let systemAudioWriterInput: AVAssetWriterInput?
+    let micWriterInput: AVAssetWriterInput?
     
     var debugStatus: String {
         [screenAssetWriter?.status.rawValue.description ?? "-1", screenAssetWriter?.error.debugDescription ?? ""].joined(separator: " ")
+    }
+    var screenError: Error? {
+        screenAssetWriter?.error
     }
     
     init(
@@ -45,6 +47,17 @@ final class ScreenWriter {
         }
         if let micWriterInput = micWriterInput {
             micAssetWriter?.add(micWriterInput)
+        }
+    }
+        
+    func isRecording(type: ScreenRecorderSourceType) -> Bool {
+        switch type {
+            case .systemAudio:
+                systemAudioWriterInput != nil
+            case .screen:
+                videoWriterInput != nil
+            case .mic:
+                micWriterInput != nil
         }
     }
     

@@ -2,7 +2,7 @@ import Foundation
 import ArgumentParser
 
 @main
-struct GlabixScreenRecorder: ParsableCommand {
+struct GlabixScreenRecorder: AsyncParsableCommand {
 //    @Argument(help: "JSON configuration for recording (optional)")
 //    var configJSON: String?
     
@@ -18,14 +18,15 @@ struct GlabixScreenRecorder: ParsableCommand {
     )
     var verbose: Bool = true
     
-    func run() throws {
+    func run() async throws {
         Log.shared.verbose = verbose
         
         Log.success("Recorder module launched \(verbose)")
         
-        let recorder = ScreenRecorderService()
+        let captureDevicesObserver = CaptureDevicesObserver()
+        let recorder = ScreenRecorder()
         
-        DispatchQueue.global().async {
+        let commandTask = Task {
             while let input = readLine() {
                 defer { fflush(stdout) }
                 
@@ -39,15 +40,15 @@ struct GlabixScreenRecorder: ParsableCommand {
                     // {"action": "printAudioInputDevices"}
                     switch command.action {
                         case .configure:
-                            recorder.configureRecorder(with: command.config!)
+                            try? await recorder.configureAndInitialize(with: command.config!)
                         case .start:
-                            recorder.startRecording()
+                            await recorder.start()
                         case .stop:
-                            recorder.stopRecording()
+                            await recorder.stop()
                         case .pause:
-                            recorder.pause()
+                            await recorder.pause()
                         case .resume:
-                            recorder.resume()
+                            await recorder.resume()
                         case .printAudioInputDevices:
                             recorder.printAudioInputDevices()
 //                        case .printVideoInputDevices:
@@ -56,16 +57,16 @@ struct GlabixScreenRecorder: ParsableCommand {
                 } catch {
                     let action = commandJSON
                     switch action {
-                        case "config":
-                            recorder.configureRecorder(with: .development)
+                        case "config", "c":
+                            try? await recorder.configureAndInitialize(with: .development)
                         case "start", "s":
-                            recorder.startRecording()
-                        case "stop":
-                            recorder.stopRecording()
+                            await recorder.start()
+                        case "stop", "t":
+                            await recorder.stop()
                         case "pause", "p":
-                            recorder.pause()
+                            await recorder.pause()
                         case "resume", "r":
-                            recorder.resume()
+                            await recorder.resume()
                         case "mics":
                             recorder.printAudioInputDevices()
 //                        case "cams":
@@ -74,9 +75,10 @@ struct GlabixScreenRecorder: ParsableCommand {
                             print("invalid command format", error)
                     }
                 }
+                await Task.yield()
             }
         }
-        RunLoop.main.run()
+        await commandTask.value
     }
 }
 

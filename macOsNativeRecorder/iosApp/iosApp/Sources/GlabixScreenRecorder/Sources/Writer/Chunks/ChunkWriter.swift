@@ -8,54 +8,21 @@
 
 import AVFoundation
 
-enum ChunkWriterStatus {
-    case active
-    case cancelling
-    case cancelled
-    case finalizing
-    case finalized
-    
-    var description: String {
-        switch self {
-            case .active:
-                "active"
-            case .cancelling:
-                "cancelling"
-            case .cancelled:
-                "cancelled"
-            case .finalizing:
-                "finalizing"
-            case .finalized:
-                "finalized"
+actor ChunkWriter {
+    private var writer: AssetWriter?
+    var startTime: CMTime?
+    private var endedAt: CMTime?
+    var endTime: CMTime? {
+        didSet {
+            guard endTime != nil else { return }
+            endedAt = CMClock.hostTimeClock.time
         }
     }
-}
-
-private struct ChunkURLBuilder {
-    let chunkIndex: Int
-    let dirURL: URL?
-    
-    var screenURL: URL? {
-        dirURL?.appendingPathComponent("chunk_\(chunkIndex).mp4")
-    }
-    
-    var micURL: URL? {
-        dirURL?.appendingPathComponent("chunk_\(chunkIndex).m4a")
-    }
-}
-
-struct PendingBuffer {
-    let type: ScreenRecorderSourceType
-    let sampleBuffer: CMSampleBuffer
-}
-
-final class ChunkWriter {
-    private var writer: ScreenWriter?
-    var startTime: CMTime?
-    var endTime: CMTime?
     let chunkIndex: Int
     
-    private var lastScreenSampleBuffer: CMSampleBuffer?
+    private let minChunkSizeBytes: Int
+    private let minChunkDuration: CMTime
+    private var lastScreenSampleBuffer: CMSampleBuffer? // set at `initialOf_TYPE`
 //    var _firstMicSampleBufferAt: CMTime?
 //    var _firstSystemAudioSampleBufferAt: CMTime?
 //    var _lastMicSampleBufferAt: CMTime?
@@ -63,7 +30,7 @@ final class ChunkWriter {
 //    var _lastSystemAudioSampleBufferAt: CMTime?
 //    var _lastSystemAudioSampleBufferDuration: CMTime?
     private var hasAnySampleBufferOf: [ScreenRecorderSourceType: Bool] = [:]
-    private var pendingBuffers: [PendingBuffer] = []
+    private var pendingBuffers: [SampleBufferData] = []
 
     private var status: ChunkWriterStatus = .active
     
@@ -74,13 +41,17 @@ final class ChunkWriter {
     var isActive: Bool { writer != nil && status == .active }
     var isActiveOrFinalizing: Bool { writer != nil && (status == .active || status == .finalizing) }
     var isNotCancelled: Bool { status != .cancelled && status != .cancelling }
+    var isFinalizedOrCancelled: Bool { [.cancelled, .finalized].contains(status) }
     var debugStatus: ChunkWriterStatus { status }
+    private var debugBacklog: [String] = []
+    private var sourceTypeCompletionMapping: [ScreenRecorderSourceType: Bool] = [:]
+                            
     var debugInfo: String {
         [
             "(\(chunkIndex))",
             "time: \(startTime?.seconds ?? -1)-\(endTime?.seconds ?? -1)",
             "writer?: \(writer != nil)",
-            "stetus: \(status)",
+            "status: \(status)",
             "lastScreenAt: \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? -1)",
             "writer status: \(writer?.debugStatus ?? "n/a")",
             "size: \(calcCurrentFileSize().formatted(.byteCount(style: .file)))"
@@ -95,6 +66,9 @@ final class ChunkWriter {
         captureMicrophone: Bool,
         index: Int,
     ) {
+        minChunkSizeBytes = recordConfiguration.minChunkSizeBytes
+        minChunkDuration = recordConfiguration.minChunkDuration
+        
         let outputDirectoryURL = recordConfiguration.outputDirectoryURL
         let urlBuilder = ChunkURLBuilder(chunkIndex: index, dirURL: outputDirectoryURL)
         
@@ -104,7 +78,7 @@ final class ChunkWriter {
         } else { nil }
         
         do {
-            self.writer = try ScreenWriter(
+            self.writer = try AssetWriter(
                 screenOutputURL: outputScreenChunkURL,
                 micOutputURL: outputMicChunkURL,
                 screenConfigurator: screenConfigurator,
@@ -116,8 +90,43 @@ final class ChunkWriter {
         }
         
         self.chunkIndex = index
+    }
+    
+    private func debugLog(_ message: String) {
+        debugBacklog.append(message)
+//        Log.print(message, chunkIndex: chunkIndex)
+    }
+    
+    func handleProcessedSampleBuffer(type: ScreenRecorderSourceType, at timestamp: CMTime) {
+        guard let endTime = endTime, !isAllSourceTypesCompleted else { return }
+        sourceTypeCompletionMapping[type] = timestamp >= endTime
         
-        removeOutputFiles()
+        if isAllSourceTypesCompleted {
+//            let diff = CMClock.hostTimeClock.time - (endedAt ?? .zero)
+//            Log.success("completed \(type) diff \(diff.seconds) \(status)", chunkIndex: chunkIndex)
+            
+            Task {
+                if status == .finalizing {
+                    try! await finalize()
+                }
+            }
+        }
+    }
+    
+    private var isAllSourceTypesCompleted: Bool {
+        ScreenRecorderSourceType.allCases.allSatisfy { type in
+            writer?.isRecording(type: type) != true || sourceTypeCompletionMapping[type] == true
+        }
+    }
+    
+    func setEndIfNeeded(at timestamp: CMTime) -> CMTime? {
+        guard let startTime = startTime else { return nil }
+        let duration = timestamp - startTime
+        guard endTime == nil, calcCurrentFileSize() >= minChunkSizeBytes, duration >= minChunkDuration else { return nil }
+        
+        let endTime = timestamp + CMTime(seconds: 0.3, preferredTimescale: 10) // need time to start recording session on next chunk writer
+        self.endTime = endTime
+        return endTime
     }
     
     func startAt(_ startTime: CMTime?) {
@@ -134,53 +143,35 @@ final class ChunkWriter {
         }
     }
     
-    func updateStatusOnFinalizeOrCancel(endTime: CMTime) {
-        Log.print("(\(chunkIndex)) updateStatusOnFinalizeOrCancel at \(endTime.seconds)", Log.nowString)
-        
+    func finalizeOrCancel(endTime: CMTime) {
+        debugLog("finalizeOrCancel at \(endTime.seconds) value \(isAllSourceTypesCompleted)")
         self.endTime = endTime
         
         if shouldCancel(atEndTime: endTime) {
             status = .cancelling
+            Task {
+                await cancel()
+            }
         } else {
             status = .finalizing
         }
     }
     
-    func finalizeOrCancelWithDelay(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) async {
-        Log.print("(\(chunkIndex)) finalizeOrCancelWithDelay at \(endTime.seconds)", Log.nowString)
-        
-        if shouldCancel(atEndTime: endTime) {
-            status = .cancelling
-        } else {
-            status = .finalizing
-            self.endTime = endTime
-            
-            try? await Task.sleep(for: .seconds(0.3))
+    private func finalize() async throws {
+        guard let endTime = endTime else {
+            throw ChunkWriterError.undefinedFinalizeTime
         }
         
-        await finalizeOrCancel(endTime: endTime, lastSampleBuffers: lastSampleBuffers)
-    }
-    
-    private func finalizeOrCancel(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) async {
-        if shouldCancel(atEndTime: endTime) {
-            await cancel()
-        } else {
-            await finalize(endTime: endTime, lastSampleBuffers: lastSampleBuffers)
-        }
-    }
-    
-    private func finalize(endTime: CMTime, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) async {
         status = .finalized
-        self.endTime = endTime
         
-        Log.print("chunk writer finalized pending \(pendingBuffers.count) at \(endTime.seconds) glob \(lastSampleBuffers[.screen]?.chunkIndex) \(lastSampleBuffers[.screen]?.sampleBuffer.presentationTimeStamp.seconds) \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? 0)", chunkIndex: chunkIndex)
-        if let lastSampleBuffer = lastScreenSampleBuffer ?? lastSampleBuffers[.screen]?.sampleBuffer {
+        debugLog("chunk writer finalized. pending \(pendingBuffers.count) at \(endTime.seconds) lastAt: \(lastScreenSampleBuffer?.presentationTimeStamp.seconds ?? 0)")
+        if let lastSampleBuffer = lastScreenSampleBuffer {
             if let finalSampleBuffer = SampleBufferBuilder.buildAdditionalSampleBuffer(from: lastSampleBuffer, at: endTime) {
                 if finalSampleBuffer.presentationTimeStamp != lastSampleBuffer.presentationTimeStamp {
-                    appendSampleBuffer(finalSampleBuffer, type: .screen, lastSampleBuffers: lastSampleBuffers)
-                    Log.print("writing as last screen time:", lastSampleBuffer.presentationTimeStamp.seconds, "endtime", endTime.seconds, "final at", finalSampleBuffer.presentationTimeStamp.seconds, chunkIndex: chunkIndex)
+                    appendSampleBuffer(SampleBufferData(type: .screen, sampleBuffer: finalSampleBuffer), lastSampleBuffers: [:], debugString: "lastScreenSample")
+                    debugLog("writing as last screen time: \(lastSampleBuffer.presentationTimeStamp.seconds) endtime \(endTime.seconds) final at \(finalSampleBuffer.presentationTimeStamp.seconds)")
                 } else {
-                    Log.warn("writing SKIPPED as last screen time:", lastSampleBuffer.presentationTimeStamp.seconds, "endtime", endTime.seconds, "final at", finalSampleBuffer.presentationTimeStamp.seconds, chunkIndex: chunkIndex)
+                    debugLog("writing SKIPPED as last screen time: \(lastSampleBuffer.presentationTimeStamp.seconds) endtime \(endTime.seconds) final at \(finalSampleBuffer.presentationTimeStamp.seconds)")
                 }
             }
         }
@@ -193,6 +184,13 @@ final class ChunkWriter {
 //        Log.info("_finalized sys: \(sysDiff.seconds) \(sysDiffWithDuration.seconds); first SystemAudio: \(_firstSystemAudioSampleBufferAt?.seconds ?? 0); last SystemAudio: \(_lastSystemAudioSampleBufferAt?.seconds ?? 0)", chunkIndex: chunkIndex)
 //        Log.info("_finalized mic: \(micDiff.seconds) \(micDiffWithDuration.seconds); first mic: \(_firstMicSampleBufferAt?.seconds ?? 0); last mic: \(_lastMicSampleBufferAt?.seconds ?? 0)", chunkIndex: chunkIndex)
         tryWritePendingBuffers()
+        
+        if let error = writer?.screenError as? Error {
+            Log.error("Chunk writer failed due to `\(error.localizedDescription)`", chunkIndex: chunkIndex)
+            debugBacklog.forEach { row in
+                Log.print(row, chunkIndex: chunkIndex)
+            }
+        }
         
         await writer?.finalize(endTime: endTime)
         writer = nil
@@ -222,7 +220,7 @@ final class ChunkWriter {
         Log.print("chunk writer cancelled #\(chunkIndex) at \(endTime.seconds)")
     }
     
-    private func removeOutputFiles() {
+    func removeOutputFiles() {
         if let screenChunkURL = outputScreenChunkURL, fileManager.fileExists(atPath: screenChunkURL.path()) {
             do {
                 try fileManager.removeItem(at: screenChunkURL)
@@ -240,11 +238,13 @@ final class ChunkWriter {
         }
     }
     
-    func appendSampleBuffer(_ sampleBuffer: CMSampleBuffer?, type: ScreenRecorderSourceType, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer]) {
-        guard let sampleBuffer = sampleBuffer else {
-            Log.error("\(type) sample buffer is nil", chunkIndex: chunkIndex)
-            return
-        }
+    func appendSampleBuffer(_ buffer: SampleBufferData, lastSampleBuffers: [ScreenRecorderSourceType: LastSampleBuffer], debugString: String) {
+        let type = buffer.type
+        let sampleBuffer = buffer.sampleBuffer
+//        guard let sampleBuffer = buffer.sampleBuffer else {
+//            Log.error("\(type) sample buffer is nil", chunkIndex: chunkIndex)
+//            return
+//        }
         
         let isFirstSampleBufferOfType = hasAnySampleBufferOf[type] != true
         hasAnySampleBufferOf[type] = true
@@ -259,10 +259,10 @@ final class ChunkWriter {
            )
         {
             if (sampleBuffer.presentationTimeStamp != startTime) {
-                Log.print("(\(chunkIndex)) writing as first \(type) time:", lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", startTime.seconds, Log.nowString)
-                appendSampleBuffer(additionalSampleBuffer, type: type, lastSampleBuffers: lastSampleBuffers)
+                debugLog("writing as first \(type) time: \(lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds) at \(startTime.seconds)")
+                appendSampleBuffer(SampleBufferData(type: type, sampleBuffer: additionalSampleBuffer), lastSampleBuffers: lastSampleBuffers, debugString: "initialOf_\(type)")
             } else {
-                Log.warn("(\(chunkIndex)) writing SKIPPED as first \(type) time:", lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds, "at", startTime.seconds, Log.nowString)
+                debugLog("writing SKIPPED as first \(type) time: \(lastSampleBuffer.sampleBuffer.presentationTimeStamp.seconds) at \(startTime.seconds)")
             }
         }
         
@@ -285,17 +285,17 @@ final class ChunkWriter {
         }
         
         guard let assetWriterInput = readyInput(forType: type, sampleBuffer: sampleBuffer) else {
-            pendingBuffers.append(PendingBuffer(type: type, sampleBuffer: sampleBuffer))
+            pendingBuffers.append(buffer)
             return
         }
         
-//        if status == .finalizing {
-//            Log.print("appending to finalizing chunk \(type) at \(timestamp?.seconds ?? 0) endAt \(endTime?.seconds ?? 0) diff \(CMClock.hostTimeClock.time.seconds - sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
-//        }
+        if status == .finalizing {
+            debugLog("appending to finalizing chunk \(type) at \(sampleBuffer.presentationTimeStamp.seconds) endAt \(endTime?.seconds ?? 0) diff \(CMClock.hostTimeClock.time.seconds - sampleBuffer.presentationTimeStamp.seconds)")
+        }
         
-//        if type == .screen {
-//            Log.print("processing buffer \(type) at \(sampleBuffer.presentationTimeStamp.seconds) \(debugInfo)", chunkIndex: chunkIndex)
-//        }
+        if type == .screen {
+            debugLog("processing buffer \(type) at \(sampleBuffer.presentationTimeStamp.seconds) \(debugInfo) \(debugString)")
+        }
         
         assetWriterInput.append(sampleBuffer)
         
@@ -304,7 +304,7 @@ final class ChunkWriter {
     
     private func readyInput(forType type: ScreenRecorderSourceType, sampleBuffer: CMSampleBuffer) -> AVAssetWriterInput? {
         guard let writer = writer else {
-            Log.error("no writer found \(type) at \(sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
+            debugLog("no writer found \(type) at \(sampleBuffer.presentationTimeStamp.seconds)")
             return nil
         }
         
@@ -320,7 +320,7 @@ final class ChunkWriter {
         }
         
         guard assetWriterInput.isReadyForMoreMediaData else {
-            Log.error("assetWriter is not ready for \(type)", "value:", assetWriterInput.isReadyForMoreMediaData, "time:", sampleBuffer.presentationTimeStamp.seconds, chunkIndex: chunkIndex)
+            debugLog("assetWriter is not ready for \(type) value: \(assetWriterInput.isReadyForMoreMediaData) time: \(sampleBuffer.presentationTimeStamp.seconds)")
             return nil
         }
         
@@ -332,17 +332,17 @@ final class ChunkWriter {
               let pending = pendingBuffers.first {
               
             guard let assetWriterInput = readyInput(forType: pending.type, sampleBuffer: pending.sampleBuffer) else {
-                Log.warn("Failed to append buffer of \(pending.type) time: \(pending.sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
+                debugLog("Failed to append buffer of \(pending.type) time: \(pending.sampleBuffer.presentationTimeStamp.seconds)")
                 break
             }
             
-            Log.info("Appending buffer of \(pending.type) time: \(pending.sampleBuffer.presentationTimeStamp.seconds)", chunkIndex: chunkIndex)
+            debugLog("Appending buffer of \(pending.type) time: \(pending.sampleBuffer.presentationTimeStamp.seconds)")
             assetWriterInput.append(pending.sampleBuffer)
             pendingBuffers.removeFirst()
         }
     }
     
-    func calcCurrentFileSize() -> Int {
+    private func calcCurrentFileSize() -> Int {
         return (try? outputScreenChunkURL?.fileSize()) ?? 0
     }
 }
