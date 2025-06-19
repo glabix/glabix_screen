@@ -409,7 +409,8 @@ const getSupportedMimeType = () => {
 
 const createVideo = (stream: MediaStream, _video) => {
   videoRecorder = new MediaRecorder(stream, {
-    mimeType: getSupportedMimeType(),
+    // mimeType: getSupportedMimeType(),
+    mimeType: "video/webm; codecs=vp9",
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
