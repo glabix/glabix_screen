@@ -372,12 +372,6 @@ if (!gotTheLock) {
             callback({ video: screen, audio: "loopback" })
           })
           .catch((error) => {
-            setLog(
-              LogLevel.ERROR,
-              "session.defaultSession.setDisplayMediaRequestHandler",
-              JSON.stringify(error)
-            )
-
             if (os.platform() == "darwin") {
               mainWindow.webContents
                 .executeJavaScript(

@@ -399,9 +399,9 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
 
 const getSupportedMimeType = () => {
   const defaultMimeType = "video/mp4"
-  const h264MimeType = "video/webm;codecs=h264"
-  if (MediaRecorder.isTypeSupported(h264MimeType)) {
-    return h264MimeType
+  const vp9MimeType = "video/webm;codecs=vp9"
+  if (MediaRecorder.isTypeSupported(vp9MimeType)) {
+    return vp9MimeType
   } else {
     return defaultMimeType
   }
