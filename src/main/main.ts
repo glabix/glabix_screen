@@ -149,8 +149,6 @@ app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
-// app.commandLine.appendSwitch("disable-accelerated-video-encode")
-// app.disableHardwareAcceleration()
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
@@ -370,14 +368,6 @@ if (!gotTheLock) {
                 sources.find((s) => Number(s.display_id) == activeDisplay.id) ||
                 sources[0]
             }
-
-            setLog(LogLevel.INFO, "sources", JSON.stringify(sources))
-            setLog(LogLevel.INFO, "screen", JSON.stringify(screen))
-            setLog(
-              LogLevel.INFO,
-              "activeDisplay",
-              JSON.stringify(activeDisplay)
-            )
 
             callback({ video: screen, audio: "loopback" })
           })

@@ -409,8 +409,7 @@ const getSupportedMimeType = () => {
 
 const createVideo = (stream: MediaStream, _video) => {
   videoRecorder = new MediaRecorder(stream, {
-    // mimeType: getSupportedMimeType(),
-    mimeType: "video/webm; codecs=vp9",
+    mimeType: getSupportedMimeType(),
     videoBitsPerSecond: 2500000, // 2.5 Mbps
   })
 
@@ -419,7 +418,7 @@ const createVideo = (stream: MediaStream, _video) => {
       title: "videoRecorder.onerror",
       body:
         JSON.stringify(event, Object.getOwnPropertyNames(event)) +
-        ` event.type: ${event.type}, event.error.type: ${event.error.type}, name: ${event.error.name}, event.error.message: ${event.error.message}`,
+        ` name: ${event.error.name}, event.error.message: ${event.error.message}`,
     })
   }
 
