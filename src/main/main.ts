@@ -717,6 +717,7 @@ function createWindow() {
   const { x, y, width, height } = screen.getPrimaryDisplay().bounds
   // Create the browser window.
   mainWindow = new BrowserWindow({
+    titleBarStyle: "hidden",
     transparent: true,
     frame: false,
     thickFrame: false,
