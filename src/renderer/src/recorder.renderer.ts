@@ -32,6 +32,7 @@ import {
 } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
+import { blob } from "stream/consumers"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 let SHORTCUTS_TEXT_MAP = {}
@@ -689,11 +690,6 @@ const updateCropVideoData = (data: {
   if (data.height) {
     cropVideoData = { ...cropVideoData, out_h: data.height }
   }
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `updateCropVideoData`,
-    body: JSON.stringify(cropVideoData),
-  })
 }
 
 const initView = (settings: IStreamSettings, force?: boolean) => {
@@ -977,13 +973,12 @@ window.electronAPI.ipcRenderer.on(
           screen.classList.add("is-recording")
           const screenMove = cropMoveable!.getControlBoxElement()
           screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
-
-          window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
-            cropVideoData,
-            fileUuid: file_uuid,
+          sendCropData().then(() => {
+            startRecording()
           })
+        } else {
+          startRecording()
         }
-        startRecording()
       })
     })
   }
@@ -1287,6 +1282,38 @@ function updateHotkeysTexts() {
       } else {
         el.setAttribute("hidden", "")
       }
+    }
+  })
+}
+
+function sendCropData(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tempVideo = document.createElement("video")
+    tempVideo.srcObject = combineStream!
+    tempVideo.onloadedmetadata = () => {
+      const screenWidth = window.innerWidth
+      const screenHeight = window.innerHeight
+      const videoWidth = tempVideo.videoWidth
+      const videoHeight = tempVideo.videoHeight
+      const XRatio = videoWidth / window.innerWidth
+      const YRatio = videoHeight / window.innerHeight
+
+      const cropData: ICropVideoData = {
+        x: Math.round(cropVideoData!.x * XRatio),
+        y: Math.round(cropVideoData!.y * YRatio),
+        out_w: Math.round(cropVideoData!.out_w * XRatio),
+        out_h: Math.round(cropVideoData!.out_h * YRatio),
+      }
+
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `Video Size: ${videoWidth}x${videoHeight} Screen Size: ${screenWidth}x${screenHeight}`,
+      })
+      window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
+        fileUuid: currentRecordedUuid,
+        cropVideoData: cropData,
+      })
+
+      resolve()
     }
   })
 }
