@@ -1680,12 +1680,27 @@ ipcMain.on(RecordEvents.SET_CROP_DATA, (event, data) => {
     cropVideoData: ICropVideoData
   }
 
+  logSender.sendLog(
+    "!!!!RecordEvents.SET_CROP_DATA activeDisplay: ",
+    stringify({ activeDisplay })
+  )
+  logSender.sendLog(
+    "!!!!RecordEvents.SET_CROP_DATA init: ",
+    stringify({ cropVideoData })
+  )
+
   const cropData: ICropVideoData = {
     x: Math.round(cropVideoData.x * activeDisplay.scaleFactor),
     y: Math.round(cropVideoData.y * activeDisplay.scaleFactor),
     out_w: Math.round(cropVideoData.out_w * activeDisplay.scaleFactor),
     out_h: Math.round(cropVideoData.out_h * activeDisplay.scaleFactor),
   }
+
+  logSender.sendLog(
+    "!!!!RecordEvents.SET_CROP_DATA finish: ",
+    stringify({ cropData })
+  )
+
   const cropEvent: RecordSetCropDataEventV3 = {
     type: RecordEventsV3.SET_CROP_DATA,
     innerFileUuid: fileUuid,
