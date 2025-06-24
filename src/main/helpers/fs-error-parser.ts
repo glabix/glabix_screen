@@ -66,6 +66,5 @@ export function fsErrorParser(err, chunkPath) {
       )
     }, 500)
   }
-
-  throw new Error(err)
+  throw err
 }
