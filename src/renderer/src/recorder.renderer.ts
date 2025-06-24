@@ -411,7 +411,7 @@ const getSupportedMimeType = () => {
 const createVideo = (stream: MediaStream, _video) => {
   videoRecorder = new MediaRecorder(stream, {
     mimeType: getSupportedMimeType(),
-    videoBitsPerSecond: 2500000, // 2.5 Mbps
+    videoBitsPerSecond: 5_000_000, // 5 Mbps
   })
 
   videoRecorder.onerror = (event) => {
