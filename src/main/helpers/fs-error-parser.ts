@@ -6,10 +6,17 @@ const logSender = new LogSender()
 
 export function fsErrorParser(err, chunkPath) {
   if (err.code === "ENOENT") {
-    showRecordErrorBox(
-      "Ошибка при работе с файловой системой ENOENT",
-      "Перезапустите приложение"
+    logSender.sendLog(
+      `Ошибка при работе с файловой системой ENOENT: ${chunkPath}`,
+      stringify(err),
+      true
     )
+    setTimeout(() => {
+      showRecordErrorBox(
+        "Ошибка при работе с файловой системой ENOENT",
+        "Перезапустите приложение"
+      )
+    }, 100)
   } else if (err.code === "EACCES") {
     // Если ошибка из-за прав доступа
     logSender.sendLog(
@@ -17,10 +24,12 @@ export function fsErrorParser(err, chunkPath) {
       stringify(err),
       true
     )
-    showRecordErrorBox(
-      `Нет доступа для записи в файл: ${chunkPath}`,
-      "Перезапустите приложение"
-    )
+    setTimeout(() => {
+      showRecordErrorBox(
+        `Нет доступа для записи в файл: ${chunkPath}`,
+        "Перезапустите приложение"
+      )
+    }, 500)
   } else if (err.code === "ENOSPC") {
     // Ошибка отсутствия места на диске
     logSender.sendLog(
@@ -28,10 +37,12 @@ export function fsErrorParser(err, chunkPath) {
       stringify(err),
       true
     )
-    showRecordErrorBox(
-      `Нет места на диске для записи файла: ${chunkPath}`,
-      "Освободите место и перезапустите приложение"
-    )
+    setTimeout(() => {
+      showRecordErrorBox(
+        `Нет места на диске для записи файла: ${chunkPath}`,
+        "Освободите место и перезапустите приложение"
+      )
+    }, 500)
   } else if (err.code === "EISDIR") {
     // Если путь является директорией, а не файлом
     logSender.sendLog(
@@ -39,17 +50,21 @@ export function fsErrorParser(err, chunkPath) {
       stringify(err),
       true
     )
-    showRecordErrorBox(
-      "Ошибка при работе с файловой системой EISDIR",
-      "Перезапустите приложение"
-    )
+    setTimeout(() => {
+      showRecordErrorBox(
+        "Ошибка при работе с файловой системой EISDIR",
+        "Перезапустите приложение"
+      )
+    }, 500)
   } else {
     // Для других ошибок просто передаем их
     logSender.sendLog(`Неизвестная ошибка`, stringify(err), true)
-    showRecordErrorBox(
-      "Неизвестная ошибка при работе с файловой системой",
-      "Обратитесь в поддержку для решения проблемы"
-    )
+    setTimeout(() => {
+      showRecordErrorBox(
+        "Неизвестная ошибка при работе с файловой системой",
+        "Обратитесь в поддержку для решения проблемы"
+      )
+    }, 500)
   }
   throw err
 }
