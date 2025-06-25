@@ -229,9 +229,15 @@ const initializeDatabase = async () => {
 function init(url: string) {
   if (mainWindow) {
     // Someone tried to run a second instance, we should focus our window.
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+
+    if (!isRecording) {
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
+    }
   }
 
   if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
@@ -1322,7 +1328,13 @@ app.on("activate", () => {
     logSender.sendLog("app.activated")
     createWindow()
   } else {
-    showWindows()
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+
+    if (!isRecording) {
+      showWindows()
+    }
   }
 })
 
