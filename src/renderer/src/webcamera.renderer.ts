@@ -33,6 +33,14 @@ const AVATAR_TYPES: AvatarTypes[] = [
   "rect-lg",
   "rect-xl",
 ]
+const AVATAR_SIZES: { [key: string]: number } = {
+  "circle-sm": 200,
+  "circle-lg": 360,
+  "circle-xl": 560,
+  "rect-sm": 300,
+  "rect-lg": 650,
+  "rect-xl": 0.8 * document.body.offsetWidth,
+}
 
 const LAST_PANEL_SETTINGS_NAME = "LAST_PANEL_SETTINGS"
 let lastPanelSettings: ILastPanelSettings | null = null
@@ -132,17 +140,6 @@ function setLastPanelSettings() {
 }
 
 function initDraggableZone() {
-  lastPanelSettings = getLastPanelSettings()
-
-  if (lastPanelSettings) {
-    draggableZone.style.left = `${lastPanelSettings.left}px`
-    draggableZone.style.top = `${lastPanelSettings.top}px`
-    AVATAR_TYPES.forEach((type) => {
-      videoContainer.classList.remove(type)
-    })
-    videoContainer.classList.add(lastPanelSettings.avatarType)
-  }
-
   draggable = new Moveable(document.body, {
     target: draggableZone as MoveableRefTargetType,
     dragTarget: draggableZoneTarget,
@@ -167,6 +164,34 @@ function initDraggableZone() {
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
       setLastPanelSettings()
     })
+
+  lastPanelSettings = getLastPanelSettings()
+
+  if (lastPanelSettings) {
+    AVATAR_TYPES.forEach((type) => {
+      videoContainer.classList.remove(type)
+    })
+    videoContainer.classList.add(lastPanelSettings.avatarType)
+
+    const maxWidth = window.innerWidth
+    const maxHeight = window.innerHeight
+    const size = AVATAR_SIZES[lastPanelSettings.avatarType]!
+    let left = lastPanelSettings.left
+    let top = lastPanelSettings.top
+    const topBuffer =
+      document.querySelector(".panel-settings-container")?.clientHeight || 0
+
+    if (maxWidth < size + left) {
+      left = maxWidth - size
+    }
+
+    if (maxHeight < size + top + topBuffer) {
+      top = maxHeight - size - topBuffer
+    }
+
+    draggableZone.style.left = `${left}px`
+    draggableZone.style.top = `${top}px`
+  }
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
@@ -533,7 +558,13 @@ document.addEventListener("DOMContentLoaded", () => {
     lastStreamSettings?.cameraDeviceId &&
     lastStreamSettings.cameraDeviceId != "no-camera"
   ) {
-    startStream(lastStreamSettings?.cameraDeviceId)
+    window.electronAPI.ipcRenderer
+      .invoke("isLoginWindowVisible")
+      .then((isLoginWindowVisible) => {
+        if (!isLoginWindowVisible) {
+          startStream(lastStreamSettings?.cameraDeviceId)
+        }
+      })
   }
 })
 

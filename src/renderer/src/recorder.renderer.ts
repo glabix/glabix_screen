@@ -76,10 +76,6 @@ let isRecordRestart = false
 let skipAppShowEvent = false
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "rawStreamSettings",
-    body: JSON.stringify(settings),
-  })
   const audioDeviceId =
     settings.audioDeviceId == "no-microphone"
       ? undefined

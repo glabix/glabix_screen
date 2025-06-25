@@ -1040,6 +1040,9 @@ function createLoginWindow() {
     loginWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 }
+ipcMain.handle("isLoginWindowVisible", (event, key) => {
+  return loginWindow?.isVisible()
+})
 
 function createScreenshotWindow(dataURL: string) {
   if (screenshotWindow) {
