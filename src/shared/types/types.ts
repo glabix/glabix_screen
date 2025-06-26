@@ -140,6 +140,9 @@ export interface IAvatarData {
   organizations: IOrganization[]
 }
 
+export enum DisplayEvents {
+  UPDATE = "update",
+}
 export enum ScreenshotActionEvents {
   FULL = "full",
   CROP = "crop",

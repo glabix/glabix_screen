@@ -157,6 +157,9 @@ const panelHiddenCheckbox = document.querySelector(
 const autoLaunchCheckbox = document.querySelector(
   ".js-auto-launch-checkbox"
 )! as HTMLInputElement
+const showCountdownCheckbox = document.querySelector(
+  ".js-show-countdown-checkbox"
+)! as HTMLInputElement
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
 ) as NodeListOf<HTMLElement>
@@ -1375,6 +1378,28 @@ window.electronAPI.ipcRenderer.on(
       autoLaunchCheckbox.checked = isAutoLaunch
     } else {
       autoLaunchCheckbox.checked = true
+    }
+  }
+)
+// Show Countdown
+showCountdownCheckbox.addEventListener(
+  "change",
+  (event) => {
+    const checkbox = event.target as HTMLInputElement
+    window.electronAPI.ipcRenderer.send(
+      UserSettingsEvents.COUNTDOWN_SET,
+      checkbox.checked
+    )
+  },
+  false
+)
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.COUNTDOWN_GET,
+  (event, showCountdown: boolean) => {
+    if (typeof showCountdown == "boolean") {
+      showCountdownCheckbox.checked = showCountdown
+    } else {
+      showCountdownCheckbox.checked = true
     }
   }
 )

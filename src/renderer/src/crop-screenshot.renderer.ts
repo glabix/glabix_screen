@@ -6,6 +6,7 @@ import {
   ScreenshotActionEvents,
   ScreenshotWindowEvents,
   IStreamSettings,
+  DisplayEvents,
 } from "@shared/types/types"
 import { Display, Rectangle } from "electron"
 
@@ -122,7 +123,7 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
-  "screen:change",
+  DisplayEvents.UPDATE,
   (event, display: Display) => {
     canvas.width = display.bounds.width
     canvas.height = display.bounds.height

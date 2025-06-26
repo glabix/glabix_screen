@@ -33,13 +33,16 @@ const AVATAR_TYPES: AvatarTypes[] = [
   "rect-lg",
   "rect-xl",
 ]
-const AVATAR_SIZES: { [key: string]: number } = {
-  "circle-sm": 200,
-  "circle-lg": 360,
-  "circle-xl": 560,
-  "rect-sm": 300,
-  "rect-lg": 650,
-  "rect-xl": 0.8 * document.body.offsetWidth,
+const AVATAR_SIZES: { [key: string]: { width: number; height: number } } = {
+  "circle-sm": { width: 200, height: 200 },
+  "circle-lg": { width: 360, height: 360 },
+  "circle-xl": { width: 560, height: 560 },
+  "rect-sm": { width: 300, height: (9 / 16) * 300 },
+  "rect-lg": { width: 650, height: (9 / 16) * 650 },
+  "rect-xl": {
+    width: 0.8 * document.body.offsetWidth,
+    height: (9 / 16) * 0.8 * document.body.offsetWidth,
+  },
 }
 
 const LAST_PANEL_SETTINGS_NAME = "LAST_PANEL_SETTINGS"
@@ -181,12 +184,12 @@ function initDraggableZone() {
     const topBuffer =
       document.querySelector(".panel-settings-container")?.clientHeight || 0
 
-    if (maxWidth < size + left) {
-      left = maxWidth - size
+    if (maxWidth < size.width + left) {
+      left = maxWidth - size.width
     }
 
-    if (maxHeight < size + top + topBuffer) {
-      top = maxHeight - size - topBuffer
+    if (maxHeight < size.height + top + topBuffer) {
+      top = maxHeight - size.height - topBuffer
     }
 
     draggableZone.style.left = `${left}px`
