@@ -21,6 +21,9 @@ export enum UserSettingsEvents {
 
   AUTO_LAUNCH_GET = "settings:auto_launch:get",
   AUTO_LAUNCH_SET = "settings:auto_launch:set",
+
+  COUNTDOWN_GET = "settings:countdown:get",
+  COUNTDOWN_SET = "settings:countdown:set",
 }
 
 export enum UserSettingsKeys {
@@ -29,6 +32,7 @@ export enum UserSettingsKeys {
   PANEL_VISIBILITY = "panel_visibility",
   PANEL_HIDDEN = "panel_hidden",
   AUTO_LAUNCH = "auto_launch",
+  COUNTDOWN = "countdown",
 }
 
 // export interface IUserSettings {

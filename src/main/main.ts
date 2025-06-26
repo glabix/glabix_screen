@@ -25,6 +25,7 @@ import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { TokenStorage } from "./storages/token-storage"
 import {
   DialogWindowEvents,
+  DisplayEvents,
   HotkeysEvents,
   IAccountData,
   IAuthData,
@@ -229,9 +230,15 @@ const initializeDatabase = async () => {
 function init(url: string) {
   if (mainWindow) {
     // Someone tried to run a second instance, we should focus our window.
-    checkOrganizationLimits().then(() => {
-      showWindows()
-    })
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+
+    if (!isRecording) {
+      checkOrganizationLimits().then(() => {
+        showWindows()
+      })
+    }
   }
 
   if (!url.startsWith(import.meta.env.VITE_PROTOCOL_SCHEME)) {
@@ -487,6 +494,7 @@ function registerUserShortCuts() {
           if (isScreenshotAllowed) {
             const cursorPosition = screen.getCursorScreenPoint()
             activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
+            mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
             createScreenshot()
           }
         })
@@ -507,7 +515,7 @@ function registerUserShortCuts() {
             if (!isRecording) {
               const cursorPosition = screen.getCursorScreenPoint()
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-              mainWindow.webContents.send("screen:change", activeDisplay)
+              mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
               modalWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
@@ -790,6 +798,8 @@ function createWindow() {
       modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
     })
+
+    mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
   })
 
   createModal(mainWindow)
@@ -806,6 +816,11 @@ function sendUserSettings() {
     modalWindow.webContents.send(
       UserSettingsEvents.FLIP_CAMERA_GET,
       eStore.get(UserSettingsKeys.FLIP_CAMERA)
+    )
+
+    modalWindow.webContents.send(
+      UserSettingsEvents.COUNTDOWN_GET,
+      eStore.get(UserSettingsKeys.COUNTDOWN)
     )
 
     modalWindow.webContents.send(
@@ -828,6 +843,11 @@ function sendUserSettings() {
     mainWindow.webContents.send(
       UserSettingsEvents.SHORTCUTS_GET,
       getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+
+    mainWindow.webContents.send(
+      UserSettingsEvents.COUNTDOWN_GET,
+      eStore.get(UserSettingsKeys.COUNTDOWN)
     )
 
     mainWindow.webContents.send(
@@ -991,7 +1011,7 @@ function createDropdownWindow(parentWindow) {
     const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
 
     if (activeDisplay && activeDisplay.id != currentScreen.id) {
-      mainWindow.webContents.send("screen:change", currentScreen)
+      mainWindow.webContents.send(DisplayEvents.UPDATE, currentScreen)
     }
 
     activeDisplay = currentScreen
@@ -1034,6 +1054,9 @@ function createLoginWindow() {
     loginWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 }
+ipcMain.handle("isLoginWindowVisible", (event, key) => {
+  return loginWindow?.isVisible()
+})
 
 function createScreenshotWindow(dataURL: string) {
   if (screenshotWindow) {
@@ -1322,7 +1345,13 @@ app.on("activate", () => {
     logSender.sendLog("app.activated")
     createWindow()
   } else {
-    showWindows()
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+
+    if (!isRecording) {
+      showWindows()
+    }
   }
 })
 
@@ -1370,6 +1399,12 @@ ipcMain.on(UserSettingsEvents.PANEL_VISIBILITY_SET, (event, data: boolean) => {
 ipcMain.on(UserSettingsEvents.PANEL_HIDDEN_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.PANEL_HIDDEN, data)
   logSender.sendLog("settings.panel_hidden.update", `${data}`)
+  sendUserSettings()
+})
+
+ipcMain.on(UserSettingsEvents.COUNTDOWN_SET, (event, data: boolean) => {
+  eStore.set(UserSettingsKeys.COUNTDOWN, data)
+  logSender.sendLog("settings.countdown.update", `${data}`)
   sendUserSettings()
 })
 

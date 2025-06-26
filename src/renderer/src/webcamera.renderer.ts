@@ -33,6 +33,17 @@ const AVATAR_TYPES: AvatarTypes[] = [
   "rect-lg",
   "rect-xl",
 ]
+const AVATAR_SIZES: { [key: string]: { width: number; height: number } } = {
+  "circle-sm": { width: 200, height: 200 },
+  "circle-lg": { width: 360, height: 360 },
+  "circle-xl": { width: 560, height: 560 },
+  "rect-sm": { width: 300, height: (9 / 16) * 300 },
+  "rect-lg": { width: 650, height: (9 / 16) * 650 },
+  "rect-xl": {
+    width: 0.8 * document.body.offsetWidth,
+    height: (9 / 16) * 0.8 * document.body.offsetWidth,
+  },
+}
 
 const LAST_PANEL_SETTINGS_NAME = "LAST_PANEL_SETTINGS"
 let lastPanelSettings: ILastPanelSettings | null = null
@@ -132,17 +143,6 @@ function setLastPanelSettings() {
 }
 
 function initDraggableZone() {
-  lastPanelSettings = getLastPanelSettings()
-
-  if (lastPanelSettings) {
-    draggableZone.style.left = `${lastPanelSettings.left}px`
-    draggableZone.style.top = `${lastPanelSettings.top}px`
-    AVATAR_TYPES.forEach((type) => {
-      videoContainer.classList.remove(type)
-    })
-    videoContainer.classList.add(lastPanelSettings.avatarType)
-  }
-
   draggable = new Moveable(document.body, {
     target: draggableZone as MoveableRefTargetType,
     dragTarget: draggableZoneTarget,
@@ -167,6 +167,34 @@ function initDraggableZone() {
       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
       setLastPanelSettings()
     })
+
+  lastPanelSettings = getLastPanelSettings()
+
+  if (lastPanelSettings) {
+    AVATAR_TYPES.forEach((type) => {
+      videoContainer.classList.remove(type)
+    })
+    videoContainer.classList.add(lastPanelSettings.avatarType)
+
+    const maxWidth = window.innerWidth
+    const maxHeight = window.innerHeight
+    const size = AVATAR_SIZES[lastPanelSettings.avatarType]!
+    let left = lastPanelSettings.left
+    let top = lastPanelSettings.top
+    const topBuffer =
+      document.querySelector(".panel-settings-container")?.clientHeight || 0
+
+    if (maxWidth < size.width + left) {
+      left = maxWidth - size.width
+    }
+
+    if (maxHeight < size.height + top + topBuffer) {
+      top = maxHeight - size.height - topBuffer
+    }
+
+    draggableZone.style.left = `${left}px`
+    draggableZone.style.top = `${top}px`
+  }
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
@@ -533,7 +561,13 @@ document.addEventListener("DOMContentLoaded", () => {
     lastStreamSettings?.cameraDeviceId &&
     lastStreamSettings.cameraDeviceId != "no-camera"
   ) {
-    startStream(lastStreamSettings?.cameraDeviceId)
+    window.electronAPI.ipcRenderer
+      .invoke("isLoginWindowVisible")
+      .then((isLoginWindowVisible) => {
+        if (!isLoginWindowVisible) {
+          startStream(lastStreamSettings?.cameraDeviceId)
+        }
+      })
   }
 })
 

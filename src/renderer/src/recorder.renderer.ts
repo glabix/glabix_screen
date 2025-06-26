@@ -16,6 +16,7 @@ import {
   ModalWindowEvents,
   IModalWindowTabData,
   ScreenshotActionEvents,
+  DisplayEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { APIEvents } from "@shared/events/api.events"
@@ -25,16 +26,15 @@ import {
   RecordEvents,
   RecordSettingsEvents,
 } from "../../shared/events/record.events"
-import { Rectangle } from "electron"
+import { Display, Rectangle } from "electron"
 import {
   IUserSettingsShortcut,
   UserSettingsEvents,
 } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
-import { FileUploadEvents } from "@shared/events/file-upload.events"
-import { blob } from "stream/consumers"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
+const LAST_CROP_SETTINGS_NAME = "LAST_CROP_SETTINGS"
 let SHORTCUTS_TEXT_MAP = {}
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
@@ -64,6 +64,11 @@ let lastStreamSettings: IStreamSettings | undefined
 let desktopStream: MediaStream | undefined = undefined
 let voiceStream: MediaStream | undefined = undefined
 let requestId = 0
+let activeDisplayId = 0
+let activeDisplaySize: { width: number; height: number } = {
+  width: document.body.clientWidth,
+  height: document.body.clientHeight,
+}
 let currentRecordedUuid: string | null = null
 let currentRecordChunksCount = 0
 let cropVideoData: ICropVideoData | undefined = undefined
@@ -74,12 +79,9 @@ let isRecordCanceled = false
 let isAppShown = false
 let isRecordRestart = false
 let skipAppShowEvent = false
+let skipCountdown = false
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "rawStreamSettings",
-    body: JSON.stringify(settings),
-  })
   const audioDeviceId =
     settings.audioDeviceId == "no-microphone"
       ? undefined
@@ -691,6 +693,51 @@ const updateCropVideoData = (data: {
     cropVideoData = { ...cropVideoData, out_h: data.height }
   }
 }
+const getLastCropSettings = (): Rectangle | null => {
+  const lastPosStr = localStorage.getItem(LAST_CROP_SETTINGS_NAME)
+
+  if (!lastPosStr) {
+    return null
+  }
+
+  const lastPos = JSON.parse(lastPosStr)
+  return lastPos[activeDisplayId] || null
+}
+const adjustCropSettings = (): Rectangle => {
+  const maxWidth = document.body.offsetWidth
+  const maxHeight = document.body.offsetHeight
+  const screen = document.querySelector("#crop_video_screen")! as HTMLDivElement
+  const rect = screen.getBoundingClientRect()
+  let x = rect.left < 0 ? 0 : rect.left
+  let y = rect.top < 0 ? 0 : rect.top
+
+  if (rect.right > maxWidth) {
+    x = maxWidth - rect.width
+  }
+
+  if (y + rect.height > maxHeight) {
+    y = maxHeight - rect.height
+  }
+
+  screen.style.left = `${x}px`
+  screen.style.top = `${y}px`
+
+  return { x, y, width: rect.width, height: rect.height }
+}
+
+const setLastCropSettings = () => {
+  const pos = adjustCropSettings()
+  const lastPosStr = localStorage.getItem(LAST_CROP_SETTINGS_NAME)
+  const lastPos = lastPosStr ? JSON.parse(lastPosStr) : null
+  const updatedPos = { [activeDisplayId]: pos }
+  let newPos = { ...updatedPos }
+
+  if (lastPos) {
+    newPos = { ...lastPos, ...newPos }
+  }
+
+  localStorage.setItem(LAST_CROP_SETTINGS_NAME, JSON.stringify(newPos))
+}
 
 const initView = (settings: IStreamSettings, force?: boolean) => {
   clearCameraOnlyVideoStream()
@@ -719,7 +766,9 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
   if (settings.action == "cropVideo") {
     const screenContainer = document.querySelector(".crop-screen-container")!
     screenContainer.removeAttribute("hidden")
-    const screen = screenContainer.querySelector("#crop_video_screen")!
+    const screen = screenContainer.querySelector(
+      "#crop_video_screen"
+    )! as HTMLElement
     const canvasVideo = screen.querySelector("canvas")!
     const screenRect = screen.getBoundingClientRect()
     canvasVideo.width = screenRect.width
@@ -752,6 +801,7 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
       })
       .on("dragEnd", () => {
         window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+        setLastCropSettings()
       })
 
     /* resizable */
@@ -772,7 +822,23 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
 
       canvasVideo.width = width
       canvasVideo.height = height
+
+      setLastCropSettings()
     })
+
+    const lastCropSettings = getLastCropSettings()
+    if (lastCropSettings) {
+      screen.style.width = `${lastCropSettings.width}px`
+      screen.style.height = `${lastCropSettings.height}px`
+      screen.style.left = `${lastCropSettings.x}px`
+      screen.style.top = `${lastCropSettings.y}px`
+    } else {
+      // Default position via CSS .screen-recorder-container
+      screen.style.width = `640px`
+      screen.style.height = `480px`
+      screen.style.left = `${activeDisplaySize.width / 2 - 320}px` // calc(50% - 320px)
+      screen.style.top = `${activeDisplaySize.height / 2 - 240}px` // calc(50% - 240px)
+    }
 
     cropMoveable.updateRect()
   }
@@ -933,8 +999,13 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-function showCountdownScreen(delay = 100): Promise<boolean> {
+function showCountdownScreen(delay = 100): Promise<void> {
   return new Promise((resolve) => {
+    if (skipCountdown) {
+      resolve()
+      return
+    }
+
     let timeleft = 2
     countdownContainer.removeAttribute("hidden")
 
@@ -945,7 +1016,7 @@ function showCountdownScreen(delay = 100): Promise<boolean> {
         countdown.innerHTML = ""
         window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         setTimeout(() => {
-          resolve(true)
+          resolve()
         }, delay)
       } else {
         countdown.innerHTML = `${timeleft}`
@@ -1054,15 +1125,24 @@ window.electronAPI.ipcRenderer.on(
     timer.updateLimits(limits.max_upload_duration || 0)
   }
 )
-window.electronAPI.ipcRenderer.on("screen:change", (event) => {
-  if (isRecording) {
-    return
-  }
+window.electronAPI.ipcRenderer.on(
+  DisplayEvents.UPDATE,
+  (event, activeDisplay: Display) => {
+    if (isRecording) {
+      return
+    }
 
-  if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
-    initView(lastStreamSettings, true)
+    activeDisplayId = activeDisplay.id
+    activeDisplaySize = {
+      width: activeDisplay.bounds.width,
+      height: activeDisplay.bounds.height,
+    }
+
+    if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
+      initView(lastStreamSettings, true)
+    }
   }
-})
+)
 
 window.electronAPI.ipcRenderer.on(
   RecordSettingsEvents.INIT,
@@ -1203,6 +1283,14 @@ window.electronAPI.ipcRenderer.on(
       title: "recording.delete",
       body: JSON.stringify({ type: "hotkey" }),
     })
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.COUNTDOWN_GET,
+  (event, showCountdown: boolean) => {
+    if (typeof showCountdown == "boolean") {
+      skipCountdown = !showCountdown
+    }
   }
 )
 window.electronAPI.ipcRenderer.on(
