@@ -176,13 +176,21 @@ function initDraggableZone() {
     })
     videoContainer.classList.add(lastPanelSettings.avatarType)
 
+    const panel = document.querySelector(
+      ".panel-settings-container"
+    )! as HTMLElement
+    const webcamera = document.querySelector(
+      ".webcamera-view-container"
+    )! as HTMLElement
     const maxWidth = window.innerWidth
     const maxHeight = window.innerHeight
-    const size = AVATAR_SIZES[lastPanelSettings.avatarType]!
+    const size = webcamera.hidden
+      ? { width: panel.clientWidth, height: panel.clientHeight }
+      : AVATAR_SIZES[lastPanelSettings.avatarType]!
+
     let left = lastPanelSettings.left
     let top = lastPanelSettings.top
-    const topBuffer =
-      document.querySelector(".panel-settings-container")?.clientHeight || 0
+    const topBuffer = panel.clientHeight || 0
 
     if (maxWidth < size.width + left) {
       left = maxWidth - size.width
