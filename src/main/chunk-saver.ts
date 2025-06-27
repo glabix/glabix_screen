@@ -26,6 +26,7 @@ interface IQueue {
   }
   isProcessing: boolean
   shouldProcessAgain: boolean
+  currentIndex: number
 }
 
 export class ChunkProcessor extends EventEmitter {
@@ -49,6 +50,7 @@ export class ChunkProcessor extends EventEmitter {
         currentFile: { size: 0, path: "", count: -1 },
         isProcessing: false,
         shouldProcessAgain: false,
+        currentIndex: 0,
       })
       this.logSender.sendLog(
         "chunk_saver.queue.set",
@@ -88,7 +90,7 @@ export class ChunkProcessor extends EventEmitter {
 
     queue.isProcessing = true // Начинаем обработку
 
-    let nextIndex = this.findNextIndex(queue.pending)
+    let nextIndex = this.findNextIndex(queue.pending, queue.currentIndex)
     this.logSender.sendLog(
       "chunk_saver.queue.next_index_1",
       JSON.stringify({ nextIndex })
@@ -97,8 +99,9 @@ export class ChunkProcessor extends EventEmitter {
       while (nextIndex !== undefined) {
         const event = queue.pending.get(nextIndex)!
         await this.processChunk(event, queue)
+        queue.currentIndex += 1
         queue.pending.delete(nextIndex)
-        nextIndex = this.findNextIndex(queue.pending)
+        nextIndex = this.findNextIndex(queue.pending, queue.currentIndex)
         this.logSender.sendLog(
           "chunk_saver.queue.next_index_2",
           JSON.stringify({ nextIndex })
@@ -239,8 +242,10 @@ export class ChunkProcessor extends EventEmitter {
     this.queues.delete(recordUuid)
   }
 
-  private findNextIndex(pendingMap: Map<number, any>): number | undefined {
-    const indices = Array.from(pendingMap.keys()).sort((a, b) => a - b)
-    return indices.length > 0 ? indices[0] : undefined
+  private findNextIndex(
+    pendingMap: Map<number, any>,
+    findIndex: number
+  ): number | undefined {
+    return pendingMap.get(findIndex) ? findIndex : undefined
   }
 }
