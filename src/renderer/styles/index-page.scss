@@ -398,3 +398,12 @@ body.no-microphone .microphone-alert-container {
   left: 5%;
   min-width: 200px;
 }
+
+body:not(.body--is-recording) .recorder-btn {
+  // Buttons Play, Stop, Pause is disabled by default
+  // border-color: var(--gray-300);
+  // background-color: var(--gray-300);
+  // color: var(--gray-600);
+  opacity: 0.6;
+  pointer-events: none;
+}

@@ -18,7 +18,8 @@ export interface IStreamSettings {
 
 export enum ModalWindowWidth {
   MODAL = 300,
-  SETTINGS = 390,
+  SETTINGS = 300,
+  // SETTINGS = 390,
 }
 export enum ModalWindowHeight {
   // MODAL_WIN = 535,
