@@ -170,6 +170,19 @@ function initDraggableZone() {
 
   lastPanelSettings = getLastPanelSettings()
 
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.getLastPanelSettings()`,
+    body: JSON.stringify(lastPanelSettings),
+  })
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer - draggableZone position:`,
+    body: JSON.stringify({
+      "draggableZone.style.left": draggableZone.style.left,
+      "draggableZone.style.top": draggableZone.style.top,
+    }),
+  })
+
   if (lastPanelSettings) {
     AVATAR_TYPES.forEach((type) => {
       videoContainer.classList.remove(type)
