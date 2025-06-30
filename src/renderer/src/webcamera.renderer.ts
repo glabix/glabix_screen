@@ -6,12 +6,14 @@ import {
   IStreamSettings,
   ILastDeviceSettings,
   ScreenshotWindowEvents,
+  DisplayEvents,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import { RecordSettingsEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
+import { Display } from "electron"
 
 type AvatarTypes =
   | "circle-sm"
@@ -103,9 +105,10 @@ function getLastPanelSettings(): ILastPanelSettings | null {
   return lastDraggablePosStr ? JSON.parse(lastDraggablePosStr) : null
 }
 
-function adjustPanelPosition(): { x: number; y: number } {
-  const maxWidth = document.body.offsetWidth
-  const maxHeight = document.body.offsetHeight
+function adjustPanelPosition(
+  maxWidth: number,
+  maxHeight: number
+): { x: number; y: number } {
   const rect = draggableZone.getBoundingClientRect()
   let x = rect.left < 0 ? 0 : rect.left
   let y = rect.top < 0 ? 0 : rect.top
@@ -124,8 +127,10 @@ function adjustPanelPosition(): { x: number; y: number } {
   return { x, y }
 }
 
-function setLastPanelSettings() {
-  const pos = adjustPanelPosition()
+function setLastPanelSettings(maxWidth?: number, maxHeight?: number) {
+  const maxW = maxWidth || document.body.offsetWidth
+  const maxH = maxHeight || document.body.offsetHeight
+  const pos = adjustPanelPosition(maxW, maxH)
   const left = pos.x
   const top = pos.y
   const avatarType: AvatarTypes =
@@ -450,6 +455,34 @@ window.electronAPI.ipcRenderer.on(
     if (typeof isPanelHidden == "boolean") {
       togglePanelHidden(isPanelHidden)
     }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  DisplayEvents.UPDATE,
+  (event, activeDisplay: Display) => {
+    if (isRecording) {
+      return
+    }
+
+    if (lastStreamSettings) {
+      checkStream(lastStreamSettings)
+    }
+
+    setLastPanelSettings(
+      activeDisplay.bounds.width,
+      activeDisplay.bounds.height
+    )
+
+    // activeDisplayId = activeDisplay.id
+    // activeDisplaySize = {
+    //   width: activeDisplay.bounds.width,
+    //   height: activeDisplay.bounds.height,
+    // }
+
+    // if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
+    //   initView(lastStreamSettings, true)
+    // }
   }
 )
 
