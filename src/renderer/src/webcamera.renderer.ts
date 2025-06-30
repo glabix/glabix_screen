@@ -175,11 +175,6 @@ function initDraggableZone() {
 
   lastPanelSettings = getLastPanelSettings()
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.getLastPanelSettings()`,
-    body: JSON.stringify(lastPanelSettings),
-  })
-
   if (lastPanelSettings) {
     AVATAR_TYPES.forEach((type) => {
       videoContainer.classList.remove(type)
@@ -212,25 +207,9 @@ function initDraggableZone() {
       top = maxHeight - size.height - topBuffer
     }
 
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: `webcamera.renderer - position data:`,
-      body: JSON.stringify({
-        maxWidth,
-        maxHeight,
-        size,
-        left,
-        top,
-      }),
-    })
-
     draggableZone.style.left = `${left}px`
     draggableZone.style.top = `${top}px`
   }
-
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer.initDraggableZone videoContainer`,
-    body: JSON.stringify({ "videoContainer.hidden": videoContainer.hidden }),
-  })
 
   draggable.updateRect()
 }
@@ -473,16 +452,6 @@ window.electronAPI.ipcRenderer.on(
       activeDisplay.bounds.width,
       activeDisplay.bounds.height
     )
-
-    // activeDisplayId = activeDisplay.id
-    // activeDisplaySize = {
-    //   width: activeDisplay.bounds.width,
-    //   height: activeDisplay.bounds.height,
-    // }
-
-    // if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
-    //   initView(lastStreamSettings, true)
-    // }
   }
 )
 
@@ -629,11 +598,6 @@ document.addEventListener("DOMContentLoaded", () => {
     window.electronAPI.ipcRenderer
       .invoke("isLoginWindowVisible")
       .then((isLoginWindowVisible) => {
-        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: `webcamera.renderer isLoginWindowVisible`,
-          body: JSON.stringify({ isLoginWindowVisible }),
-        })
-
         if (!isLoginWindowVisible) {
           videoContainer.removeAttribute("hidden")
           startStream(lastStreamSettings?.cameraDeviceId)
