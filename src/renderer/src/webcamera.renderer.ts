@@ -175,14 +175,6 @@ function initDraggableZone() {
     body: JSON.stringify(lastPanelSettings),
   })
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `webcamera.renderer - draggableZone position:`,
-    body: JSON.stringify({
-      "draggableZone.style.left": draggableZone.style.left,
-      "draggableZone.style.top": draggableZone.style.top,
-    }),
-  })
-
   if (lastPanelSettings) {
     AVATAR_TYPES.forEach((type) => {
       videoContainer.classList.remove(type)
@@ -214,6 +206,17 @@ function initDraggableZone() {
     if (maxHeight < size.height + top + topBuffer) {
       top = maxHeight - size.height - topBuffer
     }
+
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `webcamera.renderer - position data:`,
+      body: JSON.stringify({
+        maxWidth,
+        maxHeight,
+        size,
+        left,
+        top,
+      }),
+    })
 
     draggableZone.style.left = `${left}px`
     draggableZone.style.top = `${top}px`
