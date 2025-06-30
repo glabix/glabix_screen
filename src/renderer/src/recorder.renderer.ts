@@ -769,17 +769,6 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
     const screen = screenContainer.querySelector(
       "#crop_video_screen"
     )! as HTMLElement
-    const canvasVideo = screen.querySelector("canvas")!
-    const screenRect = screen.getBoundingClientRect()
-    canvasVideo.width = screenRect.width
-    canvasVideo.height = screenRect.height
-
-    updateCropVideoData({
-      top: screenRect.top,
-      left: screenRect.left,
-      width: screenRect.width,
-      height: screenRect.height,
-    })
 
     cropMoveable = new Moveable(document.body, {
       target: screen as MoveableRefTargetType,
@@ -820,9 +809,6 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
 
       updateCropVideoData({ top: drag.top, left: drag.left, width, height })
 
-      canvasVideo.width = width
-      canvasVideo.height = height
-
       setLastCropSettings()
     })
 
@@ -839,6 +825,14 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
       screen.style.left = `${activeDisplaySize.width / 2 - 320}px` // calc(50% - 320px)
       screen.style.top = `${activeDisplaySize.height / 2 - 240}px` // calc(50% - 240px)
     }
+
+    const cropRect = screen.getBoundingClientRect()
+    updateCropVideoData({
+      top: cropRect.top,
+      left: cropRect.left,
+      width: cropRect.width,
+      height: cropRect.height,
+    })
 
     cropMoveable.updateRect()
   }
@@ -1097,23 +1091,12 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     })
     lastScreenAction = undefined
     controlPanel.classList.remove("is-recording")
-    const settings: IStreamSettings =
-      lastStreamSettings!.action == "cropVideo" && !isRecordRestart
-        ? { ...lastStreamSettings, action: "fullScreenVideo" }
-        : lastStreamSettings!
 
-    lastStreamSettings = filterStreamSettings(settings)
-
-    if (lastStreamSettings.action == "cameraOnly") {
+    if (lastStreamSettings?.action == "cameraOnly") {
       initRecord(lastStreamSettings)
     } else {
-      initView(lastStreamSettings, true)
+      initView(lastStreamSettings!, true)
     }
-
-    window.electronAPI.ipcRenderer.send(
-      ModalWindowEvents.RENDER,
-      settings.action
-    )
   }
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
