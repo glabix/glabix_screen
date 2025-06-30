@@ -221,6 +221,13 @@ function initDraggableZone() {
     draggableZone.style.left = `${left}px`
     draggableZone.style.top = `${top}px`
   }
+
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: `webcamera.renderer.initDraggableZone videoContainer`,
+    body: JSON.stringify({ "videoContainer.hidden": videoContainer.hidden }),
+  })
+
+  draggable.updateRect()
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
@@ -589,7 +596,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.electronAPI.ipcRenderer
       .invoke("isLoginWindowVisible")
       .then((isLoginWindowVisible) => {
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `webcamera.renderer isLoginWindowVisible`,
+          body: JSON.stringify({ isLoginWindowVisible }),
+        })
+
         if (!isLoginWindowVisible) {
+          videoContainer.removeAttribute("hidden")
           startStream(lastStreamSettings?.cameraDeviceId)
         }
       })
