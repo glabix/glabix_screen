@@ -197,9 +197,11 @@ function initDraggableZone() {
     )! as HTMLElement
     const maxWidth = window.innerWidth
     const maxHeight = window.innerHeight
-    const size = webcamera.hidden
-      ? { width: panel.clientWidth, height: panel.clientHeight }
-      : AVATAR_SIZES[lastPanelSettings.avatarType]!
+    const size =
+      lastStreamSettings?.cameraDeviceId &&
+      lastStreamSettings.cameraDeviceId != "no-camera"
+        ? AVATAR_SIZES[lastPanelSettings.avatarType]!
+        : { width: panel.clientWidth, height: panel.clientHeight }
 
     let left = lastPanelSettings.left
     let top = lastPanelSettings.top
@@ -574,10 +576,9 @@ draggableZone.addEventListener(
   false
 )
 
-getLastMediaDevices()
-initDraggableZone()
-
 document.addEventListener("DOMContentLoaded", () => {
+  getLastMediaDevices()
+  initDraggableZone()
   if (
     lastStreamSettings?.cameraDeviceId &&
     lastStreamSettings.cameraDeviceId != "no-camera"
