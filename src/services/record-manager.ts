@@ -5,7 +5,7 @@ import { getAllRecordDal, getByUuidRecordDal } from "../database/dal/Record"
 import Record, { RecordStatus } from "../database/models/Record"
 import Chunk, { ChunkStatus } from "../database/models/Chunk"
 import { openExternalLink } from "../shared/helpers/open-external-link"
-import { ipcMain, Notification } from "electron"
+import { clipboard, ipcMain, Notification } from "electron"
 import { PreviewManager } from "./preview-manager"
 import { httpErrorPareser } from "../main/helpers/http-error-pareser"
 import { stringify } from "../main/helpers/stringify"
@@ -251,6 +251,9 @@ export class RecordManager {
       "library/" +
       serverUuid
     openExternalLink(shared)
+    const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/shared/${serverUuid}`
+    clipboard.writeText(publicPage)
+
     this.logSender.sendLog(
       "utils.open_library_page",
       JSON.stringify({ serverUuid, manual })
