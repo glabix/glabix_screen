@@ -357,6 +357,14 @@ if (!gotTheLock) {
           }
         })
       })
+
+      if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
+        logSender.sendLog(
+          "eStore.get(UserSettingsKeys.AUTO_LAUNCH)",
+          `${eStore.get(UserSettingsKeys.AUTO_LAUNCH)}`
+        )
+        ipcMain.emit(UserSettingsEvents.AUTO_LAUNCH_SET, null, true)
+      }
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
@@ -1406,14 +1414,6 @@ ipcMain.on(UserSettingsEvents.COUNTDOWN_SET, (event, data: boolean) => {
   logSender.sendLog("settings.countdown.update", `${data}`)
   sendUserSettings()
 })
-
-if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
-  logSender.sendLog(
-    "eStore.get(UserSettingsKeys.AUTO_LAUNCH)",
-    `${eStore.get(UserSettingsKeys.AUTO_LAUNCH)}`
-  )
-  ipcMain.emit(UserSettingsEvents.AUTO_LAUNCH_SET, null, true)
-}
 
 ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
