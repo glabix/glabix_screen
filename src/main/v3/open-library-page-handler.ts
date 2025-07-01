@@ -1,7 +1,7 @@
 import { TokenStorage } from "@main/storages/token-storage"
 import { openExternalLink } from "@shared/helpers/open-external-link"
 import { RecordStoreManager } from "@main/v3/store/record-store-manager"
-import { ipcMain, Notification } from "electron"
+import { clipboard, ipcMain, Notification } from "electron"
 import { LogSender } from "@main/helpers/log-sender"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 
@@ -44,6 +44,8 @@ export class OpenLibraryPageHandler {
       "library/" +
       serverUuid
     openExternalLink(shared)
+    const publicPage = `${import.meta.env.VITE_AUTH_APP_URL}recorder/shared/${serverUuid}`
+    clipboard.writeText(publicPage)
     this.logSender.sendLog(
       "utils.open_library_page",
       JSON.stringify({ serverUuid, manual })
