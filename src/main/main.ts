@@ -1408,6 +1408,10 @@ ipcMain.on(UserSettingsEvents.COUNTDOWN_SET, (event, data: boolean) => {
 })
 
 if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
+  logSender.sendLog(
+    "eStore.get(UserSettingsKeys.AUTO_LAUNCH)",
+    `${eStore.get(UserSettingsKeys.AUTO_LAUNCH)}`
+  )
   ipcMain.emit(UserSettingsEvents.AUTO_LAUNCH_SET, null, true)
 }
 
