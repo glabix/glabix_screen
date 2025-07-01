@@ -112,10 +112,7 @@ import {
   RecordStartEventV3,
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
-import fs from "fs/promises"
-import { fsErrorParser } from "@main/helpers/fs-error-parser"
 import { ChunkProcessor } from "@main/chunk-saver"
-import EventEmitter from "node:events"
 
 let activeDisplay: Electron.Display
 let dropdownWindow: BrowserWindow
@@ -140,7 +137,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 let recorderFacadeV3: RecorderFacadeV3
 let cleanupScheduler: RecorderSchedulerV3
-
+const isAutoLaunch = process.argv.includes("--auto-launch")
 const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
@@ -355,7 +352,9 @@ if (!gotTheLock) {
         getLastStreamSettings(modalWindow).then((settings) => {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-          showWindows()
+          if (!isAutoLaunch) {
+            showWindows()
+          }
         })
       })
     } catch (e) {
@@ -2022,12 +2021,3 @@ powerMonitor.on("suspend", () => {
     ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
   }
 })
-
-logSender.sendLog("process.argv", stringify(process.argv))
-
-if (!process.argv.includes("--hidden")) {
-  logSender.sendLog(`process.argv.includes('--hidden')`)
-}
-if (!process.argv.includes("--auto-launch")) {
-  logSender.sendLog(`process.argv.includes('--auto-launch')`)
-}
