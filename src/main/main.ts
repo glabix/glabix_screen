@@ -2023,16 +2023,11 @@ powerMonitor.on("suspend", () => {
   }
 })
 
-console.log(
-  `
-  process.argv
-`,
-  process.argv
-)
+logSender.sendLog("process.argv", stringify(process.argv))
 
 if (!process.argv.includes("--hidden")) {
-  console.log(`process.argv.includes('--hidden')`)
+  logSender.sendLog(`process.argv.includes('--hidden')`)
 }
 if (!process.argv.includes("--auto-launch")) {
-  console.log(`process.argv.includes('--auto-launch')`)
+  logSender.sendLog(`process.argv.includes('--auto-launch')`)
 }
