@@ -2022,3 +2022,17 @@ powerMonitor.on("suspend", () => {
     ipcMain.emit(SimpleStoreEvents.UPDATE, null, data)
   }
 })
+
+console.log(
+  `
+  process.argv
+`,
+  process.argv
+)
+
+if (!process.argv.includes("--hidden")) {
+  console.log(`process.argv.includes('--hidden')`)
+}
+if (!process.argv.includes("--auto-launch")) {
+  console.log(`process.argv.includes('--auto-launch')`)
+}

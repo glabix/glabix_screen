@@ -4,7 +4,7 @@ export default class AutoLaunch {
     app.setLoginItemSettings({
       openAtLogin: flag,
       path: app.getPath("exe"),
-      // args: ["--hidden"],
+      args: ["--hidden", "--auto-launch"],
     })
   }
 }
