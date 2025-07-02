@@ -14,6 +14,7 @@ import { LoggerEvents } from "../../shared/events/logger.events"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
 import { Display } from "electron"
+import { title } from "process"
 
 type AvatarTypes =
   | "circle-sm"
@@ -598,6 +599,10 @@ document.addEventListener("DOMContentLoaded", () => {
     window.electronAPI.ipcRenderer
       .invoke("isMainWindowVisible")
       .then((isMainWindowVisible) => {
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: "isMainWindowVisible: ",
+          body: `${isMainWindowVisible}`,
+        })
         if (isMainWindowVisible) {
           videoContainer.removeAttribute("hidden")
           startStream(lastStreamSettings?.cameraDeviceId)
