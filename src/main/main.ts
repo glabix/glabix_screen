@@ -357,14 +357,6 @@ if (!gotTheLock) {
           }
         })
       })
-
-      if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
-        logSender.sendLog(
-          "eStore.get(UserSettingsKeys.AUTO_LAUNCH)",
-          `${eStore.get(UserSettingsKeys.AUTO_LAUNCH)}`
-        )
-        ipcMain.emit(UserSettingsEvents.AUTO_LAUNCH_SET, null, true)
-      }
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
@@ -1415,11 +1407,28 @@ ipcMain.on(UserSettingsEvents.COUNTDOWN_SET, (event, data: boolean) => {
   sendUserSettings()
 })
 
-ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
-  eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
-  logSender.sendLog("settings.auto_launch.update", `${data}`)
-  AutoLaunch.setup(isAutoLaunch)
-})
+if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
+  ipcMain.emit(
+    UserSettingsEvents.AUTO_LAUNCH_SET,
+    null,
+    eStore.get(UserSettingsKeys.AUTO_LAUNCH)
+  )
+}
+
+ipcMain.on(
+  UserSettingsEvents.AUTO_LAUNCH_SET,
+  (event, data: boolean | undefined) => {
+    const notSettings = typeof data == "undefined"
+    const isAutoLaunch = notSettings ? true : data
+
+    if (!notSettings) {
+      eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
+      logSender.sendLog("settings.auto_launch.update", `${data}`)
+    }
+
+    AutoLaunch.setup(isAutoLaunch)
+  }
+)
 
 ipcMain.on(
   UserSettingsEvents.SHORTCUTS_SET,
