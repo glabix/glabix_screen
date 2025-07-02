@@ -149,8 +149,10 @@ app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
+logSender.sendLog("process.argv", stringify(process.argv))
+
 getAutoUpdater().on("error", (error) => {
-  logSender.sendLog(AppUpdaterEvents.ERROR, JSON.stringify(error))
+  logSender.sendLog(AppUpdaterEvents.ERROR, stringify(error))
 })
 
 getAutoUpdater().on("update-downloaded", (info) => {
@@ -1053,8 +1055,9 @@ function createLoginWindow() {
     loginWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 }
-ipcMain.handle("isLoginWindowVisible", (event, key) => {
-  return loginWindow?.isVisible()
+
+ipcMain.handle("isMainWindowVisible", (event, key) => {
+  return mainWindow?.isVisible()
 })
 
 function createScreenshotWindow(dataURL: string) {
