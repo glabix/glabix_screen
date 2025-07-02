@@ -242,27 +242,33 @@ function startStream(deviseId) {
     video: { deviceId: { exact: deviseId } },
   }
 
-  navigator.mediaDevices
-    .getUserMedia(constraints)
-    .then((stream) => {
-      if (lastStreamSettings?.action == "cameraOnly") {
-        stream.getTracks().forEach((track) => track.stop())
-      } else {
-        stopStreamTracks()
-        currentStream = stream
-        showVideo()
-      }
-    })
-    .catch((e) => {
-      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-        title: `webcamera.renderer.startStream.catch(e)`,
-        body: JSON.stringify({ e }),
-        error: true,
-      })
-      if (e.toString().toLowerCase().includes("permission denied")) {
-        showVideo(true, "no-permission")
-      } else {
-        showVideo(true)
+  window.electronAPI.ipcRenderer
+    .invoke("isMainWindowVisible")
+    .then((isMainWindowVisible) => {
+      if (isMainWindowVisible) {
+        navigator.mediaDevices
+          .getUserMedia(constraints)
+          .then((stream) => {
+            if (lastStreamSettings?.action == "cameraOnly") {
+              stream.getTracks().forEach((track) => track.stop())
+            } else {
+              stopStreamTracks()
+              currentStream = stream
+              showVideo()
+            }
+          })
+          .catch((e) => {
+            window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+              title: `webcamera.renderer.startStream.catch(e)`,
+              body: JSON.stringify({ e }),
+              error: true,
+            })
+            if (e.toString().toLowerCase().includes("permission denied")) {
+              showVideo(true, "no-permission")
+            } else {
+              showVideo(true)
+            }
+          })
       }
     })
 }
@@ -599,10 +605,6 @@ document.addEventListener("DOMContentLoaded", () => {
     window.electronAPI.ipcRenderer
       .invoke("isMainWindowVisible")
       .then((isMainWindowVisible) => {
-        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-          title: "isMainWindowVisible: ",
-          body: `${isMainWindowVisible}`,
-        })
         if (isMainWindowVisible) {
           videoContainer.removeAttribute("hidden")
           startStream(lastStreamSettings?.cameraDeviceId)

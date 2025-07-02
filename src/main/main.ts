@@ -1057,7 +1057,6 @@ function createLoginWindow() {
 }
 
 ipcMain.handle("isMainWindowVisible", (event, key) => {
-  logSender.sendLog("isMainWindowVisible", `${mainWindow?.isVisible()}`)
   return mainWindow?.isVisible()
 })
 
