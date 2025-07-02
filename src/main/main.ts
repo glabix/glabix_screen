@@ -137,7 +137,7 @@ let lastDeviceAccessData: IMediaDevicesAccess = {
 }
 let recorderFacadeV3: RecorderFacadeV3
 let cleanupScheduler: RecorderSchedulerV3
-const isAutoLaunch = process.argv.includes("--auto-launch")
+const isStartByAutoLaunch = process.argv.includes("--auto-launch")
 const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
@@ -352,19 +352,11 @@ if (!gotTheLock) {
         getLastStreamSettings(modalWindow).then((settings) => {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-          if (!isAutoLaunch) {
+          if (!isStartByAutoLaunch) {
             showWindows()
           }
         })
       })
-
-      if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
-        logSender.sendLog(
-          "eStore.get(UserSettingsKeys.AUTO_LAUNCH)",
-          `${eStore.get(UserSettingsKeys.AUTO_LAUNCH)}`
-        )
-        ipcMain.emit(UserSettingsEvents.AUTO_LAUNCH_SET, null, true)
-      }
     } catch (e) {
       logSender.sendLog("user.read_auth_data.error", stringify({ e }), true)
     }
@@ -1415,10 +1407,14 @@ ipcMain.on(UserSettingsEvents.COUNTDOWN_SET, (event, data: boolean) => {
   sendUserSettings()
 })
 
+if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
+  ipcMain.emit(UserSettingsEvents.AUTO_LAUNCH_SET, null, true)
+}
+
 ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
   logSender.sendLog("settings.auto_launch.update", `${data}`)
-  AutoLaunch.setup(isAutoLaunch)
+  AutoLaunch.setup(data)
 })
 
 ipcMain.on(
