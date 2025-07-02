@@ -149,8 +149,6 @@ app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
-logSender.sendLog("process.argv", stringify(process.argv))
-
 getAutoUpdater().on("error", (error) => {
   logSender.sendLog(AppUpdaterEvents.ERROR, stringify(error))
 })
