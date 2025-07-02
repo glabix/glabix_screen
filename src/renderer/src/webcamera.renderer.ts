@@ -596,9 +596,9 @@ document.addEventListener("DOMContentLoaded", () => {
     lastStreamSettings.cameraDeviceId != "no-camera"
   ) {
     window.electronAPI.ipcRenderer
-      .invoke("isLoginWindowVisible")
-      .then((isLoginWindowVisible) => {
-        if (!isLoginWindowVisible) {
+      .invoke("isMainWindowVisible")
+      .then((isMainWindowVisible) => {
+        if (isMainWindowVisible) {
           videoContainer.removeAttribute("hidden")
           startStream(lastStreamSettings?.cameraDeviceId)
         }
