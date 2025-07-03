@@ -5,6 +5,12 @@ export interface IUserSettingsShortcut {
   actionState: "app:run" | "app:visible"
 }
 
+export enum UserSettingsThemes {
+  SYSTEM = "system",
+  LIGHT = "light",
+  DARK = "dark",
+}
+
 export enum UserSettingsEvents {
   SHORTCUTS_GET = "settings:shortcuts:get",
   SHORTCUTS_SET = "settings:shortcuts:set",
@@ -24,6 +30,9 @@ export enum UserSettingsEvents {
 
   COUNTDOWN_GET = "settings:countdown:get",
   COUNTDOWN_SET = "settings:countdown:set",
+
+  THEME_GET = "settings:theme:get",
+  THEME_SET = "settings:theme:set",
 }
 
 export enum UserSettingsKeys {
@@ -33,6 +42,7 @@ export enum UserSettingsKeys {
   PANEL_HIDDEN = "panel_hidden",
   AUTO_LAUNCH = "auto_launch",
   COUNTDOWN = "countdown",
+  THEME = "theme",
 }
 
 // export interface IUserSettings {

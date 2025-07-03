@@ -124,6 +124,7 @@ body {
   z-index: 1;
   opacity: 1;
   transition: opacity 0.15s;
+  background-color: var(--light);
 }
 .btn:hover .visualizer {
   opacity: 0;
@@ -241,6 +242,8 @@ body {
     outline: none !important;
     font-size: 12px;
     width: 85px;
+    background-color: transparent;
+    color: var(--dark);
 
     .settings-section.is-disabled & {
       color: var(--gray-600);
@@ -282,4 +285,19 @@ body.is-update-downloading .footer-update,
   left: 0;
   right: 0;
   bottom: 0;
+}
+
+.no-microphone-light {
+}
+.no-microphone-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .no-microphone-dark {
+    display: block;
+  }
+  .no-microphone-light {
+    display: none;
+  }
 }

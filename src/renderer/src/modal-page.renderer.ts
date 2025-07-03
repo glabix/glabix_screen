@@ -30,6 +30,7 @@ import { debounce } from "@shared/helpers/debounce"
 import {
   IUserSettingsShortcut,
   UserSettingsEvents,
+  UserSettingsThemes,
 } from "@shared/types/user-settings.types"
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
@@ -160,6 +161,9 @@ const autoLaunchCheckbox = document.querySelector(
 const showCountdownCheckbox = document.querySelector(
   ".js-show-countdown-checkbox"
 )! as HTMLInputElement
+const themeRadio = document.querySelectorAll(
+  ".js-theme-radio"
+) as NodeListOf<HTMLInputElement>
 const tabButtons = document.querySelectorAll(
   "[data-record-button]"
 ) as NodeListOf<HTMLElement>
@@ -334,13 +338,20 @@ function initVisualAudio() {
             const canvasCtx = canvas.getContext("2d")!
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
             analyser.getByteTimeDomainData(dataArray)
-
-            canvasCtx.fillStyle = "rgb(255, 255, 255)"
+            const bgColor = window.matchMedia("(prefers-color-scheme: dark)")
+              .matches
+              ? "#121212"
+              : "#ffffff"
+            canvasCtx.fillStyle = bgColor
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
 
+            const fillColor = window.matchMedia("(prefers-color-scheme: dark)")
+              .matches
+              ? "#10772F"
+              : "#A7EBBB"
             canvasCtx.lineWidth = 0
-            canvasCtx.strokeStyle = "#A7EBBB"
-            canvasCtx.fillStyle = "#A7EBBB"
+            canvasCtx.strokeStyle = fillColor
+            canvasCtx.fillStyle = fillColor
 
             canvasCtx.beginPath()
 
@@ -761,14 +772,6 @@ window.electronAPI.ipcRenderer.on(
         })
 
         setPageView("modal")
-        // setPageView("settings")
-        // showSettingsTab("shortCuts")
-        // window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
-        //   alwaysOnTop: true,
-        //   width: ModalWindowWidth.SETTINGS,
-        //   height: ModalWindowHeight.SETTINGS,
-        // })
-        // setPageView("no-microphone")
       }
     })
   }
@@ -1401,6 +1404,36 @@ window.electronAPI.ipcRenderer.on(
     } else {
       showCountdownCheckbox.checked = true
     }
+  }
+)
+// Theme
+themeRadio.forEach((input) => {
+  input.addEventListener(
+    "change",
+    (event) => {
+      const radio = event.target as HTMLInputElement
+
+      window.electronAPI.ipcRenderer.send(
+        UserSettingsEvents.THEME_SET,
+        radio.value
+      )
+    },
+    false
+  )
+})
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.THEME_GET,
+  (event, theme: UserSettingsThemes) => {
+    themeRadio.forEach((input) => {
+      input.checked = false
+      const value = input.value as UserSettingsThemes
+      if (
+        value == theme ||
+        (theme === undefined && value == UserSettingsThemes.SYSTEM)
+      ) {
+        input.checked = true
+      }
+    })
   }
 )
 

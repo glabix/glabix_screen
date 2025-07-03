@@ -39,4 +39,8 @@ body {
   justify-content: center;
   gap: 1rem;
   border-top: solid 1px var(--gray-400);
+
+  @media (prefers-color-scheme: dark) {
+    background-color: transparent;
+  }
 }

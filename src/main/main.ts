@@ -95,6 +95,7 @@ import {
   IUserSettingsShortcut,
   UserSettingsEvents,
   UserSettingsKeys,
+  UserSettingsThemes,
 } from "@shared/types/user-settings.types"
 import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper"
 import { AppEvents } from "@shared/events/app.events"
@@ -493,7 +494,7 @@ function registerUserShortCuts() {
           if (isScreenshotAllowed) {
             const cursorPosition = screen.getCursorScreenPoint()
             activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-            mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
+            // mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
             createScreenshot()
           }
         })
@@ -514,7 +515,7 @@ function registerUserShortCuts() {
             if (!isRecording) {
               const cursorPosition = screen.getCursorScreenPoint()
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
-              mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
+              // mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
               modalWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
@@ -813,6 +814,11 @@ function sendUserSettings() {
     )
 
     modalWindow.webContents.send(
+      UserSettingsEvents.THEME_GET,
+      eStore.get(UserSettingsKeys.THEME)
+    )
+
+    modalWindow.webContents.send(
       UserSettingsEvents.FLIP_CAMERA_GET,
       eStore.get(UserSettingsKeys.FLIP_CAMERA)
     )
@@ -877,6 +883,8 @@ function createModal(parentWindow) {
     show: false,
     alwaysOnTop: true,
     parent: parentWindow,
+    hasShadow: false,
+    transparent: true,
     minimizable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
@@ -1416,6 +1424,17 @@ ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
   logSender.sendLog("settings.auto_launch.update", `${data}`)
   AutoLaunch.setup(data)
+})
+
+if (eStore.get(UserSettingsKeys.THEME)) {
+  nativeTheme.themeSource = eStore.get(
+    UserSettingsKeys.THEME
+  ) as UserSettingsThemes
+}
+ipcMain.on(UserSettingsEvents.THEME_SET, (event, theme: UserSettingsThemes) => {
+  eStore.set(UserSettingsKeys.THEME, theme)
+  nativeTheme.themeSource = theme
+  logSender.sendLog("settings.theme.update", `${theme}`)
 })
 
 ipcMain.on(

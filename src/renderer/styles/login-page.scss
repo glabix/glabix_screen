@@ -1,4 +1,5 @@
 @forward "styles.scss";
+@forward "_buttons.scss";
 .wrapper {
   display: flex;
   flex-direction: column;
@@ -17,5 +18,14 @@
     color: var(--light);
     background-color: var(--primary);
     border: none;
+  }
+}
+
+.footer {
+  background-color: var(--gray-100);
+  border-top: solid 1px var(--gray-400);
+  @media (prefers-color-scheme: dark) {
+    background-color: transparent;
+    // border-top: solid 1px var(--gray-400);
   }
 }
