@@ -883,8 +883,6 @@ function createModal(parentWindow) {
     show: false,
     alwaysOnTop: true,
     parent: parentWindow,
-    hasShadow: false,
-    transparent: true,
     minimizable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
