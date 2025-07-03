@@ -20,6 +20,10 @@
   width: 100%;
   -webkit-app-region: no-drag;
   user-select: none;
+  @media (prefers-color-scheme: dark) {
+    border-color: var(--light);
+    background-color: var(--light);
+  }
 
   &--rounded {
     border-radius: 3rem;
@@ -76,11 +80,20 @@
   &--default {
     background-color: var(--gray-100);
     border-color: var(--gray-600);
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--light);
+      color: var(--gray-600);
+    }
   }
 
   &--default:hover {
     background-color: var(--gray-300);
     border-color: var(--gray-600);
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--light);
+      border-color: var(--dark);
+      color: var(--dark);
+    }
   }
 
   &--invert {
@@ -102,6 +115,10 @@
   &--blank:hover {
     background-color: var(--gray-100);
     border-color: var(--gray-100);
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--gray-700);
+      border-color: var(--gray-700);
+    }
   }
   &--dark {
     background-color: var(--dark);
@@ -130,5 +147,14 @@
   &-tab:not(.selected):hover {
     background-color: var(--gray-200-day);
     border-color: var(--gray-200-day);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn {
+    &--default {
+      // background-color: var(--light);
+      // color: var(--gray-600);
+    }
   }
 }

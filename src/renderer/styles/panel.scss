@@ -63,7 +63,8 @@ body.is-dialog-open .panel-wrapper {
   border-radius: 0.75rem;
   padding: 0.5rem;
   display: flex;
-  color: var(--gray-400);
+  // color: var(--gray-400);
+  color: #cfd1d4;
   .has-webcamera-only &,
   .has-avatar & {
     padding: 3px;
@@ -145,7 +146,8 @@ body.body--is-recording:not(.is-paused)
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gray-400);
+  // color: var(--gray-400);
+  color: #cfd1d4;
   font-size: var(--font-xs);
   line-height: var(--leading-xs);
   border-radius: 0.5rem;
@@ -199,7 +201,8 @@ body.body--is-recording:not(.is-paused)
 }
 
 .panel-divider {
-  background-color: var(--gray-400);
+  // background-color: var(--gray-400);
+  background-color: #cfd1d4;
   height: 1.25rem;
   width: 1px;
   margin: 0 0.25rem;
@@ -212,7 +215,8 @@ body.body--is-recording:not(.is-paused)
   top: 100%;
   padding-top: 58px;
   width: 233px;
-  color: var(--gray-400);
+  // color: var(--gray-400);
+  color: #cfd1d4;
 }
 
 .has-webcamera-only .panel-settings-container,
@@ -269,7 +273,8 @@ body.is-webcamera-size-open .has-avatar #panel-webcamera {
     width: 1rem;
     height: 1rem;
     border-radius: 50%;
-    background: var(--gray-300);
+    // background: var(--gray-300);
+    background: #e7e8e9;
     cursor: pointer;
     margin-top: -0.4rem;
 
@@ -282,7 +287,8 @@ body.is-webcamera-size-open .has-avatar #panel-webcamera {
   &::-webkit-slider-runnable-track {
     height: 0.25rem;
     // width: 0.5rem;
-    background: var(--gray-300);
+    // background: var(--gray-300);
+    background: #e7e8e9;
     border-radius: 1rem;
   }
 }
