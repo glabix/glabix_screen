@@ -451,7 +451,7 @@ window.electronAPI.ipcRenderer.on(
       return
     }
 
-    if (lastStreamSettings) {
+    if (lastStreamSettings && !skipAppShowEvent) {
       checkStream(lastStreamSettings)
     }
 
