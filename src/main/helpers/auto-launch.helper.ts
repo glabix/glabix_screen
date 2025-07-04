@@ -1,10 +1,11 @@
 import { app } from "electron"
-import { AutoLaunch } from "auto-launch"
+import AutoLaunch from "auto-launch"
+// const { AutoLaunch } = pkg
 // import.meta.env.VITE_APP_ID
 
 // const AutoLaunch = require('auto-launch');
 // const trayWindow = require('electron-tray-window');
-
+// console.log('pkg', pkg)
 // Настройка автозапуска
 export const autoLaunch = new AutoLaunch({
   name: import.meta.env.VITE_PRODUCT_NAME,
