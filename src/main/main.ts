@@ -101,7 +101,7 @@ import { getLastStreamSettings } from "./helpers/get-last-stream-settings.helper
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { PowerSaveBlocker } from "./helpers/power-blocker"
-import AutoLaunch from "./helpers/auto-launch.helper"
+import { autoLaunch } from "./helpers/auto-launch.helper"
 import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
 import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
 import {
@@ -1421,7 +1421,13 @@ if (eStore.get(UserSettingsKeys.AUTO_LAUNCH) === undefined) {
 ipcMain.on(UserSettingsEvents.AUTO_LAUNCH_SET, (event, data: boolean) => {
   eStore.set(UserSettingsKeys.AUTO_LAUNCH, data)
   logSender.sendLog("settings.auto_launch.update", `${data}`)
-  AutoLaunch.setup(data)
+  if (data) {
+    autoLaunch.enable()
+  } else {
+    autoLaunch.disable()
+  }
+  // AutoLaunch.setup(data)
+  autoLaunch.enable()
 })
 
 if (eStore.get(UserSettingsKeys.THEME)) {
