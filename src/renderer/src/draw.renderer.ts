@@ -32,10 +32,6 @@ class Draw {
       this.drawEnd()
     })
 
-    window.electronAPI.ipcRenderer.on(DialogWindowEvents.CREATE, () => {
-      this.drawEnd()
-    })
-
     window.electronAPI.ipcRenderer.on(
       ModalWindowEvents.TAB,
       (event, data: IModalWindowTabData) => {

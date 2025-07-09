@@ -7,7 +7,7 @@ export type ScreenAction =
   | "cameraOnly"
   | "fullScreenshot"
   | "cropScreenshot"
-export type RecorderState = "recording" | "paused" | "stopped"
+export type RecorderState = "recording" | "paused" | "stopped" | "countdown"
 export type MediaDeviceType = "camera" | "microphone" | "screen"
 export interface IStreamSettings {
   action: ScreenAction

@@ -13,6 +13,7 @@ export class Timer {
   private el: Element
   private limitSeconds = 0
   private seconds = 0
+  private isRunning = false
   private timerInterval: number
   private time = "00:00"
 
@@ -23,6 +24,12 @@ export class Timer {
   }
 
   start(stopVideo?: boolean) {
+    if (this.isRunning) {
+      return
+    }
+
+    this.isRunning = true
+
     if (this.limitSeconds > 0) {
       this.timerInterval = window.setInterval(() => {
         this.seconds--
@@ -62,10 +69,12 @@ export class Timer {
   }
 
   pause() {
+    this.isRunning = false
     clearInterval(this.timerInterval)
   }
 
   stop() {
+    this.isRunning = false
     clearInterval(this.timerInterval)
     this.seconds = this.limitSeconds
     this.setStartTime()

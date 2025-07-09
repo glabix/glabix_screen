@@ -18,6 +18,7 @@ import {
   ScreenshotActionEvents,
   DisplayEvents,
   MainWindowEvents,
+  DrawEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { APIEvents } from "@shared/events/api.events"
@@ -26,6 +27,7 @@ import { captureVideoFrame } from "./helpers/capture-video-frame"
 import {
   RecordEvents,
   RecordSettingsEvents,
+  VideoRecorderEvents,
 } from "../../shared/events/record.events"
 import { Display, Rectangle } from "electron"
 import {
@@ -71,6 +73,7 @@ let isAppShown = false
 let isRecordRestart = false
 let skipAppShowEvent = false
 let skipCountdown = false
+let isDrawing = false
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
   const audioDeviceId =
@@ -428,8 +431,6 @@ const createVideo = (stream: MediaStream, _video) => {
       title: "videoRecorder.onstop",
     })
 
-    // timer.stop()
-
     if (isRecordCanceled || isRecordRestart) {
       window.electronAPI.ipcRenderer.send(RecordEvents.CANCEL, {
         fileUuid: currentRecordedUuid,
@@ -479,7 +480,7 @@ const createVideo = (stream: MediaStream, _video) => {
   }
 }
 
-const updateRecorderState = (state: RecorderState | null | "countdown") => {
+const updateRecorderState = (state: RecorderState | null) => {
   const data: ISimpleStoreData = {
     key: "recordingState",
     value: state || undefined,
@@ -549,7 +550,6 @@ const startRecording = () => {
     })
 
     updateRecorderState("recording")
-    // timer.start(true)
 
     createPreview()
   } else {
@@ -1023,22 +1023,17 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 
   if (isRecording) {
     document.body.classList.add("body--is-recording")
-    // stopBtn.classList.add("panel-btn--stop")
-    // controlPanel.classList.add("is-recording")
-    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    if (!isDrawing) {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    }
   } else {
-    // stopBtn.classList.remove("panel-btn--stop")
     document.body.classList.remove("body--is-recording")
   }
 
   if (["paused"].includes(state["recordingState"])) {
     document.body.classList.add("is-paused")
-    // resumeBtn.removeAttribute("hidden")
-    // pauseBtn.setAttribute("hidden", "")
   } else {
     document.body.classList.remove("is-paused")
-    // resumeBtn.setAttribute("hidden", "")
-    // pauseBtn.removeAttribute("hidden")
   }
 
   if (["stopped"].includes(state["recordingState"])) {
@@ -1047,7 +1042,6 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
       showModal: !isRecordRestart,
     })
     lastScreenAction = undefined
-    // controlPanel.classList.remove("is-recording")
 
     if (lastStreamSettings?.action == "cameraOnly") {
       initRecord(lastStreamSettings)
@@ -1185,6 +1179,13 @@ window.electronAPI.ipcRenderer.on(
     })
   }
 )
+window.electronAPI.ipcRenderer.on(VideoRecorderEvents.STOP, (event, data) => {
+  stopRecording()
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "recording.finished",
+    body: JSON.stringify({ type: "manual" }),
+  })
+})
 window.electronAPI.ipcRenderer.on(
   HotkeysEvents.PAUSE_RECORDING,
   (event, data) => {
@@ -1196,6 +1197,23 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 window.electronAPI.ipcRenderer.on(
+  HotkeysEvents.PAUSE_RECORDING,
+  (event, data) => {
+    pauseRecording()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.paused",
+      body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
+window.electronAPI.ipcRenderer.on(VideoRecorderEvents.PAUSE, (event, data) => {
+  pauseRecording()
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "recording.paused",
+    body: JSON.stringify({ type: "manual" }),
+  })
+})
+window.electronAPI.ipcRenderer.on(
   HotkeysEvents.RESUME_RECORDING,
   (event, data) => {
     resumeRecording()
@@ -1205,6 +1223,13 @@ window.electronAPI.ipcRenderer.on(
     })
   }
 )
+window.electronAPI.ipcRenderer.on(VideoRecorderEvents.RESUME, (event, data) => {
+  resumeRecording()
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "recording.resume",
+    body: JSON.stringify({ type: "manual" }),
+  })
+})
 window.electronAPI.ipcRenderer.on(
   HotkeysEvents.RESTART_RECORDING,
   (event, data) => {
@@ -1212,6 +1237,16 @@ window.electronAPI.ipcRenderer.on(
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "recording.restart",
       body: JSON.stringify({ type: "hotkey" }),
+    })
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  VideoRecorderEvents.RESTART,
+  (event, data) => {
+    openRestartRecordingDialog()
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "recording.restart",
+      body: JSON.stringify({ type: "manual" }),
     })
   }
 )
@@ -1225,6 +1260,13 @@ window.electronAPI.ipcRenderer.on(
     })
   }
 )
+window.electronAPI.ipcRenderer.on(VideoRecorderEvents.DELETE, (event, data) => {
+  openDeleteRecordingDialog()
+  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+    title: "recording.delete",
+    body: JSON.stringify({ type: "manual" }),
+  })
+})
 window.electronAPI.ipcRenderer.on(
   UserSettingsEvents.COUNTDOWN_GET,
   (event, showCountdown: boolean) => {
@@ -1233,6 +1275,14 @@ window.electronAPI.ipcRenderer.on(
     }
   }
 )
+
+window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, () => {
+  isDrawing = true
+})
+
+window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_END, () => {
+  isDrawing = false
+})
 
 cancelBtn.addEventListener("click", () => {
   cancelRecording()

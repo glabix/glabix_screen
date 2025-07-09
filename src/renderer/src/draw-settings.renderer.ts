@@ -1,6 +1,7 @@
 import "@renderer/styles/panel.scss"
 import { LoggerEvents } from "@shared/events/logger.events"
 import {
+  DialogWindowEvents,
   DrawEvents,
   IDrawSettings,
   IModalWindowTabData,
@@ -29,7 +30,10 @@ class DrawSettings {
 
     this.webcameraSizeBtn.addEventListener("click", () => {
       window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_END, {})
-      this.end()
+    })
+
+    window.electronAPI.ipcRenderer.on(DialogWindowEvents.CREATE, () => {
+      window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_END, {})
     })
 
     window.electronAPI.ipcRenderer.on(

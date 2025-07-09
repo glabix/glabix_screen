@@ -1178,10 +1178,6 @@ systemAudioCheckbox.addEventListener(
 )
 
 function start() {
-  // if (streamSettings.action == "fullScreenVideo") {
-  //   sendSettings()
-  // }
-
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "recording.started",
     body: JSON.stringify({

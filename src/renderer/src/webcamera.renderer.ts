@@ -16,7 +16,11 @@ import {
   IDrawSettings,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
-import { RecordSettingsEvents } from "../../shared/events/record.events"
+import {
+  RecordEvents,
+  RecordSettingsEvents,
+  VideoRecorderEvents,
+} from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
 import {
   IUserSettingsShortcut,
@@ -648,123 +652,71 @@ draggableZone.addEventListener(
   false
 )
 
-const updateRecorderState = (state: RecorderState | null | "countdown") => {
-  const data: ISimpleStoreData = {
-    key: "recordingState",
-    value: state || undefined,
-  }
-
-  window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
-}
-
-// const controlBtns = controlPanel.querySelectorAll("button")
-// const popovers = document.querySelectorAll(".popover")
-// controlBtns.forEach((btn) => {
-//   btn.addEventListener(
-//     "mouseenter",
-//     () => {
-//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-//     },
-//     false
-//   )
-//   btn.addEventListener(
-//     "mouseleave",
-//     () => {
-//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-//     },
-//     false
-//   )
-// })
-
-// popovers.forEach((element) => {
-//   element.addEventListener(
-//     "transitionend",
-//     () => {
-//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-//     },
-//     false
-//   )
-// })
-
-function pauseRecording() {
-  timer.pause()
-  // if (videoRecorder) {
-  //   videoRecorder.pause()
-  // }
-}
-
-function resumeRecording() {
-  timer.start(true)
-  // if (videoRecorder) {
-  //   videoRecorder.resume()
-  // }
-}
-
-function cancelRecording() {
-  isRecording = false
-  // if (startTimer) {
-  //   clearInterval(startTimer)
-  //   currentRecordedUuid = null
-  //   currentRecordChunksCount = 0
-
-  //   if (lastStreamSettings) {
-  //     // initView(lastStreamSettings, true)
-  //     // initRecord(lastStreamSettings)
-  //   }
-
-  //   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-  //   window.electronAPI.ipcRenderer.send(ModalWindowEvents.OPEN, {})
-
-  //   stopStreamTracks()
-  //   updateRecorderState(null)
-  // }
-}
-
 stopBtn.addEventListener("click", () => {
-  // stopRecording()
-  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //   title: "recording.finished",
-  //   body: JSON.stringify({ type: "manual" }),
-  // })
+  window.electronAPI.ipcRenderer.send(VideoRecorderEvents.STOP, {})
+  timer.stop()
 })
 
 resumeBtn.addEventListener("click", () => {
-  // if (videoRecorder && videoRecorder.state == "paused") {
-  //   resumeRecording()
-  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //     title: "recording.resume",
-  //     body: JSON.stringify({ type: "manual" }),
-  //   })
-  // }
+  timer.start(true)
+  window.electronAPI.ipcRenderer.send(VideoRecorderEvents.RESUME, {})
 })
 
 pauseBtn.addEventListener("click", () => {
-  // if (videoRecorder && videoRecorder.state == "recording") {
-  //   pauseRecording()
-  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //     title: "recording.paused",
-  //     body: JSON.stringify({ type: "manual" }),
-  //   })
-  // }
+  timer.pause()
+  window.electronAPI.ipcRenderer.send(VideoRecorderEvents.PAUSE, {})
 })
 
 deleteBtn.addEventListener("click", () => {
-  // if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
-  //   openDeleteRecordingDialog()
-  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //     title: "recording.delete",
-  //     body: JSON.stringify({ type: "manual" }),
-  //   })
-  // }
+  timer.pause()
+  window.electronAPI.ipcRenderer.send(VideoRecorderEvents.DELETE, {})
 })
 restartBtn.addEventListener("click", () => {
-  // if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
-  //   openRestartRecordingDialog()
-  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-  //     title: "recording.restart",
-  //     body: JSON.stringify({ type: "manual" }),
-  //   })
-  // }
+  timer.pause()
+  window.electronAPI.ipcRenderer.send(VideoRecorderEvents.RESTART, {})
+})
+
+window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  isCountdown = state["recordingState"] == "countdown"
+
+  if (state["recordingState"] == null) {
+    timer.stop()
+  }
+
+  if (isCountdown) {
+    document.body.classList.add("body--is-countdown")
+    return
+  }
+
+  isRecording = ["recording", "paused"].includes(state["recordingState"])
+  document.body.classList.remove("body--is-countdown")
+
+  if (["recording"].includes(state["recordingState"])) {
+    timer.start(true)
+  }
+
+  if (isRecording) {
+    document.body.classList.add("body--is-recording")
+    stopBtn.classList.add("panel-btn--stop")
+    controlPanel.classList.add("is-recording")
+  } else {
+    stopBtn.classList.remove("panel-btn--stop")
+    document.body.classList.remove("body--is-recording")
+  }
+
+  if (["paused"].includes(state["recordingState"])) {
+    document.body.classList.add("is-paused")
+    resumeBtn.removeAttribute("hidden")
+    pauseBtn.setAttribute("hidden", "")
+  } else {
+    document.body.classList.remove("is-paused")
+    resumeBtn.setAttribute("hidden", "")
+    pauseBtn.removeAttribute("hidden")
+  }
+
+  if (["stopped"].includes(state["recordingState"])) {
+    timer.stop()
+  }
 })
 
 window.electronAPI.ipcRenderer.on(

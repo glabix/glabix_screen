@@ -75,6 +75,7 @@ import {
   ChunkSaverEvents,
   RecordEvents,
   RecordSettingsEvents,
+  VideoRecorderEvents,
 } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
@@ -1181,6 +1182,14 @@ function adjustWindowPosition(name: WindowNames) {
 }
 
 function handleMoveWindows(name: WindowNames) {
+  const isRecording = ["recording", "paused", "countdown"].includes(
+    store.get()["recordingState"]
+  )
+
+  if (isRecording) {
+    return
+  }
+
   const allWindows = draggableWindows.getAll()
   const draggingWindow = draggableWindows.getDragging()
   const staticWindows = allWindows.filter((w) => w.name != draggingWindow?.name)
@@ -1921,6 +1930,23 @@ ipcMain.on(
   }
 )
 
+// Video Recorder
+ipcMain.on(VideoRecorderEvents.STOP, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.STOP, data)
+})
+ipcMain.on(VideoRecorderEvents.PAUSE, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.PAUSE, data)
+})
+ipcMain.on(VideoRecorderEvents.DELETE, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.DELETE, data)
+})
+ipcMain.on(VideoRecorderEvents.RESTART, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.RESTART, data)
+})
+ipcMain.on(VideoRecorderEvents.RESUME, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.RESUME, data)
+})
+
 // V3 Record Start
 ipcMain.on(RecordEvents.START, async (event, data) => {
   if (mainWindow) {
@@ -2077,13 +2103,10 @@ ipcMain.on("windows:maximize", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
-  if (mainWindow) {
-    mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  }
 
-  if (modalWindow) {
-    modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  }
+  mainWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  modalWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  webCameraWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
 
   const isRecording = ["recording", "paused"].includes(
     store.get()["recordingState"]
@@ -2095,17 +2118,6 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
     PowerSaveBlocker.stop()
   }
 })
-
-// ipcMain.on("main-window-focus", (event, data) => {
-// if (
-//   modalWindow &&
-//   modalWindow.isAlwaysOnTop() &&
-//   !isDialogWindowOpen &&
-//   !isHotkeysLocked
-// ) {
-//   mainWindow.focus()
-// }
-// })
 
 ipcMain.on("invalidate-shadow", (event, data) => {
   if (os.platform() == "darwin") {
@@ -2212,7 +2224,8 @@ ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
     modalWindow.hide()
   }
 
-  mainWindow.webContents.send(DialogWindowEvents.CREATE, data)
+  mainWindow?.webContents.send(DialogWindowEvents.CREATE, data)
+  webCameraWindow?.webContents.send(DialogWindowEvents.CREATE, data)
 
   createDialogWindow({ data })
   isDialogWindowOpen = true
