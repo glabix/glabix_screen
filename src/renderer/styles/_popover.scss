@@ -17,6 +17,17 @@
   transform: translateX(-50%);
 }
 
+.popover--left {
+  transform: translateX(0);
+  left: -0.375rem;
+}
+
+.popover--right {
+  transform: translateX(0);
+  left: auto;
+  right: -0.375rem;
+}
+
 .popover--dark {
   background-color: rgba(47, 47, 47, 0.7);
   border: 1px solid rgba(159, 163, 169, 0.6);

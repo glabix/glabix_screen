@@ -18,7 +18,8 @@ export interface IStreamSettings {
 
 export enum ModalWindowWidth {
   MODAL = 300,
-  SETTINGS = 390,
+  SETTINGS = 300,
+  // SETTINGS = 390,
 }
 export enum ModalWindowHeight {
   // MODAL_WIN = 535,
@@ -140,6 +141,9 @@ export interface IAvatarData {
   organizations: IOrganization[]
 }
 
+export enum DisplayEvents {
+  UPDATE = "update",
+}
 export enum ScreenshotActionEvents {
   FULL = "full",
   CROP = "crop",
@@ -159,6 +163,23 @@ export enum ModalWindowEvents {
   UPLOAD_PROGRESS_SHOW = "modal-window:upload_progress:show",
   UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
+
+export enum DrawEvents {
+  DRAW_START = "draw:start",
+  SETTINGS_CHANGE = "draw:settings:change",
+  DRAW_END = "draw:end",
+}
+
+export interface IDrawSettings {
+  color: string
+  width: number
+}
+
+export enum MainWindowEvents {
+  IGNORE_MOUSE_START = "main-window:ignore-mouse:start",
+  IGNORE_MOUSE_END = "main-window:ignore-mouse:end",
+}
+
 export interface IModalWindowTabData {
   activeTab: "video" | "screenshot"
 }

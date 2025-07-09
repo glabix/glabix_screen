@@ -16,6 +16,8 @@ import {
   ModalWindowEvents,
   IModalWindowTabData,
   ScreenshotActionEvents,
+  DisplayEvents,
+  MainWindowEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { APIEvents } from "@shared/events/api.events"
@@ -25,7 +27,7 @@ import {
   RecordEvents,
   RecordSettingsEvents,
 } from "../../shared/events/record.events"
-import { Rectangle } from "electron"
+import { Display, Rectangle } from "electron"
 import {
   IUserSettingsShortcut,
   UserSettingsEvents,
@@ -35,26 +37,15 @@ import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
-let SHORTCUTS_TEXT_MAP = {}
+const LAST_CROP_SETTINGS_NAME = "LAST_CROP_SETTINGS"
+
 const countdownContainer = document.querySelector(
   ".fullscreen-countdown-container"
 )!
 // const canvasContainer = document.querySelector(".crop-screenshot-container")! as HTMLDivElement
 const countdown = document.querySelector("#fullscreen_countdown")!
-const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
 let startTimer: NodeJS.Timeout
-const timerDisplay = document.getElementById(
-  "timerDisplay"
-)! as HTMLButtonElement
-const controlPanel = document.querySelector(".panel-wrapper")!
-let timer = new Timer(timerDisplay, 0)
-const stopBtn = document.getElementById("stopBtn")! as HTMLButtonElement
 const cancelBtn = document.getElementById("cancelBtn")! as HTMLButtonElement
-const pauseBtn = document.getElementById("pauseBtn")! as HTMLButtonElement
-const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
-const deleteBtn = document.getElementById("deleteBtn")! as HTMLButtonElement
-const restartBtn = document.getElementById("restartBtn")! as HTMLButtonElement
-
 let lastScreenAction: ScreenAction | undefined = "fullScreenVideo"
 let videoRecorder: MediaRecorder | undefined
 let combineStream: MediaStream | undefined
@@ -64,6 +55,11 @@ let lastStreamSettings: IStreamSettings | undefined
 let desktopStream: MediaStream | undefined = undefined
 let voiceStream: MediaStream | undefined = undefined
 let requestId = 0
+let activeDisplayId = 0
+let activeDisplaySize: { width: number; height: number } = {
+  width: document.body.clientWidth,
+  height: document.body.clientHeight,
+}
 let currentRecordedUuid: string | null = null
 let currentRecordChunksCount = 0
 let cropVideoData: ICropVideoData | undefined = undefined
@@ -74,12 +70,9 @@ let isRecordCanceled = false
 let isAppShown = false
 let isRecordRestart = false
 let skipAppShowEvent = false
+let skipCountdown = false
 
 function filterStreamSettings(settings: IStreamSettings): IStreamSettings {
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "rawStreamSettings",
-    body: JSON.stringify(settings),
-  })
   const audioDeviceId =
     settings.audioDeviceId == "no-microphone"
       ? undefined
@@ -139,14 +132,14 @@ function stopRecording() {
 function pauseRecording() {
   if (videoRecorder) {
     videoRecorder.pause()
-    timer.pause()
+    // timer.pause()
   }
 }
 
 function resumeRecording() {
   if (videoRecorder) {
     videoRecorder.resume()
-    timer.start(true)
+    // timer.start(true)
   }
 }
 
@@ -159,7 +152,6 @@ function cancelRecording() {
 
     if (lastStreamSettings) {
       initView(lastStreamSettings, true)
-      // initRecord(lastStreamSettings)
     }
 
     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
@@ -167,6 +159,10 @@ function cancelRecording() {
 
     stopStreamTracks()
     updateRecorderState(null)
+
+    if (lastStreamSettings?.action == "cropVideo") {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
+    }
   }
 }
 
@@ -208,56 +204,6 @@ function openRestartRecordingDialog() {
 
   pauseRecording()
 }
-
-stopBtn.addEventListener("click", () => {
-  stopRecording()
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: "recording.finished",
-    body: JSON.stringify({ type: "manual" }),
-  })
-})
-cancelBtn.addEventListener("click", () => {
-  cancelRecording()
-})
-
-resumeBtn.addEventListener("click", () => {
-  if (videoRecorder && videoRecorder.state == "paused") {
-    resumeRecording()
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "recording.resume",
-      body: JSON.stringify({ type: "manual" }),
-    })
-  }
-})
-
-pauseBtn.addEventListener("click", () => {
-  if (videoRecorder && videoRecorder.state == "recording") {
-    pauseRecording()
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "recording.paused",
-      body: JSON.stringify({ type: "manual" }),
-    })
-  }
-})
-
-deleteBtn.addEventListener("click", () => {
-  if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
-    openDeleteRecordingDialog()
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "recording.delete",
-      body: JSON.stringify({ type: "manual" }),
-    })
-  }
-})
-restartBtn.addEventListener("click", () => {
-  if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
-    openRestartRecordingDialog()
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "recording.restart",
-      body: JSON.stringify({ type: "manual" }),
-    })
-  }
-})
 
 const mergeAudioStreams = (
   desktopStream: MediaStream,
@@ -400,9 +346,9 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
 
 const getSupportedMimeType = () => {
   const defaultMimeType = "video/mp4"
-  const h264MimeType = "video/webm;codecs=h264"
-  if (MediaRecorder.isTypeSupported(h264MimeType)) {
-    return h264MimeType
+  const vp9MimeType = "video/webm;codecs=vp9"
+  if (MediaRecorder.isTypeSupported(vp9MimeType)) {
+    return vp9MimeType
   } else {
     return defaultMimeType
   }
@@ -411,13 +357,15 @@ const getSupportedMimeType = () => {
 const createVideo = (stream: MediaStream, _video) => {
   videoRecorder = new MediaRecorder(stream, {
     mimeType: getSupportedMimeType(),
-    videoBitsPerSecond: 2500000, // 2.5 Mbps
+    videoBitsPerSecond: 5_000_000, // 5 Mbps
   })
 
   videoRecorder.onerror = (event) => {
     window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.onerror",
-      body: JSON.stringify(event),
+      body:
+        JSON.stringify(event) +
+        ` name: ${event.error.name}, event.error.message: ${event.error.message}`,
     })
   }
 
@@ -434,7 +382,11 @@ const createVideo = (stream: MediaStream, _video) => {
     updateRecorderState("paused")
   }
 
-  videoRecorder.onstart = function (e) {}
+  videoRecorder.onstart = function (e) {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: "videoRecorder.onstart",
+    })
+  }
 
   videoRecorder.onresume = function (e) {
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -464,8 +416,8 @@ const createVideo = (stream: MediaStream, _video) => {
         })
       })
       .catch((e) => {
-        window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
-          title: "videoRecorder.onerror",
+        window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+          title: `recorder.renderer readFileAsync:`,
           body: JSON.stringify(e),
         })
       })
@@ -476,7 +428,7 @@ const createVideo = (stream: MediaStream, _video) => {
       title: "videoRecorder.onstop",
     })
 
-    timer.stop()
+    // timer.stop()
 
     if (isRecordCanceled || isRecordRestart) {
       window.electronAPI.ipcRenderer.send(RecordEvents.CANCEL, {
@@ -597,7 +549,7 @@ const startRecording = () => {
     })
 
     updateRecorderState("recording")
-    timer.start(true)
+    // timer.start(true)
 
     createPreview()
   } else {
@@ -631,7 +583,7 @@ const clearView = () => {
     screenContainer.setAttribute("hidden", "")
   }
 
-  draggableZone.classList.remove("has-webcamera-only")
+  // draggableZone.classList.remove("has-webcamera-only")
 
   if (cropMoveable) {
     cropMoveable.destroy()
@@ -644,7 +596,10 @@ const clearView = () => {
 
 const clearCameraOnlyVideoStream = () => {
   const video = document.querySelector("#webcam_only_video") as HTMLVideoElement
-  video.srcObject = null
+
+  if (video) {
+    video.srcObject = null
+  }
 
   if (combineStream) {
     combineStream.getTracks().forEach((track) => track.stop())
@@ -684,11 +639,51 @@ const updateCropVideoData = (data: {
   if (data.height) {
     cropVideoData = { ...cropVideoData, out_h: data.height }
   }
+}
+const getLastCropSettings = (): Rectangle | null => {
+  const lastPosStr = localStorage.getItem(LAST_CROP_SETTINGS_NAME)
 
-  window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-    title: `updateCropVideoData`,
-    body: JSON.stringify(cropVideoData),
-  })
+  if (!lastPosStr) {
+    return null
+  }
+
+  const lastPos = JSON.parse(lastPosStr)
+  return lastPos[activeDisplayId] || null
+}
+const adjustCropSettings = (): Rectangle => {
+  const maxWidth = document.body.offsetWidth
+  const maxHeight = document.body.offsetHeight
+  const screen = document.querySelector("#crop_video_screen")! as HTMLDivElement
+  const rect = screen.getBoundingClientRect()
+  let x = rect.left < 0 ? 0 : rect.left
+  let y = rect.top < 0 ? 0 : rect.top
+
+  if (rect.right > maxWidth) {
+    x = maxWidth - rect.width
+  }
+
+  if (y + rect.height > maxHeight) {
+    y = maxHeight - rect.height
+  }
+
+  screen.style.left = `${x}px`
+  screen.style.top = `${y}px`
+
+  return { x, y, width: rect.width, height: rect.height }
+}
+
+const setLastCropSettings = () => {
+  const pos = adjustCropSettings()
+  const lastPosStr = localStorage.getItem(LAST_CROP_SETTINGS_NAME)
+  const lastPos = lastPosStr ? JSON.parse(lastPosStr) : null
+  const updatedPos = { [activeDisplayId]: pos }
+  let newPos = { ...updatedPos }
+
+  if (lastPos) {
+    newPos = { ...lastPos, ...newPos }
+  }
+
+  localStorage.setItem(LAST_CROP_SETTINGS_NAME, JSON.stringify(newPos))
 }
 
 const initView = (settings: IStreamSettings, force?: boolean) => {
@@ -703,33 +698,25 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
   clearView()
 
   if (settings.action == "cameraOnly") {
-    const videoContainer = document.querySelector(".webcamera-only-container")!
-
-    const video = document.querySelector(
-      "#webcam_only_video"
-    )! as HTMLVideoElement
-    videoContainer.removeAttribute("hidden")
-    draggableZone.classList.add("has-webcamera-only")
-    const rect = videoContainer.getBoundingClientRect()
-    video.width = rect.width
-    video.height = rect.height
+    // const videoContainer = document.querySelector(".webcamera-only-container")!
+    // const video = document.querySelector(
+    //   "#webcam_only_video"
+    // )! as HTMLVideoElement
+    // videoContainer.removeAttribute("hidden")
+    // draggableZone.classList.add("has-webcamera-only")
+    // const rect = videoContainer.getBoundingClientRect()
+    // video.width = rect.width
+    // video.height = rect.height
   }
 
   if (settings.action == "cropVideo") {
+    console.log("settings.action", settings.action)
+    // window.electronAPI.ipcRenderer.send("log", settings.action)
     const screenContainer = document.querySelector(".crop-screen-container")!
     screenContainer.removeAttribute("hidden")
-    const screen = screenContainer.querySelector("#crop_video_screen")!
-    const canvasVideo = screen.querySelector("canvas")!
-    const screenRect = screen.getBoundingClientRect()
-    canvasVideo.width = screenRect.width
-    canvasVideo.height = screenRect.height
-
-    updateCropVideoData({
-      top: screenRect.top,
-      left: screenRect.left,
-      width: screenRect.width,
-      height: screenRect.height,
-    })
+    const screen = screenContainer.querySelector(
+      "#crop_video_screen"
+    )! as HTMLElement
 
     cropMoveable = new Moveable(document.body, {
       target: screen as MoveableRefTargetType,
@@ -751,6 +738,7 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
       })
       .on("dragEnd", () => {
         window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+        setLastCropSettings()
       })
 
     /* resizable */
@@ -769,8 +757,29 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
 
       updateCropVideoData({ top: drag.top, left: drag.left, width, height })
 
-      canvasVideo.width = width
-      canvasVideo.height = height
+      setLastCropSettings()
+    })
+
+    const lastCropSettings = getLastCropSettings()
+    if (lastCropSettings) {
+      screen.style.width = `${lastCropSettings.width}px`
+      screen.style.height = `${lastCropSettings.height}px`
+      screen.style.left = `${lastCropSettings.x}px`
+      screen.style.top = `${lastCropSettings.y}px`
+    } else {
+      // Default position via CSS .screen-recorder-container
+      screen.style.width = `640px`
+      screen.style.height = `480px`
+      screen.style.left = `${activeDisplaySize.width / 2 - 320}px` // calc(50% - 320px)
+      screen.style.top = `${activeDisplaySize.height / 2 - 240}px` // calc(50% - 240px)
+    }
+
+    const cropRect = screen.getBoundingClientRect()
+    updateCropVideoData({
+      top: cropRect.top,
+      left: cropRect.left,
+      width: cropRect.width,
+      height: cropRect.height,
     })
 
     cropMoveable.updateRect()
@@ -902,6 +911,12 @@ window.electronAPI.ipcRenderer.on(
     } else {
       initView(lastStreamSettings, true)
     }
+
+    if (lastStreamSettings.action == "cropVideo") {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
+    } else {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    }
   }
 )
 
@@ -932,8 +947,13 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
-function showCountdownScreen(delay = 100): Promise<boolean> {
+function showCountdownScreen(delay = 100): Promise<void> {
   return new Promise((resolve) => {
+    if (skipCountdown) {
+      resolve()
+      return
+    }
+
     let timeleft = 2
     countdownContainer.removeAttribute("hidden")
 
@@ -944,7 +964,7 @@ function showCountdownScreen(delay = 100): Promise<boolean> {
         countdown.innerHTML = ""
         window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
         setTimeout(() => {
-          resolve(true)
+          resolve()
         }, delay)
       } else {
         countdown.innerHTML = `${timeleft}`
@@ -959,6 +979,7 @@ window.electronAPI.ipcRenderer.on(
   RecordEvents.START,
   (event, settings: IStreamSettings, file_uuid: string) => {
     const data = filterStreamSettings(settings)
+    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
     initRecord(data).then(() => {
       currentRecordedUuid = file_uuid
       currentRecordChunksCount = 0
@@ -972,13 +993,12 @@ window.electronAPI.ipcRenderer.on(
           screen.classList.add("is-recording")
           const screenMove = cropMoveable!.getControlBoxElement()
           screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
-
-          window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
-            cropVideoData,
-            fileUuid: file_uuid,
+          sendCropData().then(() => {
+            startRecording()
           })
+        } else {
+          startRecording()
         }
-        startRecording()
       })
     })
   }
@@ -989,6 +1009,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 
   if (isCountdown) {
     document.body.classList.add("body--is-countdown")
+    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
     return
   }
 
@@ -1002,21 +1023,22 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
 
   if (isRecording) {
     document.body.classList.add("body--is-recording")
-    stopBtn.classList.add("panel-btn--stop")
-    controlPanel.classList.add("is-recording")
+    // stopBtn.classList.add("panel-btn--stop")
+    // controlPanel.classList.add("is-recording")
+    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
   } else {
-    stopBtn.classList.remove("panel-btn--stop")
+    // stopBtn.classList.remove("panel-btn--stop")
     document.body.classList.remove("body--is-recording")
   }
 
   if (["paused"].includes(state["recordingState"])) {
     document.body.classList.add("is-paused")
-    resumeBtn.removeAttribute("hidden")
-    pauseBtn.setAttribute("hidden", "")
+    // resumeBtn.removeAttribute("hidden")
+    // pauseBtn.setAttribute("hidden", "")
   } else {
     document.body.classList.remove("is-paused")
-    resumeBtn.setAttribute("hidden", "")
-    pauseBtn.removeAttribute("hidden")
+    // resumeBtn.setAttribute("hidden", "")
+    // pauseBtn.removeAttribute("hidden")
   }
 
   if (["stopped"].includes(state["recordingState"])) {
@@ -1025,44 +1047,42 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
       showModal: !isRecordRestart,
     })
     lastScreenAction = undefined
-    controlPanel.classList.remove("is-recording")
-    const settings: IStreamSettings =
-      lastStreamSettings!.action == "cropVideo" && !isRecordRestart
-        ? { ...lastStreamSettings, action: "fullScreenVideo" }
-        : lastStreamSettings!
+    // controlPanel.classList.remove("is-recording")
 
-    lastStreamSettings = filterStreamSettings(settings)
-
-    if (lastStreamSettings.action == "cameraOnly") {
+    if (lastStreamSettings?.action == "cameraOnly") {
       initRecord(lastStreamSettings)
     } else {
-      initView(lastStreamSettings, true)
+      initView(lastStreamSettings!, true)
     }
 
-    window.electronAPI.ipcRenderer.send(
-      ModalWindowEvents.RENDER,
-      settings.action
-    )
+    if (lastStreamSettings?.action == "cropVideo") {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
+    } else {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    }
   }
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
 })
 
 window.electronAPI.ipcRenderer.on(
-  APIEvents.GET_ORGANIZATION_LIMITS,
-  (event, limits: IOrganizationLimits) => {
-    timer.updateLimits(limits.max_upload_duration || 0)
+  DisplayEvents.UPDATE,
+  (event, activeDisplay: Display) => {
+    if (isRecording) {
+      return
+    }
+
+    activeDisplayId = activeDisplay.id
+    activeDisplaySize = {
+      width: activeDisplay.bounds.width,
+      height: activeDisplay.bounds.height,
+    }
+
+    if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
+      initView(lastStreamSettings, true)
+    }
   }
 )
-window.electronAPI.ipcRenderer.on("screen:change", (event) => {
-  if (isRecording) {
-    return
-  }
-
-  if (lastStreamSettings && lastStreamSettings.action == "cropVideo") {
-    initView(lastStreamSettings, true)
-  }
-})
 
 window.electronAPI.ipcRenderer.on(
   RecordSettingsEvents.INIT,
@@ -1206,41 +1226,16 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 window.electronAPI.ipcRenderer.on(
-  UserSettingsEvents.SHORTCUTS_GET,
-  (event, data: IUserSettingsShortcut[]) => {
-    data.forEach((s) => {
-      SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
-    })
-    updateHotkeysTexts()
+  UserSettingsEvents.COUNTDOWN_GET,
+  (event, showCountdown: boolean) => {
+    if (typeof showCountdown == "boolean") {
+      skipCountdown = !showCountdown
+    }
   }
 )
 
-const controlBtns = controlPanel.querySelectorAll("button")
-const popovers = document.querySelectorAll(".popover")
-controlBtns.forEach((btn) => {
-  btn.addEventListener(
-    "mouseenter",
-    () => {
-      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-    },
-    false
-  )
-  btn.addEventListener(
-    "mouseleave",
-    () => {
-      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-    },
-    false
-  )
-})
-popovers.forEach((element) => {
-  element.addEventListener(
-    "transitionend",
-    () => {
-      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-    },
-    false
-  )
+cancelBtn.addEventListener("click", () => {
+  cancelRecording()
 })
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1273,19 +1268,34 @@ window.addEventListener("unhandledrejection", (event) => {
   })
 })
 
-function updateHotkeysTexts() {
-  const textEls = document.querySelectorAll(
-    "[data-text]"
-  ) as NodeListOf<HTMLElement>
-  textEls.forEach((el) => {
-    const text = el.dataset.text
-    if (text) {
-      if (SHORTCUTS_TEXT_MAP[text]) {
-        el.removeAttribute("hidden")
-        el.innerHTML = SHORTCUTS_TEXT_MAP[text]
-      } else {
-        el.setAttribute("hidden", "")
+function sendCropData(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tempVideo = document.createElement("video")
+    tempVideo.srcObject = combineStream!
+    tempVideo.onloadedmetadata = () => {
+      const screenWidth = window.innerWidth
+      const screenHeight = window.innerHeight
+      const videoWidth = tempVideo.videoWidth
+      const videoHeight = tempVideo.videoHeight
+      const XRatio = videoWidth / window.innerWidth
+      const YRatio = videoHeight / window.innerHeight
+
+      const cropData: ICropVideoData = {
+        x: Math.round(cropVideoData!.x * XRatio),
+        y: Math.round(cropVideoData!.y * YRatio),
+        out_w: Math.round(cropVideoData!.out_w * XRatio),
+        out_h: Math.round(cropVideoData!.out_h * YRatio),
       }
+
+      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+        title: `[view-crop-data]: Video Size: ${videoWidth}x${videoHeight} Screen Size: ${screenWidth}x${screenHeight}`,
+      })
+      window.electronAPI.ipcRenderer.send(RecordEvents.SET_CROP_DATA, {
+        fileUuid: currentRecordedUuid,
+        cropVideoData: cropData,
+      })
+
+      resolve()
     }
   })
 }

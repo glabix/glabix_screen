@@ -39,6 +39,7 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 10;
+  overflow: hidden;
 
   &.circle-sm {
     width: 200px;
@@ -294,11 +295,22 @@ body {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.2);
   display: flex;
-  color: var(--light);
+  color: #fff;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+
+  .btn--invert {
+    background-color: transparent;
+    border-color: #fff;
+    color: #fff;
+  }
+
+  .btn--invert:hover {
+    background-color: #fff;
+    color: #0f1928;
+  }
 }
 
 .fullscreen-countdown-text {
@@ -394,8 +406,18 @@ body.no-microphone .microphone-alert-container {
 .draggable-zone {
   position: fixed;
   z-index: 1001;
-  top: calc(80% - 200px);
-  left: 5%;
+  top: 0;
+  left: 50%;
   min-width: 200px;
+  translate: -50% 0;
   -webkit-app-region: drag;
+}
+
+body:not(.body--is-recording) .recorder-btn {
+  // Buttons Play, Stop, Pause is disabled by default
+  // border-color: var(--gray-300);
+  // background-color: var(--gray-300);
+  // color: var(--gray-600);
+  opacity: 0.6;
+  pointer-events: none;
 }

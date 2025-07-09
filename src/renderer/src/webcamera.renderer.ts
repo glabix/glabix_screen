@@ -8,13 +8,25 @@ import {
   IStreamSettings,
   ILastDeviceSettings,
   ScreenshotWindowEvents,
+  DisplayEvents,
+  IOrganizationLimits,
+  RecorderState,
+  ISimpleStoreData,
+  DrawEvents,
+  IDrawSettings,
 } from "@shared/types/types"
 import Moveable, { MoveableRefTargetType } from "moveable"
 import { RecordSettingsEvents } from "../../shared/events/record.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
-import { UserSettingsEvents } from "@shared/types/user-settings.types"
+import {
+  IUserSettingsShortcut,
+  UserSettingsEvents,
+} from "@shared/types/user-settings.types"
 import { AppEvents } from "@shared/events/app.events"
 import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
+import { Display } from "electron"
+import { Timer } from "./helpers/timer"
+import { APIEvents } from "@shared/events/api.events"
 
 type AvatarTypes =
   | "circle-sm"
@@ -36,6 +48,17 @@ const AVATAR_TYPES: AvatarTypes[] = [
   "rect-lg",
   "rect-xl",
 ]
+const AVATAR_SIZES: { [key: string]: { width: number; height: number } } = {
+  "circle-sm": { width: 200, height: 200 },
+  "circle-lg": { width: 360, height: 360 },
+  "circle-xl": { width: 560, height: 560 },
+  "rect-sm": { width: 300, height: (9 / 16) * 300 },
+  "rect-lg": { width: 650, height: (9 / 16) * 650 },
+  "rect-xl": {
+    width: 0.8 * document.body.offsetWidth,
+    height: (9 / 16) * 0.8 * document.body.offsetWidth,
+  },
+}
 
 const LAST_PANEL_SETTINGS_NAME = "LAST_PANEL_SETTINGS"
 let lastPanelSettings: ILastPanelSettings | null = null
@@ -61,6 +84,17 @@ const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
 const draggableZoneTarget = draggableZone.querySelector(
   ".draggable-zone-target"
 ) as HTMLElement
+
+const timerDisplay = document.getElementById(
+  "timerDisplay"
+)! as HTMLButtonElement
+let timer = new Timer(timerDisplay, 0)
+
+const stopBtn = document.getElementById("stopBtn")! as HTMLButtonElement
+const pauseBtn = document.getElementById("pauseBtn")! as HTMLButtonElement
+const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
+const deleteBtn = document.getElementById("deleteBtn")! as HTMLButtonElement
+const restartBtn = document.getElementById("restartBtn")! as HTMLButtonElement
 
 let draggable: Moveable | undefined = undefined
 let currentStream: MediaStream | undefined = undefined
@@ -95,9 +129,10 @@ function getLastPanelSettings(): ILastPanelSettings | null {
   return lastDraggablePosStr ? JSON.parse(lastDraggablePosStr) : null
 }
 
-function adjustPanelPosition(): { x: number; y: number } {
-  const maxWidth = document.body.offsetWidth
-  const maxHeight = document.body.offsetHeight
+function adjustPanelPosition(
+  maxWidth: number,
+  maxHeight: number
+): { x: number; y: number } {
   const rect = draggableZone.getBoundingClientRect()
   let x = rect.left < 0 ? 0 : rect.left
   let y = rect.top < 0 ? 0 : rect.top
@@ -116,8 +151,10 @@ function adjustPanelPosition(): { x: number; y: number } {
   return { x, y }
 }
 
-function setLastPanelSettings() {
-  const pos = adjustPanelPosition()
+function setLastPanelSettings(maxWidth?: number, maxHeight?: number) {
+  const maxW = maxWidth || document.body.offsetWidth
+  const maxH = maxHeight || document.body.offsetHeight
+  const pos = adjustPanelPosition(maxW, maxH)
   const left = pos.x
   const top = pos.y
   const avatarType: AvatarTypes =
@@ -135,41 +172,70 @@ function setLastPanelSettings() {
 }
 
 function initDraggableZone() {
+  draggable = new Moveable(document.body, {
+    target: draggableZone as MoveableRefTargetType,
+    dragTarget: draggableZoneTarget,
+    preventClickEventOnDrag: false,
+    container: document.body,
+    className: "moveable-invisible-container",
+    draggable: true,
+  })
+
+  draggable
+    .on("dragStart", ({ target }) => {
+      target.classList.add("moveable-dragging")
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    })
+    .on("drag", ({ target, left, top }) => {
+      target!.style.left = `${left}px`
+      target!.style.top = `${top}px`
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+    })
+    .on("dragEnd", ({ target }) => {
+      target.classList.remove("moveable-dragging")
+      window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+      setLastPanelSettings()
+    })
+
   lastPanelSettings = getLastPanelSettings()
 
-  // if (lastPanelSettings) {
-  //   draggableZone.style.left = `${lastPanelSettings.left}px`
-  //   draggableZone.style.top = `${lastPanelSettings.top}px`
-  //   AVATAR_TYPES.forEach((type) => {
-  //     videoContainer.classList.remove(type)
-  //   })
-  //   videoContainer.classList.add(lastPanelSettings.avatarType)
-  // }
+  if (lastPanelSettings) {
+    AVATAR_TYPES.forEach((type) => {
+      videoContainer.classList.remove(type)
+    })
+    videoContainer.classList.add(lastPanelSettings.avatarType)
 
-  // draggable = new Moveable(document.body, {
-  //   target: draggableZone as MoveableRefTargetType,
-  //   dragTarget: draggableZoneTarget,
-  //   preventClickEventOnDrag: false,
-  //   container: document.body,
-  //   className: "moveable-invisible-container",
-  //   draggable: true,
-  // })
+    const panel = document.querySelector(
+      ".panel-settings-container"
+    )! as HTMLElement
+    const webcamera = document.querySelector(
+      ".webcamera-view-container"
+    )! as HTMLElement
+    const maxWidth = window.innerWidth
+    const maxHeight = window.innerHeight
+    const size =
+      lastStreamSettings?.cameraDeviceId &&
+      lastStreamSettings.cameraDeviceId != "no-camera"
+        ? AVATAR_SIZES[lastPanelSettings.avatarType]!
+        : { width: panel.clientWidth, height: panel.clientHeight }
 
-  // draggable
-  //   .on("dragStart", ({ target }) => {
-  //     target.classList.add("moveable-dragging")
-  //     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-  //   })
-  //   .on("drag", ({ target, left, top }) => {
-  //     target!.style.left = `${left}px`
-  //     target!.style.top = `${top}px`
-  //     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-  //   })
-  //   .on("dragEnd", ({ target }) => {
-  //     target.classList.remove("moveable-dragging")
-  //     window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-  //     setLastPanelSettings()
-  //   })
+    let left = lastPanelSettings.left
+    let top = lastPanelSettings.top
+    const topBuffer = panel.clientHeight || 0
+
+    if (maxWidth < size.width + left) {
+      left = maxWidth - size.width
+    }
+
+    if (maxHeight < size.height + top + topBuffer) {
+      top = maxHeight - size.height - topBuffer
+    }
+
+    draggableZone.style.left = `${left}px`
+    draggableZone.style.top = `${top}px`
+  }
+
+  draggable.updateRect()
 }
 
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
@@ -199,27 +265,33 @@ function startStream(deviseId) {
     video: { deviceId: { exact: deviseId } },
   }
 
-  navigator.mediaDevices
-    .getUserMedia(constraints)
-    .then((stream) => {
-      if (lastStreamSettings?.action == "cameraOnly") {
-        stream.getTracks().forEach((track) => track.stop())
-      } else {
-        stopStreamTracks()
-        currentStream = stream
-        showVideo()
-      }
-    })
-    .catch((e) => {
-      window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-        title: `webcamera.renderer.startStream.catch(e)`,
-        body: JSON.stringify({ e }),
-        error: true,
-      })
-      if (e.toString().toLowerCase().includes("permission denied")) {
-        showVideo(true, "no-permission")
-      } else {
-        showVideo(true)
+  window.electronAPI.ipcRenderer
+    .invoke("isMainWindowVisible")
+    .then((isMainWindowVisible) => {
+      if (isMainWindowVisible) {
+        navigator.mediaDevices
+          .getUserMedia(constraints)
+          .then((stream) => {
+            if (lastStreamSettings?.action == "cameraOnly") {
+              stream.getTracks().forEach((track) => track.stop())
+            } else {
+              stopStreamTracks()
+              currentStream = stream
+              showVideo()
+            }
+          })
+          .catch((e) => {
+            window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+              title: `webcamera.renderer.startStream.catch(e)`,
+              body: JSON.stringify({ e }),
+              error: true,
+            })
+            if (e.toString().toLowerCase().includes("permission denied")) {
+              showVideo(true, "no-permission")
+            } else {
+              showVideo(true)
+            }
+          })
       }
     })
 }
@@ -284,6 +356,32 @@ window.electronAPI.ipcRenderer.on(
       }
     } else {
       isScreenshotMode = false
+    }
+
+    draggableZone.classList.remove("has-webcamera-only")
+
+    if (data.action == "cameraOnly") {
+      stopStream()
+      const videoContainer = document.querySelector(
+        ".webcamera-only-container"
+      )!
+      const video = document.querySelector(
+        "#webcam_only_video"
+      )! as HTMLVideoElement
+      videoContainer.removeAttribute("hidden")
+      draggableZone.classList.add("has-webcamera-only")
+      const rect = videoContainer.getBoundingClientRect()
+      video.width = rect.width
+      video.height = rect.height
+    } else {
+      const video = document.querySelector(
+        "#webcam_only_video"
+      ) as HTMLVideoElement
+      const videoContainer = document.querySelector(
+        ".webcamera-only-container"
+      )!
+      video.srcObject = null
+      videoContainer.setAttribute("hidden", "")
     }
   }
 )
@@ -352,6 +450,10 @@ window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   stopStream()
 })
 
+window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, () => {
+  closeWebcameraSize()
+})
+
 window.electronAPI.ipcRenderer.on(
   ModalWindowEvents.TAB,
   (event, data: IModalWindowTabData) => {
@@ -392,6 +494,24 @@ window.electronAPI.ipcRenderer.on(
     if (typeof isPanelHidden == "boolean") {
       togglePanelHidden(isPanelHidden)
     }
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  DisplayEvents.UPDATE,
+  (event, activeDisplay: Display) => {
+    if (isRecording) {
+      return
+    }
+
+    if (lastStreamSettings && !skipAppShowEvent) {
+      checkStream(lastStreamSettings)
+    }
+
+    setLastPanelSettings(
+      activeDisplay.bounds.width,
+      activeDisplay.bounds.height
+    )
   }
 )
 
@@ -528,18 +648,176 @@ draggableZone.addEventListener(
   false
 )
 
-getLastMediaDevices()
-initDraggableZone()
+const updateRecorderState = (state: RecorderState | null | "countdown") => {
+  const data: ISimpleStoreData = {
+    key: "recordingState",
+    value: state || undefined,
+  }
+
+  window.electronAPI.ipcRenderer.send(SimpleStoreEvents.UPDATE, data)
+}
+
+// const controlBtns = controlPanel.querySelectorAll("button")
+// const popovers = document.querySelectorAll(".popover")
+// controlBtns.forEach((btn) => {
+//   btn.addEventListener(
+//     "mouseenter",
+//     () => {
+//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+//     },
+//     false
+//   )
+//   btn.addEventListener(
+//     "mouseleave",
+//     () => {
+//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+//     },
+//     false
+//   )
+// })
+
+// popovers.forEach((element) => {
+//   element.addEventListener(
+//     "transitionend",
+//     () => {
+//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+//     },
+//     false
+//   )
+// })
+
+function pauseRecording() {
+  timer.pause()
+  // if (videoRecorder) {
+  //   videoRecorder.pause()
+  // }
+}
+
+function resumeRecording() {
+  timer.start(true)
+  // if (videoRecorder) {
+  //   videoRecorder.resume()
+  // }
+}
+
+function cancelRecording() {
+  isRecording = false
+  // if (startTimer) {
+  //   clearInterval(startTimer)
+  //   currentRecordedUuid = null
+  //   currentRecordChunksCount = 0
+
+  //   if (lastStreamSettings) {
+  //     // initView(lastStreamSettings, true)
+  //     // initRecord(lastStreamSettings)
+  //   }
+
+  //   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
+  //   window.electronAPI.ipcRenderer.send(ModalWindowEvents.OPEN, {})
+
+  //   stopStreamTracks()
+  //   updateRecorderState(null)
+  // }
+}
+
+stopBtn.addEventListener("click", () => {
+  // stopRecording()
+  // window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //   title: "recording.finished",
+  //   body: JSON.stringify({ type: "manual" }),
+  // })
+})
+
+resumeBtn.addEventListener("click", () => {
+  // if (videoRecorder && videoRecorder.state == "paused") {
+  //   resumeRecording()
+  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //     title: "recording.resume",
+  //     body: JSON.stringify({ type: "manual" }),
+  //   })
+  // }
+})
+
+pauseBtn.addEventListener("click", () => {
+  // if (videoRecorder && videoRecorder.state == "recording") {
+  //   pauseRecording()
+  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //     title: "recording.paused",
+  //     body: JSON.stringify({ type: "manual" }),
+  //   })
+  // }
+})
+
+deleteBtn.addEventListener("click", () => {
+  // if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
+  //   openDeleteRecordingDialog()
+  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //     title: "recording.delete",
+  //     body: JSON.stringify({ type: "manual" }),
+  //   })
+  // }
+})
+restartBtn.addEventListener("click", () => {
+  // if (videoRecorder && ["paused", "recording"].includes(videoRecorder.state)) {
+  //   openRestartRecordingDialog()
+  //   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+  //     title: "recording.restart",
+  //     body: JSON.stringify({ type: "manual" }),
+  //   })
+  // }
+})
+
+window.electronAPI.ipcRenderer.on(
+  APIEvents.GET_ORGANIZATION_LIMITS,
+  (event, limits: IOrganizationLimits) => {
+    timer.updateLimits(limits.max_upload_duration || 0)
+  }
+)
+
+let SHORTCUTS_TEXT_MAP = {}
+function updateHotkeysTexts() {
+  const textEls = document.querySelectorAll(
+    "[data-text]"
+  ) as NodeListOf<HTMLElement>
+  textEls.forEach((el) => {
+    const text = el.dataset.text
+    if (text) {
+      if (SHORTCUTS_TEXT_MAP[text]) {
+        el.removeAttribute("hidden")
+        el.innerHTML = SHORTCUTS_TEXT_MAP[text]
+      } else {
+        el.setAttribute("hidden", "")
+      }
+    }
+  })
+}
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.SHORTCUTS_GET,
+  (event, data: IUserSettingsShortcut[]) => {
+    data.forEach((s) => {
+      SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
+    })
+    updateHotkeysTexts()
+  }
+)
 
 document.addEventListener("DOMContentLoaded", () => {
+  const zoomPageDisabled = new ZoomPageDisabled()
+  // getLastMediaDevices()
+  // initDraggableZone()
   if (
     lastStreamSettings?.cameraDeviceId &&
     lastStreamSettings.cameraDeviceId != "no-camera"
   ) {
-    startStream(lastStreamSettings?.cameraDeviceId)
+    window.electronAPI.ipcRenderer
+      .invoke("isMainWindowVisible")
+      .then((isMainWindowVisible) => {
+        if (isMainWindowVisible) {
+          videoContainer.removeAttribute("hidden")
+          startStream(lastStreamSettings?.cameraDeviceId)
+        }
+      })
   }
-
-  const zoomPageDisabled = new ZoomPageDisabled()
 })
 
 window.addEventListener("error", (event) => {

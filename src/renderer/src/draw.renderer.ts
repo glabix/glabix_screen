@@ -4,10 +4,13 @@ import Konva from "konva"
 import { LoggerEvents } from "@shared/events/logger.events"
 import {
   DialogWindowEvents,
+  DrawEvents,
   HotkeysEvents,
+  IDrawSettings,
   IModalWindowTabData,
   ModalWindowEvents,
 } from "@shared/types/types"
+import { UserSettingsEvents } from "@shared/types/user-settings.types"
 
 const COUNTDOWN_DELAY = 2000
 
@@ -18,47 +21,13 @@ class Draw {
     "--accent-13"
   )
   laserStrokeWidth = 5
-  webcameraSizeBtn = document.querySelector(
-    "#webcamera-size-btn"
-  )! as HTMLElement
-  drawToggle = document.querySelector("#draw-btn")! as HTMLElement
   isScreenshotMode = false
 
   constructor() {
     this.setListeners()
   }
 
-  debounce(func, wait) {
-    let timeoutId
-
-    return function (...args) {
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId)
-      }
-      timeoutId = setTimeout(() => {
-        func(...args)
-      }, wait)
-    }
-  }
-
-  logWidthChange(laserStrokeWidth) {
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "tools.lazer.settings.change.width",
-      body: { width: laserStrokeWidth },
-    })
-  }
-
-  debouncedLogWidth = this.debounce(this.logWidthChange, 200)
-
   setListeners() {
-    this.handleDrawToggle()
-    this.handleLaserColorChange()
-    this.handleLaserStrokeWidthChange()
-
-    this.webcameraSizeBtn.addEventListener("click", () => {
-      this.drawEnd()
-    })
-
     window.electronAPI.ipcRenderer.on("stop-recording", () => {
       this.drawEnd()
     })
@@ -81,60 +50,47 @@ class Draw {
       }
     )
 
+    window.electronAPI.ipcRenderer.on(
+      UserSettingsEvents.DRAW_SETTING_GET,
+      (event, settings: IDrawSettings | undefined) => {
+        if (settings) {
+          this.laserColor = getComputedStyle(
+            document.documentElement
+          ).getPropertyValue(`${settings.color}`)
+          this.laserStrokeWidth = settings.width
+        }
+      }
+    )
+
+    window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, () => {
+      this.drawStart()
+    })
+
+    window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_END, () => {
+      this.drawEnd()
+    })
+
     window.electronAPI.ipcRenderer.on(HotkeysEvents.DRAW, () => {
       if (this.isScreenshotMode) {
         return
       }
 
       if (this.stage) {
-        this.drawEnd()
+        window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_END, {})
       } else {
-        this.drawStart()
+        window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_START, {})
       }
     })
-  }
-
-  handleDrawToggle() {
-    this.drawToggle.addEventListener("click", () => {
-      if (this.stage) {
-        this.drawEnd()
-      } else {
-        this.drawStart()
-      }
-    })
-  }
-
-  handleLaserColorChange() {
-    document
-      .querySelectorAll("[data-color]")
-      .forEach((_b: Element, _: number, _bullets: NodeListOf<Element>) => {
-        const b = _b as HTMLButtonElement
-        const bullets = _bullets as NodeListOf<HTMLButtonElement>
-        b.addEventListener("click", () => {
-          this.changeLaserColor(b, bullets)
-        })
-      })
-  }
-
-  handleLaserStrokeWidthChange() {
-    document
-      .querySelector(".panel-slider")!
-      .addEventListener("input", (event) => {
-        this.laserStrokeWidth = +(event.target as HTMLInputElement).value
-        this.debouncedLogWidth(this.laserStrokeWidth)
-      })
   }
 
   private drawStart() {
     if (this.stage) return
-    window.electronAPI.ipcRenderer.send("draw:start", {})
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "tools.lazer.enabled",
       body: { color: this.laserColor, width: this.laserStrokeWidth },
     })
 
     document.body.classList.add("is-drawing")
-    this.drawToggle.classList.add("active")
 
     this.stage = new Konva.Stage({
       container: "draw-container",
@@ -233,9 +189,7 @@ class Draw {
   }
 
   private drawEnd() {
-    this.drawToggle.classList.remove("active")
     document.body.classList.remove("is-drawing")
-    window.electronAPI.ipcRenderer.send("draw:end", {})
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "tools.lazer.disabled",
     })
@@ -259,24 +213,6 @@ class Draw {
           resolve(true)
         }
       }, COUNTDOWN_DELAY)
-    })
-  }
-
-  private changeLaserColor(
-    currentBullet: HTMLButtonElement,
-    bullets: NodeListOf<HTMLButtonElement>
-  ) {
-    bullets.forEach((b: HTMLButtonElement) => {
-      b.classList.remove("is-active")
-    })
-
-    currentBullet.classList.add("is-active")
-    this.laserColor = getComputedStyle(
-      document.documentElement
-    ).getPropertyValue(`--${currentBullet.dataset.color}`)
-    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "tools.lazer.settings.color.change",
-      body: { color: this.laserColor },
     })
   }
 }

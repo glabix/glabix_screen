@@ -22,14 +22,18 @@ export function captureVideoFrame(
     video.play()
 
     video.onloadedmetadata = () => {
+      const videoWidth = video.videoWidth
+      const videoHeight = video.videoHeight
+      const XRatio = videoWidth / screenSize.width
+      const YRatio = videoHeight / screenSize.height
       setTimeout(() => {
         video.pause()
         ctx!.drawImage(
           video,
-          crop.x * screenSize.scale,
-          crop.y * screenSize.scale,
-          crop.width * screenSize.scale,
-          crop.height * screenSize.scale,
+          crop.x * XRatio,
+          crop.y * YRatio,
+          crop.width * XRatio,
+          crop.height * YRatio,
           0,
           0,
           crop.width,

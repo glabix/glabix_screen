@@ -58,7 +58,7 @@
                 data-settings-tab="common"
               >
                 <div class="flex items-center pointer-events-none">
-                  <div class="flex-center-5 mr-3 min-w-5">
+                  <div class="flex-center-5 mr-2 min-w-5">
                     <i class="i i-gear"></i>
                   </div>
                   <div class="flex-grow-1 text-overflow fw-500">
@@ -75,7 +75,7 @@
                 data-settings-tab="videoAudio"
               >
                 <div class="flex items-center pointer-events-none">
-                  <div class="flex-center-5 mr-3 min-w-5">
+                  <div class="flex-center-5 mr-2 min-w-5">
                     <i class="i i-video-music"></i>
                   </div>
                   <div class="flex-grow-1 text-overflow fw-500">
@@ -92,7 +92,7 @@
                 data-settings-tab="shortCuts"
               >
                 <div class="flex items-center pointer-events-none">
-                  <div class="flex-center-5 mr-3 min-w-5">
+                  <div class="flex-center-5 mr-2 min-w-5">
                     <i class="i i-keyboard"></i>
                   </div>
                   <div class="flex-grow-1 text-overflow fw-500">
@@ -109,7 +109,7 @@
                 data-settings-tab="recordingProcess"
               >
                 <div class="flex items-center pointer-events-none">
-                  <div class="flex-center-5 mr-3 min-w-5">
+                  <div class="flex-center-5 mr-2 min-w-5">
                     <i class="i i--md i-computer-speaker"></i>
                   </div>
                   <div class="flex-grow-1 text-overflow fw-500">
@@ -300,6 +300,23 @@
                   </div>
                 </label>
               </div>
+              <div class="settings-section">
+                <label class="flex items-center">
+                  <div class="flex-grow-1">
+                    <div class="font-weight-600 text-md">Обратный отсчёт</div>
+                    <div class="text-xs text-gray-600">
+                      Отображать обратный отсчёт перед началом записи
+                    </div>
+                  </div>
+                  <div class="form-toggle ml-2">
+                    <input
+                      class="form-toggle-input js-show-countdown-checkbox"
+                      type="checkbox"
+                    />
+                    <span class="form-toggle-label"></span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -341,6 +358,62 @@
                   </div>
                 </label>
               </div>
+              <div class="settings-section">
+                <div class="font-weight-600 mb-1 text-md">Оформление</div>
+                <div class="mb-1">
+                  <div class="form-check cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="system"
+                      class="js-theme-radio"
+                    />
+                    <div class="form-check-text gap-1 text-xs text-gray-600">
+                      Системное
+                    </div>
+                  </div>
+                </div>
+                <div class="mb-1">
+                  <div class="form-check cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="light"
+                      class="js-theme-radio"
+                    />
+                    <div class="form-check-text gap-1 text-xs text-gray-600">
+                      Светлое
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div class="form-check cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="dark"
+                      class="js-theme-radio"
+                    />
+                    <div class="form-check-text gap-1 text-xs text-gray-600">
+                      Темное
+                    </div>
+                  </div>
+                </div>
+                <!-- <label class="flex items-center">
+                  <div class="flex-grow-1">
+                    <div class="text-xs text-gray-600">
+                      Запускать Глабикс.Экран при запуске системы
+                    </div>
+                  </div>
+                  <div class="form-toggle ml-2">
+                    <input
+                      class="form-toggle-input js-auto-launch-checkbox"
+                      type="checkbox"
+                    />
+                    <span class="form-toggle-label"></span>
+                  </div>
+                </label> -->
+              </div>
             </div>
           </div>
         </div>
@@ -370,7 +443,16 @@
       <div class="flex h-full flex-col justify-center items-center">
         <div>
           <div class="mb-6 pt-0 flex justify-center">
-            <img src="assets/no-microphone.svg" alt="no-microphone" />
+            <img
+              src="assets/no-microphone.svg"
+              alt="no-microphone"
+              class="no-microphone-light"
+            />
+            <img
+              src="assets/no-microphone-dark.svg"
+              alt="no-microphone"
+              class="no-microphone-dark"
+            />
           </div>
           <div class="text-center font-weight-600 mb-5 text-lg">
             Ваш микрофон выключен
