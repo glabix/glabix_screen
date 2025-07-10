@@ -54,6 +54,7 @@ import {
   ScreenshotActionEvents,
   ScreenshotWindowEvents,
   SimpleStoreEvents,
+  WebCameraWindowEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -118,6 +119,8 @@ import {
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 import { ChunkProcessor } from "@main/chunk-saver"
 import { WindowNames, WindowsHelper } from "@shared/helpers/windows.helper"
+import { getWebCameraWindowSize } from "./helpers/webcamera-size."
+import { IWebCameraWindowSettings } from "@shared/types/webcamera.types"
 
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
@@ -901,6 +904,7 @@ function sendUserSettings() {
 
 function createWebcameraWindow(parentWindow) {
   const { x, y, width, height } = screen.getPrimaryDisplay().bounds
+  const windowSize = getWebCameraWindowSize(activeDisplay, {})
   // Create the browser window.
   webCameraWindow = new BrowserWindow({
     transparent: true,
@@ -912,8 +916,8 @@ function createWebcameraWindow(parentWindow) {
     show: false,
     alwaysOnTop: true,
     hasShadow: false,
-    width: 260,
-    height: 280,
+    width: windowSize.width,
+    height: windowSize.height,
     parent: parentWindow,
     x,
     y,
@@ -1711,6 +1715,7 @@ ipcMain.on(DrawEvents.DRAW_END, (event, data) => {
   isDrawActive = false
   mainWindow?.webContents.send(DrawEvents.DRAW_END, data)
   webCameraWindow?.webContents.send(DrawEvents.DRAW_END, data)
+  mainWindow?.blur()
   ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_START)
 })
 
@@ -1756,6 +1761,23 @@ ipcMain.on(
           modalWindow.setAlwaysOnTop(true, "modal-panel")
         }
       }
+    }
+  }
+)
+
+ipcMain.on(
+  WebCameraWindowEvents.RESIZE,
+  (event, settings: IWebCameraWindowSettings) => {
+    if (webCameraWindow) {
+      const size = getWebCameraWindowSize(activeDisplay, settings)
+      const position = webCameraWindow.getBounds()
+
+      webCameraWindow.setBounds({
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+      })
     }
   }
 )

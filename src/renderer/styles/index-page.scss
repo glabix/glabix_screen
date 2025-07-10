@@ -80,7 +80,7 @@ body {
   }
 
   &.rect-xl {
-    width: 80vw;
+    width: 100vw;
     height: auto;
     aspect-ratio: 16/9;
     border-radius: 10px;
@@ -109,6 +109,10 @@ body {
     transform: scaleX(-1);
     backface-visibility: hidden;
   }
+}
+
+#panel-webcamera {
+  padding: 5px;
 }
 
 .webcamera-view-error {

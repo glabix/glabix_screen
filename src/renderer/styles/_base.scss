@@ -64,6 +64,10 @@ button {
   cursor: pointer;
   line-height: inherit;
   padding: 0;
+  &:focus,
+  &:focus-within {
+    outline: none;
+  }
 }
 
 input {

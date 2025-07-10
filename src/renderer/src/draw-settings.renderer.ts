@@ -88,6 +88,8 @@ class DrawSettings {
   handleDrawToggle() {
     this.drawToggle.addEventListener("click", () => {
       const isActive = this.drawToggle.classList.contains("active")
+
+      // if (isActive) {}
       this.toggle(isActive)
     })
   }

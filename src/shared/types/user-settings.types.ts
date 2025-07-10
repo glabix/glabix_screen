@@ -36,6 +36,9 @@ export enum UserSettingsEvents {
 
   DRAW_SETTING_GET = "settings:draw:settings:get",
   DRAW_SETTING_SET = "settings:draw:settings:set",
+
+  WEB_CAMERA_SIZE_GET = "settings:web_camera_size:get",
+  WEB_CAMERA_SIZE_SET = "settings:web_camera_size:set",
 }
 
 export enum UserSettingsKeys {
@@ -47,6 +50,7 @@ export enum UserSettingsKeys {
   COUNTDOWN = "countdown",
   THEME = "theme",
   DRAW_SETTINGS = "draw_settings",
+  WEB_CAMERA_SIZE = "web_camera_size",
 }
 
 // export interface IUserSettings {

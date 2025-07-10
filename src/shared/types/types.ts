@@ -164,6 +164,10 @@ export enum ModalWindowEvents {
   UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
 
+export enum WebCameraWindowEvents {
+  RESIZE = "web-camera-window:resize",
+}
+
 export enum DrawEvents {
   DRAW_START = "draw:start",
   SETTINGS_CHANGE = "draw:settings:change",
