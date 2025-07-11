@@ -9,7 +9,7 @@ export type WebCameraAvatarTypes =
 export interface ILastWebCameraSize {
   left: number
   top: number
-  avatarType: WebCameraAvatarTypes | null
+  avatarType: WebCameraAvatarTypes
 }
 
 export interface IWebCameraWindowSettings {

@@ -166,6 +166,7 @@ export enum ModalWindowEvents {
 
 export enum WebCameraWindowEvents {
   RESIZE = "web-camera-window:resize",
+  AVATAR_UPDATE = "web-camera-window:avatar-update",
 }
 
 export enum DrawEvents {

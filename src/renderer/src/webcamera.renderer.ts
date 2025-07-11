@@ -33,6 +33,7 @@ import { Display } from "electron"
 import { Timer } from "./helpers/timer"
 import { APIEvents } from "@shared/events/api.events"
 import {
+  ILastWebCameraSize,
   IWebCameraWindowSettings,
   WebCameraAvatarTypes,
 } from "@shared/types/webcamera.types"
@@ -537,22 +538,22 @@ changeCameraViewSizeBtn.forEach((button) => {
     (event) => {
       const target = event.target as HTMLElement
       const type = target.dataset.type! as WebCameraAvatarTypes
-      const prevRect = videoContainer.getBoundingClientRect()
+      // const prevRect = videoContainer.getBoundingClientRect()
       AVATAR_TYPES.forEach((t) => {
         videoContainer.classList.remove(t)
       })
       videoContainer.classList.add(type)
-      const nextRect = videoContainer.getBoundingClientRect()
+      // const nextRect = videoContainer.getBoundingClientRect()
 
-      const top =
-        type == "rect-xl"
-          ? window.innerHeight / 2 - nextRect.height / 2
-          : prevRect.bottom - nextRect.height
-      const left =
-        type == "rect-xl"
-          ? window.innerWidth / 2 - nextRect.width / 2
-          : prevRect.left + prevRect.width / 2 - nextRect.width / 2
-      const css = `left: ${left}px; top: ${top}px;`
+      // const top =
+      //   type == "rect-xl"
+      //     ? window.innerHeight / 2 - nextRect.height / 2
+      //     : prevRect.bottom - nextRect.height
+      // const left =
+      //   type == "rect-xl"
+      //     ? window.innerWidth / 2 - nextRect.width / 2
+      //     : prevRect.left + prevRect.width / 2 - nextRect.width / 2
+      // const css = `left: ${left}px; top: ${top}px;`
 
       webCameraWindowSettings = { ...webCameraWindowSettings, avatarType: type }
       window.electronAPI.ipcRenderer.send(
@@ -769,6 +770,19 @@ window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_END, (event, data) => {
 window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, (event, data) => {
   checkDropdownVisibility()
 })
+window.electronAPI.ipcRenderer.on(
+  WebCameraWindowEvents.AVATAR_UPDATE,
+  (event, settings: ILastWebCameraSize) => {
+    AVATAR_TYPES.forEach((t) => {
+      videoContainer.classList.remove(t)
+    })
+    videoContainer.classList.add(settings.avatarType)
+    webCameraWindowSettings = {
+      ...webCameraWindowSettings,
+      avatarType: settings.avatarType,
+    }
+  }
+)
 
 window.electronAPI.ipcRenderer.on(
   APIEvents.GET_ORGANIZATION_LIMITS,

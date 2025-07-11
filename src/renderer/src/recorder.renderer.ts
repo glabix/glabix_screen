@@ -710,8 +710,6 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
   }
 
   if (settings.action == "cropVideo") {
-    console.log("settings.action", settings.action)
-    // window.electronAPI.ipcRenderer.send("log", settings.action)
     const screenContainer = document.querySelector(".crop-screen-container")!
     screenContainer.removeAttribute("hidden")
     const screen = screenContainer.querySelector(

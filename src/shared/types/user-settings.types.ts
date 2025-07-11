@@ -37,8 +37,8 @@ export enum UserSettingsEvents {
   DRAW_SETTING_GET = "settings:draw:settings:get",
   DRAW_SETTING_SET = "settings:draw:settings:set",
 
-  WEB_CAMERA_SIZE_GET = "settings:web_camera_size:get",
-  WEB_CAMERA_SIZE_SET = "settings:web_camera_size:set",
+  WEB_CAMERA_SIZE_GET = "settings:web_camera:size:get",
+  WEB_CAMERA_SIZE_SET = "settings:web_camera:size:set",
 }
 
 export enum UserSettingsKeys {

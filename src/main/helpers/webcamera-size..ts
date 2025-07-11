@@ -1,8 +1,11 @@
 import {
+  ILastWebCameraSize,
   IWebCameraWindowSettings,
   WebCameraAvatarTypes,
 } from "@shared/types/webcamera.types"
-import { Display } from "electron"
+import { BrowserWindow, Display, Rectangle } from "electron"
+import eStore from "./electron-store.helper"
+import { UserSettingsKeys } from "@shared/types/user-settings.types"
 
 const PANEL_HEIGHT_DEFAULT = 58
 const PANEL_HEIGHT_SM = 44
@@ -50,4 +53,52 @@ export const getWebCameraWindowSize = (
     ? avatarSize.height + PANEL_HEIGHT_SM + PANEL_DROPDOWN_HEIGHT
     : avatarSize.height + PANEL_HEIGHT_SM
   return { width, height }
+}
+
+export const getWebCameraWindowPosition = (
+  display: Display,
+  settings: IWebCameraWindowSettings,
+  prevBounds: Rectangle
+): { x: number; y: number } => {
+  const nextSize = getWebCameraWindowSize(display, settings)
+  const y =
+    settings.avatarType == "rect-xl"
+      ? display.bounds.height / 2 - nextSize.height / 2
+      : prevBounds.y + prevBounds.height - nextSize.height
+  const x =
+    settings.avatarType == "rect-xl"
+      ? display.bounds.width / 2 - nextSize.width / 2
+      : prevBounds.x + prevBounds.width / 2 - nextSize.width / 2
+  return { x, y }
+}
+export const getLastWebcameraPosition = (
+  win: BrowserWindow
+): Promise<ILastWebCameraSize> => {
+  return new Promise((resolve, reject) => {
+    let settings: ILastWebCameraSize = {
+      left: 0,
+      top: 0,
+      avatarType: "circle-sm",
+    }
+    const storeSettings = eStore.get(
+      UserSettingsKeys.WEB_CAMERA_SIZE
+    ) as ILastWebCameraSize
+
+    if (storeSettings) {
+      resolve(storeSettings)
+    } else {
+      win.webContents
+        .executeJavaScript('localStorage.getItem("LAST_PANEL_SETTINGS");', true)
+        .then((result: string | null) => {
+          if (result) {
+            settings = JSON.parse(result)
+            eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
+          }
+          resolve(settings)
+        })
+        .catch((e) => {
+          resolve(settings)
+        })
+    }
+  })
 }

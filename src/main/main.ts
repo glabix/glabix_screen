@@ -119,8 +119,15 @@ import {
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 import { ChunkProcessor } from "@main/chunk-saver"
 import { WindowNames, WindowsHelper } from "@shared/helpers/windows.helper"
-import { getWebCameraWindowSize } from "./helpers/webcamera-size."
-import { IWebCameraWindowSettings } from "@shared/types/webcamera.types"
+import {
+  getLastWebcameraPosition,
+  getWebCameraWindowPosition,
+  getWebCameraWindowSize,
+} from "./helpers/webcamera-size."
+import {
+  ILastWebCameraSize,
+  IWebCameraWindowSettings,
+} from "@shared/types/webcamera.types"
 
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
@@ -362,9 +369,24 @@ if (!gotTheLock) {
         getLastStreamSettings(modalWindow).then((settings) => {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-          if (!isStartByAutoLaunch) {
-            showWindows()
-          }
+          getLastWebcameraPosition(webCameraWindow).then((settings) => {
+            const size = getWebCameraWindowSize(activeDisplay, settings)
+            webCameraWindow.webContents.send(
+              WebCameraWindowEvents.AVATAR_UPDATE,
+              settings
+            )
+            webCameraWindow.setBounds({
+              x: settings.left,
+              y: settings.top,
+              width: size.width,
+              height: size.height,
+            })
+            adjustWindowPosition(WindowNames.WEB_CAMERA)
+
+            if (!isStartByAutoLaunch) {
+              showWindows()
+            }
+          })
         })
       })
     } catch (e) {
@@ -1175,11 +1197,28 @@ function adjustWindowPosition(name: WindowNames) {
   if (posX != windowBounds.x || posY != windowBounds.y) {
     window.setPosition(posX, posY, true)
     logSender.sendLog(
-      "[window.adjust-position]",
+      "[window.adjust-position]:",
       JSON.stringify({
         windowName: name,
         prevPos: `x: ${windowBounds.x}, y: ${windowBounds.y}`,
         newPos: `x: ${posX}, y: ${posY}`,
+      })
+    )
+  }
+
+  if (name == WindowNames.WEB_CAMERA) {
+    const currentSettings = eStore.get(
+      UserSettingsKeys.WEB_CAMERA_SIZE
+    ) as ILastWebCameraSize
+    const settings: ILastWebCameraSize = currentSettings
+      ? { ...currentSettings, left: posX, top: posY }
+      : { left: posX, top: posY, avatarType: "circle-sm" }
+    eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
+    logSender.sendLog(
+      "[window.save-position-settings]:",
+      JSON.stringify({
+        windowName: name,
+        settings,
       })
     )
   }
@@ -1715,8 +1754,8 @@ ipcMain.on(DrawEvents.DRAW_END, (event, data) => {
   isDrawActive = false
   mainWindow?.webContents.send(DrawEvents.DRAW_END, data)
   webCameraWindow?.webContents.send(DrawEvents.DRAW_END, data)
-  mainWindow?.blur()
   ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_START)
+  mainWindow?.blur()
 })
 
 ipcMain.on(ModalWindowEvents.RENDER, (event, data) => {
@@ -1765,12 +1804,18 @@ ipcMain.on(
   }
 )
 
+// eStore.delete(UserSettingsKeys.WEB_CAMERA_SIZE)
+
 ipcMain.on(
   WebCameraWindowEvents.RESIZE,
   (event, settings: IWebCameraWindowSettings) => {
     if (webCameraWindow) {
       const size = getWebCameraWindowSize(activeDisplay, settings)
-      const position = webCameraWindow.getBounds()
+      const position = getWebCameraWindowPosition(
+        activeDisplay,
+        settings,
+        webCameraWindow.getBounds()
+      )
 
       webCameraWindow.setBounds({
         x: position.x,
@@ -1778,6 +1823,14 @@ ipcMain.on(
         width: size.width,
         height: size.height,
       })
+
+      const newSettings: ILastWebCameraSize = {
+        left: position.x,
+        top: position.y,
+        avatarType: settings.avatarType!,
+      }
+      eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, newSettings)
+      // adjustWindowPosition(WindowNames.WEB_CAMERA)
     }
   }
 )
@@ -2173,9 +2226,23 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.show()
-      modalWindow.show()
-      webCameraWindow.show()
+      getLastWebcameraPosition(webCameraWindow).then((settings) => {
+        const size = getWebCameraWindowSize(activeDisplay, settings)
+        webCameraWindow.webContents.send(
+          WebCameraWindowEvents.AVATAR_UPDATE,
+          settings
+        )
+        webCameraWindow.setBounds({
+          x: settings.left,
+          y: settings.top,
+          width: size.width,
+          height: size.height,
+        })
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
+        mainWindow.show()
+        modalWindow.show()
+        webCameraWindow.show()
+      })
     })
   })
 })
