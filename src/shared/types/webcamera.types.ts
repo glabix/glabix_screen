@@ -15,4 +15,5 @@ export interface ILastWebCameraSize {
 export interface IWebCameraWindowSettings {
   avatarType?: WebCameraAvatarTypes | null
   isDropdownOpen?: boolean
+  skipPosition?: boolean
 }

@@ -41,6 +41,7 @@ import {
 let webCameraWindowSettings: IWebCameraWindowSettings = {
   avatarType: "circle-sm",
   isDropdownOpen: false,
+  skipPosition: false,
 }
 // type AvatarTypes =
 //   | "circle-sm"
@@ -555,7 +556,11 @@ changeCameraViewSizeBtn.forEach((button) => {
       //     : prevRect.left + prevRect.width / 2 - nextRect.width / 2
       // const css = `left: ${left}px; top: ${top}px;`
 
-      webCameraWindowSettings = { ...webCameraWindowSettings, avatarType: type }
+      webCameraWindowSettings = {
+        ...webCameraWindowSettings,
+        skipPosition: false,
+        avatarType: type,
+      }
       window.electronAPI.ipcRenderer.send(
         WebCameraWindowEvents.RESIZE,
         webCameraWindowSettings
@@ -635,11 +640,13 @@ function checkDropdownVisibility() {
       webCameraWindowSettings = {
         ...webCameraWindowSettings,
         isDropdownOpen: true,
+        skipPosition: true,
       }
     } else {
       webCameraWindowSettings = {
         ...webCameraWindowSettings,
         isDropdownOpen: false,
+        skipPosition: true,
       }
     }
 
@@ -779,6 +786,7 @@ window.electronAPI.ipcRenderer.on(
     videoContainer.classList.add(settings.avatarType)
     webCameraWindowSettings = {
       ...webCameraWindowSettings,
+      skipPosition: false,
       avatarType: settings.avatarType,
     }
   }

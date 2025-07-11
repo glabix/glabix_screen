@@ -456,7 +456,7 @@ if (!gotTheLock) {
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
                       mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
                     }
                   })
                   .catch((e) => {})
@@ -478,7 +478,7 @@ if (!gotTheLock) {
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
                       mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
                     }
                   })
                   .catch((e) => {})
@@ -1031,7 +1031,7 @@ function createModal(parentWindow) {
   draggableWindows.add({ window: modalWindow, name: WindowNames.MODAL })
   // modalWindow.webContents.openDevTools()
 
-  modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
 
   modalWindow.on("hide", () => {
     modalWindow.webContents.send(ModalWindowEvents.HIDE)
@@ -1438,7 +1438,7 @@ function showWindows() {
     }
     if (modalWindow) {
       modalWindow.show()
-      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
     }
     if (webCameraWindow) {
       webCameraWindow.show()
@@ -1794,7 +1794,7 @@ ipcMain.on(
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
           mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-          modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+          modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
           modalWindow.setAlwaysOnTop(true, "modal-panel")
@@ -1811,11 +1811,13 @@ ipcMain.on(
   (event, settings: IWebCameraWindowSettings) => {
     if (webCameraWindow) {
       const size = getWebCameraWindowSize(activeDisplay, settings)
-      const position = getWebCameraWindowPosition(
-        activeDisplay,
-        settings,
-        webCameraWindow.getBounds()
-      )
+      const position = settings.skipPosition
+        ? { x: webCameraWindow.getBounds().x, y: webCameraWindow.getBounds().y }
+        : getWebCameraWindowPosition(
+            activeDisplay,
+            settings,
+            webCameraWindow.getBounds()
+          )
 
       webCameraWindow.setBounds({
         x: position.x,
