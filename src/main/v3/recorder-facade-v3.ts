@@ -118,6 +118,7 @@ export class RecorderFacadeV3 {
   }
 
   private async handleCancel(event: RecordCancelEventV3): Promise<void> {
+    this.progressResolverV3.deleteProgressData(event.innerFileUuid)
     try {
       await this.chunkManager.cancelRecording(event.innerFileUuid)
     } catch (error) {
