@@ -5,6 +5,9 @@ export type WebCameraAvatarTypes =
   | "rect-sm"
   | "rect-lg"
   | "rect-xl"
+  | "camera-only-sm"
+  | "camera-only-lg"
+  | "camera-only-xl"
 
 export interface ILastWebCameraSize {
   left: number
