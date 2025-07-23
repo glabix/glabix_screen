@@ -169,6 +169,7 @@ app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 app.commandLine.appendSwitch("high-dpi-support", "true")
+app.commandLine.appendSwitch("force-device-scale-factor", "1")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
