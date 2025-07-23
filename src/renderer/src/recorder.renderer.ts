@@ -475,10 +475,10 @@ const createVideo = (stream: MediaStream, _video) => {
     }
 
     if (_video) {
-      const videoContainer = document.querySelector(
-        ".webcamera-only-container"
-      )!
-      videoContainer.setAttribute("hidden", "")
+      // const videoContainer = document.querySelector(
+      //   ".webcamera-only-container"
+      // )!
+      // videoContainer.setAttribute("hidden", "")
       _video.srcObject = null
     }
 
@@ -791,28 +791,28 @@ const initView = (settings: IStreamSettings, force?: boolean) => {
 }
 
 const showOnlyCameraError = (errorType?: "no-permission" | "no-camera") => {
-  const error = document.querySelector(".webcamera-only-no-device")!
-  const errorPermission = document.querySelector(
-    ".webcamera-only-no-permission"
-  )!
-  const errorCamera = document.querySelector(".webcamera-only-no-camera")!
-  if (errorType == "no-permission") {
-    errorPermission.removeAttribute("hidden")
-  } else if (errorType == "no-camera") {
-    errorCamera.removeAttribute("hidden")
-  } else {
-    error.removeAttribute("hidden")
-  }
+  // const error = document.querySelector(".webcamera-only-no-device")!
+  // const errorPermission = document.querySelector(
+  //   ".webcamera-only-no-permission"
+  // )!
+  // const errorCamera = document.querySelector(".webcamera-only-no-camera")!
+  // if (errorType == "no-permission") {
+  //   errorPermission.removeAttribute("hidden")
+  // } else if (errorType == "no-camera") {
+  //   errorCamera.removeAttribute("hidden")
+  // } else {
+  //   error.removeAttribute("hidden")
+  // }
 }
 const hideOnlyCameraError = () => {
-  const error = document.querySelector(".webcamera-only-no-device")!
-  const errorPermission = document.querySelector(
-    ".webcamera-only-no-permission"
-  )!
-  const errorCamera = document.querySelector(".webcamera-only-no-camera")!
-  error.setAttribute("hidden", "")
-  errorPermission.setAttribute("hidden", "")
-  errorCamera.setAttribute("hidden", "")
+  // const error = document.querySelector(".webcamera-only-no-device")!
+  // const errorPermission = document.querySelector(
+  //   ".webcamera-only-no-permission"
+  // )!
+  // const errorCamera = document.querySelector(".webcamera-only-no-camera")!
+  // error.setAttribute("hidden", "")
+  // errorPermission.setAttribute("hidden", "")
+  // errorCamera.setAttribute("hidden", "")
 }
 
 function initRecord(data: IStreamSettings): Promise<void> {

@@ -35,6 +35,16 @@ export const getAvatarSize = (
         height: Math.round((9 / 16) * 0.8 * screenWidth),
       }
 
+    case "camera-only-sm":
+      return { width: 410, height: Math.round((9 / 16) * 410) }
+    case "camera-only-lg":
+      return { width: 820, height: Math.round((9 / 16) * 820) }
+    case "camera-only-xl":
+      return {
+        width: Math.round(0.8 * screenWidth),
+        height: Math.round((9 / 16) * 0.8 * screenWidth),
+      }
+
     default:
       return { width: 200, height: 200 }
   }
@@ -61,14 +71,12 @@ export const getWebCameraWindowPosition = (
   prevBounds: Rectangle
 ): { x: number; y: number } => {
   const nextSize = getWebCameraWindowSize(display, settings)
-  const y =
-    settings.avatarType == "rect-xl"
-      ? display.bounds.height / 2 - nextSize.height / 2
-      : prevBounds.y + prevBounds.height - nextSize.height
-  const x =
-    settings.avatarType == "rect-xl"
-      ? display.bounds.width / 2 - nextSize.width / 2
-      : prevBounds.x + prevBounds.width / 2 - nextSize.width / 2
+  const y = ["rect-xl", "camera-only-xl"].includes(settings.avatarType!)
+    ? display.bounds.height / 2 - nextSize.height / 2
+    : prevBounds.y + prevBounds.height - nextSize.height
+  const x = ["rect-xl", "camera-only-xl"].includes(settings.avatarType!)
+    ? display.bounds.width / 2 - nextSize.width / 2
+    : prevBounds.x + prevBounds.width / 2 - nextSize.width / 2
   return { x, y }
 }
 export const getLastWebcameraPosition = (

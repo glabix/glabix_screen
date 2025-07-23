@@ -45,6 +45,7 @@ import {
   IRecordUploadProgressData,
   IScreenshotImageData,
   ISimpleStoreData,
+  IStreamSettings,
   IUser,
   MainWindowEvents,
   MediaDeviceType,
@@ -146,6 +147,9 @@ let isAppQuitting = false
 let isDrawActive = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
+let lastStreamSettings: IStreamSettings = {
+  action: "fullScreenVideo",
+}
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -164,6 +168,7 @@ app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
+app.commandLine.appendSwitch("high-dpi-support", "true")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
@@ -369,6 +374,7 @@ if (!gotTheLock) {
         getLastStreamSettings(modalWindow).then((settings) => {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+          lastStreamSettings = settings
           getLastWebcameraPosition(webCameraWindow).then((settings) => {
             const size = getWebCameraWindowSize(activeDisplay, settings)
             webCameraWindow.webContents.send(
@@ -1207,21 +1213,59 @@ function adjustWindowPosition(name: WindowNames) {
   }
 
   if (name == WindowNames.WEB_CAMERA) {
-    const currentSettings = eStore.get(
-      UserSettingsKeys.WEB_CAMERA_SIZE
-    ) as ILastWebCameraSize
-    const settings: ILastWebCameraSize = currentSettings
-      ? { ...currentSettings, left: posX, top: posY }
-      : { left: posX, top: posY, avatarType: "circle-sm" }
-    eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
-    logSender.sendLog(
-      "[window.save-position-settings]:",
-      JSON.stringify({
-        windowName: name,
-        settings,
-      })
-    )
+    if (lastStreamSettings.action != "cameraOnly") {
+      const currentSettings = eStore.get(
+        UserSettingsKeys.WEB_CAMERA_SIZE
+      ) as ILastWebCameraSize
+      const settings: ILastWebCameraSize = currentSettings
+        ? { ...currentSettings, left: posX, top: posY }
+        : { left: posX, top: posY, avatarType: "circle-sm" }
+      eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
+      logSender.sendLog(
+        "[window.save-position-settings]:",
+        JSON.stringify({
+          windowName: name,
+          settings,
+        })
+      )
+    }
   }
+}
+
+function getCurrentDisplay(window: BrowserWindow): Electron.Display {
+  const winBounds = window.getBounds()
+  const displays = screen.getAllDisplays()
+  let currentDisplay = activeDisplay
+
+  if (process.platform === "win32") {
+    const physicalX = winBounds.x * activeDisplay.scaleFactor
+    const physicalY = winBounds.y * activeDisplay.scaleFactor
+
+    for (const display of displays) {
+      const displayPhysicalBounds = {
+        x: display.bounds.x * display.scaleFactor,
+        y: display.bounds.y * display.scaleFactor,
+        width: display.bounds.width * display.scaleFactor,
+        height: display.bounds.height * display.scaleFactor,
+      }
+
+      if (
+        physicalX >= displayPhysicalBounds.x &&
+        physicalX < displayPhysicalBounds.x + displayPhysicalBounds.width &&
+        physicalY >= displayPhysicalBounds.y &&
+        physicalY < displayPhysicalBounds.y + displayPhysicalBounds.height
+      ) {
+        currentDisplay = display
+      }
+    }
+  } else {
+    currentDisplay = screen.getDisplayNearestPoint({
+      x: winBounds.x,
+      y: winBounds.y,
+    })
+  }
+
+  return currentDisplay
 }
 
 function handleMoveWindows(name: WindowNames) {
@@ -1236,9 +1280,7 @@ function handleMoveWindows(name: WindowNames) {
   const allWindows = draggableWindows.getAll()
   const draggingWindow = draggableWindows.getDragging()
   const staticWindows = allWindows.filter((w) => w.name != draggingWindow?.name)
-  const currentScreen = screen.getDisplayNearestPoint(
-    draggingWindow!.window!.getBounds()
-  )
+  const currentScreen = getCurrentDisplay(draggingWindow!.window!)
 
   if (activeDisplay && activeDisplay.id != currentScreen.id) {
     mainWindow.webContents.send("screen:change", currentScreen)
@@ -1247,22 +1289,27 @@ function handleMoveWindows(name: WindowNames) {
     staticWindows.forEach((w) => {
       const window = w.window!
       const lastWindowPos = window.getBounds()
-      const dirX = lastScreenBounds.x > 0 ? -1 : 1
-      const dirY = lastScreenBounds.y > 0 ? -1 : 1
+      const lastDirX = lastScreenBounds.x > 0 ? -1 : 1
+      const lastDirY = lastScreenBounds.y > 0 ? -1 : 1
+      const newDirX = newScreenBounds.x < 0 ? -1 : 1
+      const newDirY = newScreenBounds.y < 0 ? -1 : 1
       const lastX =
-        (lastWindowPos.x + dirX * lastScreenBounds.x) / lastScreenBounds.width
+        (lastWindowPos.x + lastDirX * lastScreenBounds.x) /
+        lastScreenBounds.width
       const lastY =
-        (lastWindowPos.y! + dirY * lastScreenBounds.y) / lastScreenBounds.height
-      const newX = newScreenBounds.x + Math.round(newScreenBounds.width * lastX)
+        (lastWindowPos.y! + lastDirY * lastScreenBounds.y) /
+        lastScreenBounds.height
+      const newX =
+        newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
       const newY =
-        newScreenBounds.y + Math.round(newScreenBounds.height * lastY)
+        newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
 
       window.setPosition(newX, newY, false)
       window.show()
       window.setAlwaysOnTop(true, "screen-saver", 999990)
 
       logSender.sendLog(
-        "[window.screen-change]",
+        "window.screen-change",
         JSON.stringify({
           windowName: w.name,
           lastScreenBounds: lastScreenBounds,
@@ -1810,7 +1857,9 @@ ipcMain.on(
   WebCameraWindowEvents.RESIZE,
   (event, settings: IWebCameraWindowSettings) => {
     if (webCameraWindow) {
+      // const isOnlyCameraMode = settings.avatarType?.includes('camera-only')
       const size = getWebCameraWindowSize(activeDisplay, settings)
+      // console.log('isOnlyCameraMode', isOnlyCameraMode)
       const position = settings.skipPosition
         ? { x: webCameraWindow.getBounds().x, y: webCameraWindow.getBounds().y }
         : getWebCameraWindowPosition(
@@ -1831,8 +1880,13 @@ ipcMain.on(
         top: position.y,
         avatarType: settings.avatarType!,
       }
-      eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, newSettings)
-      // adjustWindowPosition(WindowNames.WEB_CAMERA)
+
+      if (newSettings.avatarType?.includes("camera-only")) {
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
+      } else {
+        eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, newSettings)
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
+      }
     }
   }
 )
@@ -1861,6 +1915,7 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
   }
 })
 ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
+  lastStreamSettings = data
   mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
   webCameraWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })

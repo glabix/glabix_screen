@@ -193,6 +193,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  // margin-top: 48px;
 
   .microphone-alert {
     position: absolute;
@@ -210,7 +211,7 @@ body {
   width: 820px;
 }
 .webcamera-only-container.xl {
-  width: 80vw;
+  width: 100vw;
 }
 
 .webcamera-only-error {

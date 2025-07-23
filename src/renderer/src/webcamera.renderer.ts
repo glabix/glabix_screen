@@ -10,15 +10,10 @@ import {
   ScreenshotWindowEvents,
   DisplayEvents,
   IOrganizationLimits,
-  RecorderState,
-  ISimpleStoreData,
   DrawEvents,
-  IDrawSettings,
   WebCameraWindowEvents,
 } from "@shared/types/types"
-import Moveable, { MoveableRefTargetType } from "moveable"
 import {
-  RecordEvents,
   RecordSettingsEvents,
   VideoRecorderEvents,
 } from "../../shared/events/record.events"
@@ -43,19 +38,6 @@ let webCameraWindowSettings: IWebCameraWindowSettings = {
   isDropdownOpen: false,
   skipPosition: false,
 }
-// type AvatarTypes =
-//   | "circle-sm"
-//   | "circle-lg"
-//   | "circle-xl"
-//   | "rect-sm"
-//   | "rect-lg"
-//   | "rect-xl"
-
-// interface ILastPanelSettings {
-//   left: number
-//   top: number
-//   avatarType: AvatarTypes
-// }
 
 const AVATAR_TYPES: WebCameraAvatarTypes[] = [
   "circle-sm",
@@ -65,21 +47,6 @@ const AVATAR_TYPES: WebCameraAvatarTypes[] = [
   "rect-lg",
   "rect-xl",
 ]
-
-// const AVATAR_SIZES: { [key: string]: { width: number; height: number } } = {
-//   "circle-sm": { width: 200, height: 200 },
-//   "circle-lg": { width: 360, height: 360 },
-//   "circle-xl": { width: 560, height: 560 },
-//   "rect-sm": { width: 300, height: Math.round((9 / 16) * 300) },
-//   "rect-lg": { width: 650, height: Math.round((9 / 16) * 650) },
-//   "rect-xl": {
-//     width: 0.8 * document.body.offsetWidth,
-//     height: (9 / 16) * 0.8 * document.body.offsetWidth,
-//   },
-// }
-
-// const LAST_PANEL_SETTINGS_NAME = "LAST_PANEL_SETTINGS"
-// let lastPanelSettings: ILastPanelSettings | null = null
 
 const videoContainer = document.getElementById(
   "webcamera-view"
@@ -114,7 +81,6 @@ const resumeBtn = document.getElementById("resumeBtn")! as HTMLButtonElement
 const deleteBtn = document.getElementById("deleteBtn")! as HTMLButtonElement
 const restartBtn = document.getElementById("restartBtn")! as HTMLButtonElement
 
-// let draggable: Moveable | undefined = undefined
 let currentStream: MediaStream | undefined = undefined
 let lastStreamSettings: IStreamSettings | undefined = undefined
 let isRecording = false
@@ -142,121 +108,12 @@ function getLastMediaDevices() {
   })
 }
 
-// function getLastPanelSettings(): ILastPanelSettings | null {
-//   const lastDraggablePosStr = localStorage.getItem(LAST_PANEL_SETTINGS_NAME)
-//   return lastDraggablePosStr ? JSON.parse(lastDraggablePosStr) : null
-// }
-
-// function adjustPanelPosition(
-//   maxWidth: number,
-//   maxHeight: number
-// ): { x: number; y: number } {
-//   const rect = draggableZone.getBoundingClientRect()
-//   let x = rect.left < 0 ? 0 : rect.left
-//   let y = rect.top < 0 ? 0 : rect.top
-
-//   if (rect.right > maxWidth) {
-//     x = maxWidth - rect.width
-//   }
-
-//   if (y + rect.height > maxHeight) {
-//     y = maxHeight - rect.height
-//   }
-
-//   draggableZone.style.left = `${x}px`
-//   draggableZone.style.top = `${y}px`
-
-//   return { x, y }
-// }
-
-// function setLastPanelSettings(maxWidth?: number, maxHeight?: number) {
-//   const maxW = maxWidth || document.body.offsetWidth
-//   const maxH = maxHeight || document.body.offsetHeight
-//   const pos = adjustPanelPosition(maxW, maxH)
-//   const left = pos.x
-//   const top = pos.y
-//   const avatarType: AvatarTypes =
-//     ([...videoContainer.classList].find((c) =>
-//       AVATAR_TYPES.includes(c as AvatarTypes)
-//     ) as AvatarTypes) || AVATAR_TYPES[0]
-
-//   if (typeof left == "number" && typeof top == "number" && avatarType) {
-//     lastPanelSettings = { left, top, avatarType }
-//     localStorage.setItem(
-//       LAST_PANEL_SETTINGS_NAME,
-//       JSON.stringify(lastPanelSettings)
-//     )
-//   }
-// }
-
-// function initDraggableZone() {
-//   draggable = new Moveable(document.body, {
-//     target: draggableZone as MoveableRefTargetType,
-//     dragTarget: draggableZoneTarget,
-//     preventClickEventOnDrag: false,
-//     container: document.body,
-//     className: "moveable-invisible-container",
-//     draggable: true,
-//   })
-
-//   draggable
-//     .on("dragStart", ({ target }) => {
-//       target.classList.add("moveable-dragging")
-//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-//     })
-//     .on("drag", ({ target, left, top }) => {
-//       target!.style.left = `${left}px`
-//       target!.style.top = `${top}px`
-//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-//     })
-//     .on("dragEnd", ({ target }) => {
-//       target.classList.remove("moveable-dragging")
-//       window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
-//       setLastPanelSettings()
-//     })
-
-//   lastPanelSettings = getLastPanelSettings()
-
-//   if (lastPanelSettings) {
-//     AVATAR_TYPES.forEach((type) => {
-//       videoContainer.classList.remove(type)
-//     })
-//     videoContainer.classList.add(lastPanelSettings.avatarType)
-
-//     const panel = document.querySelector(
-//       ".panel-settings-container"
-//     )! as HTMLElement
-//     const webcamera = document.querySelector(
-//       ".webcamera-view-container"
-//     )! as HTMLElement
-//     const maxWidth = window.innerWidth
-//     const maxHeight = window.innerHeight
-//     const size =
-//       lastStreamSettings?.cameraDeviceId &&
-//       lastStreamSettings.cameraDeviceId != "no-camera"
-//         ? AVATAR_SIZES[lastPanelSettings.avatarType]!
-//         : { width: panel.clientWidth, height: panel.clientHeight }
-
-//     let left = lastPanelSettings.left
-//     let top = lastPanelSettings.top
-//     const topBuffer = panel.clientHeight || 0
-
-//     if (maxWidth < size.width + left) {
-//       left = maxWidth - size.width
-//     }
-
-//     if (maxHeight < size.height + top + topBuffer) {
-//       top = maxHeight - size.height - topBuffer
-//     }
-
-//     draggableZone.style.left = `${left}px`
-//     draggableZone.style.top = `${top}px`
-//   }
-
-//   draggable.updateRect()
-// }
-
 function showVideo(hasError?: boolean, errorType?: "no-permission") {
+  // if (lastStreamSettings?.action == "cameraOnly") {
+  //   stopStreamTracks()
+  // } else {
+  // }
+
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   videoContainer.removeAttribute("hidden")
@@ -265,6 +122,7 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   if (currentStream) {
     video.srcObject = currentStream
   }
+
   if (hasError) {
     if (errorType == "no-permission") {
       videoContainerPermissionError.removeAttribute("hidden")
@@ -290,13 +148,9 @@ function startStream(deviseId) {
         navigator.mediaDevices
           .getUserMedia(constraints)
           .then((stream) => {
-            if (lastStreamSettings?.action == "cameraOnly") {
-              stream.getTracks().forEach((track) => track.stop())
-            } else {
-              stopStreamTracks()
-              currentStream = stream
-              showVideo()
-            }
+            stopStreamTracks()
+            currentStream = stream
+            showVideo()
           })
           .catch((e) => {
             window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
@@ -378,26 +232,35 @@ window.electronAPI.ipcRenderer.on(
 
     draggableZone.classList.remove("has-webcamera-only")
 
+    const video = document.querySelector(
+      "#webcam_only_video"
+    ) as HTMLVideoElement
+    const videoContainer = document.querySelector(".webcamera-only-container")!
+
     if (data.action == "cameraOnly") {
       stopStream()
-      const videoContainer = document.querySelector(
-        ".webcamera-only-container"
-      )!
-      const video = document.querySelector(
-        "#webcam_only_video"
-      )! as HTMLVideoElement
+      webCameraWindowSettings = {
+        ...webCameraWindowSettings,
+        skipPosition: false,
+        avatarType: "camera-only-sm",
+      }
+      window.electronAPI.ipcRenderer.send(
+        WebCameraWindowEvents.RESIZE,
+        webCameraWindowSettings
+      )
+      // const videoContainer = document.querySelector(
+      //   ".webcamera-only-container"
+      // )!
+      // const video = document.querySelector(
+      //   "#webcam_only_video"
+      // )! as HTMLVideoElement
       videoContainer.removeAttribute("hidden")
       draggableZone.classList.add("has-webcamera-only")
       const rect = videoContainer.getBoundingClientRect()
       video.width = rect.width
       video.height = rect.height
+      video.srcObject = currentStream || null
     } else {
-      const video = document.querySelector(
-        "#webcam_only_video"
-      ) as HTMLVideoElement
-      const videoContainer = document.querySelector(
-        ".webcamera-only-container"
-      )!
       video.srcObject = null
       videoContainer.setAttribute("hidden", "")
     }
@@ -585,26 +448,19 @@ changeCameraOnlySizeBtn.forEach((button) => {
       const target = event.target as HTMLElement
       const size = target.dataset.size!
       const container = document.querySelector(".webcamera-only-container")!
-      const prevRect = container.getBoundingClientRect()
       container.classList.remove("sm", "lg", "xl")
       container.classList.add(size)
-      const nextRect = container.getBoundingClientRect()
 
-      const top =
-        size == "xl"
-          ? window.innerHeight / 2 - nextRect.height / 2
-          : prevRect.bottom - nextRect.height
-      const left =
-        size == "xl"
-          ? window.innerWidth / 2 - nextRect.width / 2
-          : prevRect.left + prevRect.width / 2 - nextRect.width / 2
-      const css = `left: ${left}px; top: ${top}px;`
+      webCameraWindowSettings = {
+        ...webCameraWindowSettings,
+        skipPosition: false,
+        avatarType: ("camera-only-" + size) as WebCameraAvatarTypes,
+      }
 
-      draggableZone.style.cssText = css
-
-      // if (draggable) {
-      //   draggable.updateRect()
-      // }
+      window.electronAPI.ipcRenderer.send(
+        WebCameraWindowEvents.RESIZE,
+        webCameraWindowSettings
+      )
 
       closeWebcameraSize()
     },
