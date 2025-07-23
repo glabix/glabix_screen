@@ -1312,6 +1312,7 @@ function handleMoveWindows(name: WindowNames) {
       logSender.sendLog(
         "window.screen-change",
         JSON.stringify({
+          activeDisplay: activeDisplay,
           windowName: w.name,
           lastScreenBounds: lastScreenBounds,
           newScreenBounds: newScreenBounds,
