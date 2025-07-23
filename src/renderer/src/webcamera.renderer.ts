@@ -48,6 +48,12 @@ const AVATAR_TYPES: WebCameraAvatarTypes[] = [
   "rect-xl",
 ]
 
+const ONLY_CAMERA_TYPES: WebCameraAvatarTypes[] = [
+  "camera-only-sm",
+  "camera-only-lg",
+  "camera-only-xl",
+]
+
 const videoContainer = document.getElementById(
   "webcamera-view"
 ) as HTMLDivElement

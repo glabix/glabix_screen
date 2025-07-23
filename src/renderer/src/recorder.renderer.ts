@@ -516,14 +516,14 @@ const createPreview = () => {
     }
 
     if (lastStreamSettings?.action == "cameraOnly") {
-      const video = document.querySelector(
-        ".webcamera-only-container video"
-      ) as HTMLVideoElement
-      screenSize = {
-        ...screenSize,
-        width: video.videoWidth,
-        height: video.videoHeight,
-      }
+      // const video = document.querySelector(
+      //   ".webcamera-only-container video"
+      // ) as HTMLVideoElement
+      // screenSize = {
+      //   ...screenSize,
+      //   width: video.videoWidth,
+      //   height: video.videoHeight,
+      // }
     }
 
     captureVideoFrame(combineStream, screenSize, crop).then(

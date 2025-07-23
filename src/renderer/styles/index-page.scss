@@ -28,13 +28,9 @@ body {
 
 /* change width height movable styles */
 .webcamera-view-container {
-  // position: fixed;
-  // top: 600px;
-  // left: 20px;
   position: relative;
-  // width: 200px;
-  // height: 200px;
-  background-color: var(--dark);
+  color: #ffffff;
+  background-color: #0f1928;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -97,6 +93,31 @@ body {
     }
   }
 
+  &.camera-only-sm {
+    width: 410px;
+  }
+  &.camera-only-lg {
+    width: 820px;
+  }
+  &.camera-only-xl {
+    width: 100vw;
+  }
+  &.camera-only-sm,
+  &.camera-only-lg,
+  &.camera-only-xl {
+    aspect-ratio: 16/9;
+    border: 5px solid var(--accent);
+    border-radius: 4px;
+    video {
+      border-radius: 0;
+    }
+
+    .webcamera-only-title {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
   video {
     object-fit: cover;
     max-width: 100%;
@@ -124,7 +145,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--light);
+  color: #ffffff;
   padding: 20px;
   text-align: center;
 }
@@ -240,6 +261,8 @@ body {
   display: flex;
   white-space: nowrap;
   align-items: center;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .webcamera-only-menu-container {
