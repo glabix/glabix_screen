@@ -210,9 +210,9 @@ function checkStream(data: IStreamSettings) {
   if (
     ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
   ) {
-    videoContainer.setAttribute("hidden", "")
-    stopStream()
-    return
+    // videoContainer.setAttribute("hidden", "")
+    // stopStream()
+    // return
   }
 
   if (data.cameraDeviceId && data.cameraDeviceId != "no-camera") {
@@ -238,18 +238,24 @@ window.electronAPI.ipcRenderer.on(
 
     draggableZone.classList.remove("has-webcamera-only")
 
-    const video = document.querySelector(
-      "#webcam_only_video"
-    ) as HTMLVideoElement
-    const videoContainer = document.querySelector(".webcamera-only-container")!
+    // const video = document.querySelector(
+    //   "#webcam_only_video"
+    // ) as HTMLVideoElement
+    // const videoContainer = document.querySelector(".webcamera-only-container")!
 
     if (data.action == "cameraOnly") {
-      stopStream()
+      // stopStream()
+      ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
+        videoContainer.classList.remove(t)
+      })
+      videoContainer.classList.add("camera-only-sm")
+
       webCameraWindowSettings = {
         ...webCameraWindowSettings,
         skipPosition: false,
         avatarType: "camera-only-sm",
       }
+
       window.electronAPI.ipcRenderer.send(
         WebCameraWindowEvents.RESIZE,
         webCameraWindowSettings
@@ -260,15 +266,15 @@ window.electronAPI.ipcRenderer.on(
       // const video = document.querySelector(
       //   "#webcam_only_video"
       // )! as HTMLVideoElement
-      videoContainer.removeAttribute("hidden")
+      // videoContainer.removeAttribute("hidden")
       draggableZone.classList.add("has-webcamera-only")
-      const rect = videoContainer.getBoundingClientRect()
-      video.width = rect.width
-      video.height = rect.height
-      video.srcObject = currentStream || null
+      // const rect = videoContainer.getBoundingClientRect()
+      // video.width = rect.width
+      // video.height = rect.height
+      // video.srcObject = currentStream || null
     } else {
-      video.srcObject = null
-      videoContainer.setAttribute("hidden", "")
+      // video.srcObject = null
+      // videoContainer.setAttribute("hidden", "")
     }
   }
 )
@@ -406,13 +412,14 @@ changeCameraViewSizeBtn.forEach((button) => {
   button.addEventListener(
     "click",
     (event) => {
-      const target = event.target as HTMLElement
-      const type = target.dataset.type! as WebCameraAvatarTypes
-      // const prevRect = videoContainer.getBoundingClientRect()
-      AVATAR_TYPES.forEach((t) => {
-        videoContainer.classList.remove(t)
-      })
-      videoContainer.classList.add(type)
+      renderWebcameraView(event.target as HTMLElement)
+      // const target = event.target as HTMLElement
+      // const type = target.dataset.type! as WebCameraAvatarTypes
+      // // const prevRect = videoContainer.getBoundingClientRect()
+      // [...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
+      //   videoContainer.classList.remove(t)
+      // })
+      // videoContainer.classList.add(type)
       // const nextRect = videoContainer.getBoundingClientRect()
 
       // const top =
@@ -425,15 +432,15 @@ changeCameraViewSizeBtn.forEach((button) => {
       //     : prevRect.left + prevRect.width / 2 - nextRect.width / 2
       // const css = `left: ${left}px; top: ${top}px;`
 
-      webCameraWindowSettings = {
-        ...webCameraWindowSettings,
-        skipPosition: false,
-        avatarType: type,
-      }
-      window.electronAPI.ipcRenderer.send(
-        WebCameraWindowEvents.RESIZE,
-        webCameraWindowSettings
-      )
+      // webCameraWindowSettings = {
+      //   ...webCameraWindowSettings,
+      //   skipPosition: false,
+      //   avatarType: type,
+      // }
+      // window.electronAPI.ipcRenderer.send(
+      //   WebCameraWindowEvents.RESIZE,
+      //   webCameraWindowSettings
+      // )
       // draggableZone.style.cssText = css
 
       // if (draggable) {
@@ -451,28 +458,52 @@ changeCameraOnlySizeBtn.forEach((button) => {
   button.addEventListener(
     "click",
     (event) => {
-      const target = event.target as HTMLElement
-      const size = target.dataset.size!
-      const container = document.querySelector(".webcamera-only-container")!
-      container.classList.remove("sm", "lg", "xl")
-      container.classList.add(size)
+      // const target = event.target as HTMLElement
+      // const type = target.dataset.type! as WebCameraAvatarTypes
+      // // const container = document.querySelector(".webcamera-only-container")!
+      // // container.classList.remove("sm", "lg", "xl")
+      // // container.classList.add(size);
 
-      webCameraWindowSettings = {
-        ...webCameraWindowSettings,
-        skipPosition: false,
-        avatarType: ("camera-only-" + size) as WebCameraAvatarTypes,
-      }
+      // [...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
+      //   videoContainer.classList.remove(t)
+      // })
 
-      window.electronAPI.ipcRenderer.send(
-        WebCameraWindowEvents.RESIZE,
-        webCameraWindowSettings
-      )
+      // webCameraWindowSettings = {
+      //   ...webCameraWindowSettings,
+      //   skipPosition: false,
+      //   avatarType: ("camera-only-" + size) as WebCameraAvatarTypes,
+      // }
 
+      // window.electronAPI.ipcRenderer.send(
+      //   WebCameraWindowEvents.RESIZE,
+      //   webCameraWindowSettings
+      // )
+      renderWebcameraView(event.target as HTMLElement)
       closeWebcameraSize()
     },
     false
   )
 })
+
+function renderWebcameraView(target: HTMLElement) {
+  console.log("renderWebcameraView", target)
+
+  const type = target.dataset.type! as WebCameraAvatarTypes
+  ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
+    videoContainer.classList.remove(t)
+  })
+  videoContainer.classList.add(type)
+
+  webCameraWindowSettings = {
+    ...webCameraWindowSettings,
+    skipPosition: false,
+    avatarType: type,
+  }
+  window.electronAPI.ipcRenderer.send(
+    WebCameraWindowEvents.RESIZE,
+    webCameraWindowSettings
+  )
+}
 
 // Toggle webcamera size
 const webcameraSizeBtn = document.querySelector(
@@ -642,14 +673,19 @@ window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, (event, data) => {
 window.electronAPI.ipcRenderer.on(
   WebCameraWindowEvents.AVATAR_UPDATE,
   (event, settings: ILastWebCameraSize) => {
+    console.log("WebCameraWindowEvents.AVATAR_UPDATE", settings)
+    const type = settings.avatarType || "circle-sm"
+
     AVATAR_TYPES.forEach((t) => {
       videoContainer.classList.remove(t)
     })
-    videoContainer.classList.add(settings.avatarType)
+
+    videoContainer.classList.add(type)
+
     webCameraWindowSettings = {
       ...webCameraWindowSettings,
       skipPosition: false,
-      avatarType: settings.avatarType,
+      avatarType: type,
     }
   }
 )

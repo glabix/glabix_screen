@@ -36,13 +36,13 @@ export const getAvatarSize = (
       }
 
     case "camera-only-sm":
-      return { width: 410, height: Math.round((9 / 16) * 410) }
+      return { width: 410, height: Math.round((9 / 16) * 410) + 48 }
     case "camera-only-lg":
-      return { width: 820, height: Math.round((9 / 16) * 820) }
+      return { width: 820, height: Math.round((9 / 16) * 820) + 48 }
     case "camera-only-xl":
       return {
         width: Math.round(0.8 * screenWidth),
-        height: Math.round((9 / 16) * 0.8 * screenWidth),
+        height: Math.round((9 / 16) * 0.8 * screenWidth) + 48,
       }
 
     default:

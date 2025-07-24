@@ -169,7 +169,7 @@ app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
 app.commandLine.appendSwitch("high-dpi-support", "true")
-// app.commandLine.appendSwitch("force-device-scale-factor", "1")
+app.commandLine.appendSwitch("force-device-scale-factor", "1")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
@@ -781,6 +781,7 @@ function createWindow() {
     width,
     height,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -951,6 +952,7 @@ function createWebcameraWindow(parentWindow) {
     x,
     y,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -1024,6 +1026,7 @@ function createModal(parentWindow) {
     parent: parentWindow,
     minimizable: false,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -1137,6 +1140,7 @@ function createDropdownWindow(parentWindow) {
     minimizable: false,
     movable: false,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -1337,6 +1341,7 @@ function createLoginWindow() {
     frame: false,
     roundedCorners: true,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
       devTools: !app.isPackaged,
@@ -1442,6 +1447,7 @@ function createScreenshotWindow(dataURL: string) {
     roundedCorners: true,
     parent: isRecording ? mainWindow : undefined,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
       devTools: !app.isPackaged,

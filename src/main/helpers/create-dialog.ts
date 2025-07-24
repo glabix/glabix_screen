@@ -74,9 +74,9 @@ export function createDialogWindow(_params: IDialogWindowParams): void {
     roundedCorners: true,
     parent: params.parentWindow || undefined,
     webPreferences: {
+      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },

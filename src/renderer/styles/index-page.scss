@@ -35,7 +35,7 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 10;
-  overflow: hidden;
+  // overflow: hidden;
 
   &.circle-sm {
     width: 200px;
@@ -439,6 +439,13 @@ body.no-microphone .microphone-alert-container {
   min-width: 200px;
   translate: -50% 0;
   -webkit-app-region: drag;
+}
+.draggable-zone.has-webcamera-only {
+  margin-top: 48px;
+  .webcamera-only-title {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 body:not(.body--is-recording) .recorder-btn {
