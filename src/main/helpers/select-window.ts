@@ -27,7 +27,6 @@ export const createSelectWindow = (
     minimizable: false,
     movable: false,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
       devTools: !app.isPackaged,

@@ -124,11 +124,12 @@ import {
   getLastWebcameraPosition,
   getWebCameraWindowPosition,
   getWebCameraWindowSize,
-} from "./helpers/webcamera-size."
+} from "./helpers/webcamera-size"
 import {
   ILastWebCameraSize,
   IWebCameraWindowSettings,
 } from "@shared/types/webcamera.types"
+import { getCorrectBounds, getCurrentDisplay } from "./helpers/display.helper"
 
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
@@ -168,8 +169,8 @@ app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
-app.commandLine.appendSwitch("high-dpi-support", "true")
-app.commandLine.appendSwitch("force-device-scale-factor", "1")
+// app.commandLine.appendSwitch("high-dpi-support", "true")
+// app.commandLine.appendSwitch("force-device-scale-factor", "1")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
@@ -781,7 +782,6 @@ function createWindow() {
     width,
     height,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -952,7 +952,6 @@ function createWebcameraWindow(parentWindow) {
     x,
     y,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -1026,7 +1025,6 @@ function createModal(parentWindow) {
     parent: parentWindow,
     minimizable: false,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -1140,7 +1138,6 @@ function createDropdownWindow(parentWindow) {
     minimizable: false,
     movable: false,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
@@ -1237,42 +1234,6 @@ function adjustWindowPosition(name: WindowNames) {
   }
 }
 
-function getCurrentDisplay(window: BrowserWindow): Electron.Display {
-  const winBounds = window.getBounds()
-  const displays = screen.getAllDisplays()
-  let currentDisplay = activeDisplay
-
-  if (process.platform === "win32") {
-    const physicalX = winBounds.x * activeDisplay.scaleFactor
-    const physicalY = winBounds.y * activeDisplay.scaleFactor
-
-    for (const display of displays) {
-      const displayPhysicalBounds = {
-        x: display.bounds.x * display.scaleFactor,
-        y: display.bounds.y * display.scaleFactor,
-        width: display.bounds.width * display.scaleFactor,
-        height: display.bounds.height * display.scaleFactor,
-      }
-
-      if (
-        physicalX >= displayPhysicalBounds.x &&
-        physicalX < displayPhysicalBounds.x + displayPhysicalBounds.width &&
-        physicalY >= displayPhysicalBounds.y &&
-        physicalY < displayPhysicalBounds.y + displayPhysicalBounds.height
-      ) {
-        currentDisplay = display
-      }
-    }
-  } else {
-    currentDisplay = screen.getDisplayNearestPoint({
-      x: winBounds.x,
-      y: winBounds.y,
-    })
-  }
-
-  return currentDisplay
-}
-
 function handleMoveWindows(name: WindowNames) {
   const isRecording = ["recording", "paused", "countdown"].includes(
     store.get()["recordingState"]
@@ -1285,25 +1246,42 @@ function handleMoveWindows(name: WindowNames) {
   const allWindows = draggableWindows.getAll()
   const draggingWindow = draggableWindows.getDragging()
   const staticWindows = allWindows.filter((w) => w.name != draggingWindow?.name)
-  const currentScreen = getCurrentDisplay(draggingWindow!.window!)
+  const currentScreen = getCurrentDisplay(
+    draggingWindow!.window!,
+    activeDisplay
+  )
 
   if (activeDisplay && activeDisplay.id != currentScreen.id) {
     mainWindow.webContents.send("screen:change", currentScreen)
-    const lastScreenBounds = activeDisplay.bounds
-    const newScreenBounds = currentScreen.bounds
+    const lastScreenBounds = getCorrectBounds(
+      activeDisplay.bounds,
+      activeDisplay.scaleFactor
+    )
+    const newScreenBounds = getCorrectBounds(
+      currentScreen.bounds,
+      currentScreen.scaleFactor
+    )
     staticWindows.forEach((w) => {
       const window = w.window!
-      const lastWindowPos = window.getBounds()
-      const lastDirX = lastScreenBounds.x > 0 ? -1 : 1
-      const lastDirY = lastScreenBounds.y > 0 ? -1 : 1
+      const lastWindowPos = getCorrectBounds(
+        window.getBounds(),
+        activeDisplay.scaleFactor
+      )
+      const offsetX = lastWindowPos.x - lastScreenBounds.x
+      const offsetY = lastWindowPos.y - lastScreenBounds.y
+      logSender.sendLog(
+        "window.bounds",
+        JSON.stringify({
+          original: window.getBounds(),
+          correct: lastWindowPos,
+        })
+      )
+      // const lastDirX = lastScreenBounds.x > 0 ? -1 : 1
+      // const lastDirY = lastScreenBounds.y > 0 ? -1 : 1
       const newDirX = newScreenBounds.x < 0 ? -1 : 1
       const newDirY = newScreenBounds.y < 0 ? -1 : 1
-      const lastX =
-        (lastWindowPos.x + lastDirX * lastScreenBounds.x) /
-        lastScreenBounds.width
-      const lastY =
-        (lastWindowPos.y! + lastDirY * lastScreenBounds.y) /
-        lastScreenBounds.height
+      const lastX = Math.abs(offsetX / lastScreenBounds.width)
+      const lastY = Math.abs(offsetY / lastScreenBounds.height)
       const newX =
         newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
       const newY =
@@ -1316,12 +1294,11 @@ function handleMoveWindows(name: WindowNames) {
       logSender.sendLog(
         "window.screen-change",
         JSON.stringify({
-          activeDisplay: activeDisplay,
           windowName: w.name,
-          lastScreenBounds: lastScreenBounds,
-          newScreenBounds: newScreenBounds,
           prevPos: `x: ${lastWindowPos.x}, y: ${lastWindowPos.y}`,
           newPos: `x: ${newX}, y: ${newY}`,
+          lastScreenBounds: lastScreenBounds,
+          newScreenBounds: newScreenBounds,
         })
       )
     })
@@ -1341,7 +1318,6 @@ function createLoginWindow() {
     frame: false,
     roundedCorners: true,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
       devTools: !app.isPackaged,
@@ -1447,7 +1423,6 @@ function createScreenshotWindow(dataURL: string) {
     roundedCorners: true,
     parent: isRecording ? mainWindow : undefined,
     webPreferences: {
-      zoomFactor: 1.5,
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
       devTools: !app.isPackaged,
