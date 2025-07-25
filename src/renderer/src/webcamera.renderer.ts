@@ -39,6 +39,8 @@ let webCameraWindowSettings: IWebCameraWindowSettings = {
   skipPosition: false,
 }
 
+let savedCameraWindowType: WebCameraAvatarTypes
+
 const AVATAR_TYPES: WebCameraAvatarTypes[] = [
   "circle-sm",
   "circle-lg",
@@ -207,19 +209,66 @@ function stopStream() {
 }
 
 function checkStream(data: IStreamSettings) {
-  if (
-    ["cameraOnly", "fullScreenshot", "cropScreenshot"].includes(data.action)
-  ) {
-    // videoContainer.setAttribute("hidden", "")
-    // stopStream()
-    // return
-  }
-
   if (data.cameraDeviceId && data.cameraDeviceId != "no-camera") {
     startStream(data.cameraDeviceId)
   } else {
     videoContainer.setAttribute("hidden", "")
     stopStream()
+  }
+
+  if (data.action == "cameraOnly") {
+    stopStream()
+    startStream(data.cameraDeviceId)
+    videoContainer.removeAttribute("hidden")
+  }
+}
+
+function handlePanelWithoutCamera(data: IStreamSettings) {
+  const isCameraOnlyMode =
+    webCameraWindowSettings.avatarType?.includes("camera-only")
+  draggableZone.classList.remove("without-camera")
+  if (!data.cameraDeviceId || data.cameraDeviceId == "no-camera") {
+    if (data.action == "cameraOnly") {
+      const type = isCameraOnlyMode
+        ? webCameraWindowSettings.avatarType
+        : "camera-only-sm"
+
+      videoContainer.classList.add(type!)
+      webCameraWindowSettings = {
+        ...webCameraWindowSettings,
+        skipPosition: false,
+        avatarType: type,
+      }
+    } else {
+      draggableZone.classList.add("without-camera")
+      webCameraWindowSettings = {
+        ...webCameraWindowSettings,
+        skipPosition: false,
+        avatarType: null,
+      }
+    }
+
+    window.electronAPI.ipcRenderer.send(
+      WebCameraWindowEvents.RESIZE,
+      webCameraWindowSettings
+    )
+  } else {
+    if (data.action == "cameraOnly") {
+      const type = isCameraOnlyMode
+        ? webCameraWindowSettings.avatarType
+        : "camera-only-sm"
+      videoContainer.classList.add(type!)
+      webCameraWindowSettings = {
+        ...webCameraWindowSettings,
+        skipPosition: false,
+        avatarType: type,
+      }
+      window.electronAPI.ipcRenderer.send(
+        WebCameraWindowEvents.RESIZE,
+        webCameraWindowSettings
+      )
+    } else {
+    }
   }
 }
 
@@ -237,45 +286,26 @@ window.electronAPI.ipcRenderer.on(
     }
 
     draggableZone.classList.remove("has-webcamera-only")
-
-    // const video = document.querySelector(
-    //   "#webcam_only_video"
-    // ) as HTMLVideoElement
-    // const videoContainer = document.querySelector(".webcamera-only-container")!
+    ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
+      videoContainer.classList.remove(t)
+    })
 
     if (data.action == "cameraOnly") {
-      // stopStream()
-      ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
-        videoContainer.classList.remove(t)
-      })
-      videoContainer.classList.add("camera-only-sm")
-
+      draggableZone.classList.add("has-webcamera-only")
+    } else {
+      videoContainer.classList.add(savedCameraWindowType)
       webCameraWindowSettings = {
         ...webCameraWindowSettings,
         skipPosition: false,
-        avatarType: "camera-only-sm",
+        avatarType: savedCameraWindowType,
       }
-
       window.electronAPI.ipcRenderer.send(
         WebCameraWindowEvents.RESIZE,
         webCameraWindowSettings
       )
-      // const videoContainer = document.querySelector(
-      //   ".webcamera-only-container"
-      // )!
-      // const video = document.querySelector(
-      //   "#webcam_only_video"
-      // )! as HTMLVideoElement
-      // videoContainer.removeAttribute("hidden")
-      draggableZone.classList.add("has-webcamera-only")
-      // const rect = videoContainer.getBoundingClientRect()
-      // video.width = rect.width
-      // video.height = rect.height
-      // video.srcObject = currentStream || null
-    } else {
-      // video.srcObject = null
-      // videoContainer.setAttribute("hidden", "")
     }
+
+    handlePanelWithoutCamera(data)
   }
 )
 
@@ -287,6 +317,8 @@ window.electronAPI.ipcRenderer.on(
     if (isAppShown && !currentStream) {
       startStream(lastStreamSettings.cameraDeviceId)
     }
+
+    handlePanelWithoutCamera(settings)
   }
 )
 
@@ -673,7 +705,6 @@ window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, (event, data) => {
 window.electronAPI.ipcRenderer.on(
   WebCameraWindowEvents.AVATAR_UPDATE,
   (event, settings: ILastWebCameraSize) => {
-    console.log("WebCameraWindowEvents.AVATAR_UPDATE", settings)
     const type = settings.avatarType || "circle-sm"
 
     AVATAR_TYPES.forEach((t) => {
@@ -687,6 +718,8 @@ window.electronAPI.ipcRenderer.on(
       skipPosition: false,
       avatarType: type,
     }
+
+    savedCameraWindowType = type
   }
 )
 

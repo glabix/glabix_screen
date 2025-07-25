@@ -440,6 +440,9 @@ body.no-microphone .microphone-alert-container {
   translate: -50% 0;
   -webkit-app-region: drag;
 }
+.draggable-zone.without-camera {
+  margin-top: 30px;
+}
 .draggable-zone.has-webcamera-only {
   margin-top: 48px;
   .webcamera-only-title {

@@ -18,16 +18,22 @@ export const getAvatarSize = (
 ): { width: number; height: number } => {
   switch (avatarType) {
     case "circle-sm":
-      return { width: 200, height: 200 }
+      return { width: 200, height: 200 + PANEL_HEIGHT_SM }
     case "circle-lg":
-      return { width: 360, height: 360 }
+      return { width: 360, height: 360 + PANEL_HEIGHT_SM }
     case "circle-xl":
-      return { width: 560, height: 560 }
+      return { width: 560, height: 560 + PANEL_HEIGHT_SM }
 
     case "rect-sm":
-      return { width: 300, height: Math.round((9 / 16) * 300) }
+      return {
+        width: 300,
+        height: Math.round((9 / 16) * 300) + PANEL_HEIGHT_SM,
+      }
     case "rect-lg":
-      return { width: 650, height: Math.round((9 / 16) * 650) }
+      return {
+        width: 650,
+        height: Math.round((9 / 16) * 650) + PANEL_HEIGHT_SM,
+      }
 
     case "rect-xl":
       return {
@@ -36,17 +42,23 @@ export const getAvatarSize = (
       }
 
     case "camera-only-sm":
-      return { width: 410, height: Math.round((9 / 16) * 410) + 48 }
+      return {
+        width: 410,
+        height: Math.round((9 / 16) * 410) + 48 + PANEL_HEIGHT_SM,
+      }
     case "camera-only-lg":
-      return { width: 820, height: Math.round((9 / 16) * 820) + 48 }
+      return {
+        width: 820,
+        height: Math.round((9 / 16) * 820) + 48 + PANEL_HEIGHT_SM,
+      }
     case "camera-only-xl":
       return {
         width: Math.round(0.8 * screenWidth),
-        height: Math.round((9 / 16) * 0.8 * screenWidth) + 48,
+        height: Math.round((9 / 16) * 0.8 * screenWidth) + 48 + PANEL_HEIGHT_SM,
       }
 
     default:
-      return { width: 200, height: 200 }
+      return { width: MIN_WIDTH, height: PANEL_HEIGHT_DEFAULT + 30 }
   }
 }
 
@@ -60,8 +72,8 @@ export const getWebCameraWindowSize = (
   )
   let width = avatarSize.width < MIN_WIDTH ? MIN_WIDTH : avatarSize.width
   let height = settings.isDropdownOpen
-    ? avatarSize.height + PANEL_HEIGHT_SM + PANEL_DROPDOWN_HEIGHT
-    : avatarSize.height + PANEL_HEIGHT_SM
+    ? avatarSize.height + PANEL_DROPDOWN_HEIGHT
+    : avatarSize.height
   return { width, height }
 }
 
@@ -84,8 +96,8 @@ export const getLastWebcameraPosition = (
 ): Promise<ILastWebCameraSize> => {
   return new Promise((resolve, reject) => {
     let settings: ILastWebCameraSize = {
-      left: 0,
-      top: 0,
+      left: 50,
+      top: 130,
       avatarType: "circle-sm",
     }
     const storeSettings = eStore.get(
