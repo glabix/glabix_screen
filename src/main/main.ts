@@ -1281,13 +1281,13 @@ function handleMoveWindows(name: WindowNames) {
       // const lastDirY = lastScreenBounds.y > 0 ? -1 : 1
       const newDirX = lastWindowPos.x < 0 ? -1 : 1
       const newDirY = lastWindowPos.y < 0 ? -1 : 1
-      const lastX = Math.abs(offsetX / lastScreenBounds.width)
-      const lastY = Math.abs(offsetY / lastScreenBounds.height)
+      const lastX = Math.abs(lastWindowPos.x / lastScreenBounds.width)
+      const lastY = Math.abs(lastWindowPos.y / lastScreenBounds.height)
       // const newX = newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
       // const newY = newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
 
-      const newX = lastWindowPos.x < 0 ? -1900 : 1300
-      const newY = lastWindowPos.x < 0 ? 10 : 500
+      const newX = newScreenBounds.x
+      const newY = newScreenBounds.y
 
       window.setPosition(newX, newY, false)
       window.show()
@@ -1464,10 +1464,10 @@ function showWindows() {
   registerShortCutsOnShow()
   registerUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
-    if (mainWindow) {
-      mainWindow.show()
-      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-    }
+    // if (mainWindow) {
+    //   mainWindow.show()
+    //   mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    // }
     if (modalWindow) {
       modalWindow.show()
       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
@@ -1476,6 +1476,7 @@ function showWindows() {
       webCameraWindow.show()
       webCameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
+    logSender.sendLog("mainWindow.visibility", mainWindow?.isVisible() + "")
   } else {
     if (loginWindow) loginWindow.show()
   }
@@ -1671,10 +1672,12 @@ app.on("before-quit", () => {
 
 ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
   mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+  mainWindow.hide()
 })
 
 ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
   mainWindow?.setIgnoreMouseEvents(false)
+  mainWindow.show()
 })
 // ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
 // const win = BrowserWindow.fromWebContents(event.sender)
