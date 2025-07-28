@@ -560,11 +560,11 @@ function registerUserShortCuts() {
               webCameraWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
-              if (!mainWindow.isVisible()) {
-                mainWindow.show()
-                mainWindow.focus()
-                mainWindow.focusOnWebView()
-              }
+              // if (!mainWindow.isVisible()) {
+              //   mainWindow.show()
+              //   mainWindow.focus()
+              //   mainWindow.focusOnWebView()
+              // }
             }
           }
         })
@@ -824,8 +824,8 @@ function createWindow() {
   })
 
   mainWindow.on("hide", () => {
-    mainWindow.webContents.send(AppEvents.ON_HIDE)
-    modalWindow.webContents.send(AppEvents.ON_HIDE)
+    // mainWindow.webContents.send(AppEvents.ON_HIDE)
+    // modalWindow.webContents.send(AppEvents.ON_HIDE)
   })
 
   mainWindow.on("blur", () => {
@@ -949,7 +949,7 @@ function createWebcameraWindow(parentWindow) {
     hasShadow: false,
     width: windowSize.width,
     height: windowSize.height,
-    parent: parentWindow,
+    // parent: parentWindow,
     x,
     y,
     webPreferences: {
@@ -994,6 +994,7 @@ function createWebcameraWindow(parentWindow) {
 
   webCameraWindow.on("show", () => {
     webCameraWindow.webContents.send(AppEvents.ON_SHOW)
+    mainWindow.webContents.send(AppEvents.ON_SHOW)
   })
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -1023,7 +1024,7 @@ function createModal(parentWindow) {
     height: ModalWindowHeight.MODAL,
     show: false,
     alwaysOnTop: true,
-    parent: parentWindow,
+    // parent: parentWindow,
     minimizable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
@@ -1079,6 +1080,9 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
     loadAccountData()
     sendUserSettings()
+
+    mainWindow.webContents.send(AppEvents.ON_SHOW)
+    modalWindow?.webContents.send(AppEvents.ON_SHOW)
   })
 
   modalWindow.on("blur", () => {})
@@ -1672,12 +1676,12 @@ app.on("before-quit", () => {
 
 ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
   mainWindow?.setIgnoreMouseEvents(true, { forward: true })
-  mainWindow.hide()
+  // mainWindow.hide()
 })
 
 ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
   mainWindow?.setIgnoreMouseEvents(false)
-  mainWindow.show()
+  // mainWindow.show()
 })
 // ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
 // const win = BrowserWindow.fromWebContents(event.sender)
@@ -2284,7 +2288,7 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
           height: size.height,
         })
         adjustWindowPosition(WindowNames.WEB_CAMERA)
-        mainWindow.show()
+        // mainWindow.show()
         modalWindow.show()
         webCameraWindow.show()
       })
