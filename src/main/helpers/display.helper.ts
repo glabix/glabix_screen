@@ -10,12 +10,12 @@ export function getCorrectBounds(
   let bounds = _bounds
 
   if (process.platform === "win32") {
-    bounds = {
-      x: bounds.x * scaleFactor,
-      y: bounds.y * scaleFactor,
-      width: bounds.width * scaleFactor,
-      height: bounds.height * scaleFactor,
-    }
+    // bounds = {
+    //   x: bounds.x * scaleFactor,
+    //   y: bounds.y * scaleFactor,
+    //   width: bounds.width * scaleFactor,
+    //   height: bounds.height * scaleFactor,
+    // }
   }
 
   return bounds

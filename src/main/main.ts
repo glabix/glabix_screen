@@ -1225,7 +1225,7 @@ function adjustWindowPosition(name: WindowNames) {
         : { left: posX, top: posY, avatarType: "circle-sm" }
       eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
       logSender.sendLog(
-        "[window.save-position-settings]:",
+        "window.save-position-settings",
         JSON.stringify({
           windowName: name,
           settings,
@@ -1283,10 +1283,11 @@ function handleMoveWindows(name: WindowNames) {
       const newDirY = lastWindowPos.y < 0 ? -1 : 1
       const lastX = Math.abs(offsetX / lastScreenBounds.width)
       const lastY = Math.abs(offsetY / lastScreenBounds.height)
-      const newX =
-        newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
-      const newY =
-        newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
+      // const newX = newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
+      // const newY = newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
+
+      const newX = newDirX > 0 ? 1300 : 1900
+      const newY = newDirX > 0 ? 10 : 500
 
       window.setPosition(newX, newY, false)
       window.show()
