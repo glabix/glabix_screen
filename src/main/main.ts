@@ -1286,8 +1286,8 @@ function handleMoveWindows(name: WindowNames) {
       // const newX = newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
       // const newY = newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
 
-      const newX = lastWindowPos.x < 0 ? 1900 : 1300
-      const newY = lastWindowPos.x < 0 ? 500 : 10
+      const newX = lastWindowPos.x < 0 ? -1900 : 1300
+      const newY = lastWindowPos.x < 0 ? 10 : 500
 
       window.setPosition(newX, newY, false)
       window.show()
