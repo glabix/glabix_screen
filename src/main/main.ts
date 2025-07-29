@@ -464,7 +464,7 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+                      mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
                       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
                     }
                   })
@@ -486,7 +486,7 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+                      mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
                       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
                     }
                   })
@@ -820,7 +820,7 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+    mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
     webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 999990)
     modalWindow?.setAlwaysOnTop(true, "screen-saver", 999991)
   })
@@ -831,11 +831,11 @@ function createWindow() {
   })
 
   mainWindow.on("blur", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+    mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
   })
 
   mainWindow.on("focus", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+    mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
@@ -1490,7 +1490,7 @@ function showWindows() {
   if (TokenStorage.dataIsActual()) {
     if (mainWindow && isDrawActive) {
       mainWindow.show()
-      mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+      mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
       webCameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
@@ -1707,7 +1707,7 @@ ipcMain.on(MainWindowEvents.HIDE, (event, data) => {
 
 ipcMain.on(MainWindowEvents.SHOW, (event, data) => {
   mainWindow?.show()
-  mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+  mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
   mainWindow.focus()
 })
 // ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
@@ -1863,7 +1863,7 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+          mainWindow.setAlwaysOnTop(true, "modal-panel", 999)
           modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
