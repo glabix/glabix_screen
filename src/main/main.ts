@@ -801,7 +801,7 @@ function createWindow() {
   mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
 
   // mainWindow.setFullScreenable(false)
-  mainWindow.setIgnoreMouseEvents(true, { forward: true })
+  // mainWindow.setIgnoreMouseEvents(true, { forward: true })
 
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
@@ -1675,12 +1675,12 @@ app.on("before-quit", () => {
 // })
 
 ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
-  mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+  // mainWindow?.setIgnoreMouseEvents(true, { forward: true })
   // mainWindow.hide()
 })
 
 ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
-  mainWindow?.setIgnoreMouseEvents(false)
+  // mainWindow?.setIgnoreMouseEvents(false)
   // mainWindow.show()
 })
 // ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
