@@ -821,6 +821,8 @@ function createWindow() {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
     mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+    webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 999990)
+    modalWindow?.setAlwaysOnTop(true, "screen-saver", 999991)
   })
 
   mainWindow.on("hide", () => {
@@ -1489,6 +1491,8 @@ function showWindows() {
     if (mainWindow && isDrawActive) {
       mainWindow.show()
       mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
+      webCameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
     if (modalWindow) {
       modalWindow.show()
