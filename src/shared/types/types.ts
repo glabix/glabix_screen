@@ -181,8 +181,11 @@ export interface IDrawSettings {
 }
 
 export enum MainWindowEvents {
-  IGNORE_MOUSE_START = "main-window:ignore-mouse:start",
-  IGNORE_MOUSE_END = "main-window:ignore-mouse:end",
+  // IGNORE_MOUSE_START = "main-window:ignore-mouse:start", // => migrate to HIDE
+  // IGNORE_MOUSE_END = "main-window:ignore-mouse:end", // => migrate to SHOW
+
+  SHOW = "main-window:show",
+  HIDE = "main-window:hide",
 }
 
 export interface IModalWindowTabData {

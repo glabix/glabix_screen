@@ -150,9 +150,9 @@ function startStream(deviseId) {
   }
 
   window.electronAPI.ipcRenderer
-    .invoke("isMainWindowVisible")
-    .then((isMainWindowVisible) => {
-      if (isMainWindowVisible) {
+    .invoke("isWebCameraWindowVisible")
+    .then((isWebCameraWindowVisible) => {
+      if (isWebCameraWindowVisible) {
         navigator.mediaDevices
           .getUserMedia(constraints)
           .then((stream) => {
@@ -766,9 +766,9 @@ document.addEventListener("DOMContentLoaded", () => {
     lastStreamSettings.cameraDeviceId != "no-camera"
   ) {
     window.electronAPI.ipcRenderer
-      .invoke("isMainWindowVisible")
-      .then((isMainWindowVisible) => {
-        if (isMainWindowVisible) {
+      .invoke("isWebCameraWindowVisible")
+      .then((isWebCameraWindowVisible) => {
+        if (isWebCameraWindowVisible) {
           videoContainer.removeAttribute("hidden")
           startStream(lastStreamSettings?.cameraDeviceId)
         }

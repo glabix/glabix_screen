@@ -61,8 +61,9 @@ function handleMouseUp(e: MouseEvent) {
 
   setTimeout(() => {
     const crop = cropRect.width && cropRect.height ? cropRect : undefined
-    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
     window.electronAPI.ipcRenderer.send(ScreenshotWindowEvents.CREATE, crop)
+    // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
     initView()
   }, 100)
 }
@@ -115,7 +116,8 @@ window.electronAPI.ipcRenderer.on(ScreenshotActionEvents.CROP, () => {
   canvas.height = window.innerHeight
   initView()
   canvasContainer.removeAttribute("hidden")
-  window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
+  // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
+  window.electronAPI.ipcRenderer.send(MainWindowEvents.SHOW)
 })
 
 window.electronAPI.ipcRenderer.on(
@@ -139,6 +141,7 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
     canvasContainer.setAttribute("hidden", "")
     initView()
     window.electronAPI.ipcRenderer.send(AppEvents.HIDE)
-    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
+    window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
   }
 })

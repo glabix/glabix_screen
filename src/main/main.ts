@@ -464,7 +464,7 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
                       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
                     }
                   })
@@ -486,7 +486,7 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
                       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
                     }
                   })
@@ -798,7 +798,7 @@ function createWindow() {
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-  mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
 
   // mainWindow.setFullScreenable(false)
   // mainWindow.setIgnoreMouseEvents(true, { forward: true })
@@ -820,7 +820,7 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
   })
 
   mainWindow.on("hide", () => {
@@ -829,11 +829,11 @@ function createWindow() {
   })
 
   mainWindow.on("blur", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
   })
 
   mainWindow.on("focus", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
@@ -992,8 +992,15 @@ function createWebcameraWindow(parentWindow) {
     })
   })
 
+  webCameraWindow.on("hide", () => {
+    mainWindow.webContents.send(AppEvents.ON_HIDE)
+    modalWindow.webContents.send(AppEvents.ON_HIDE)
+    webCameraWindow.webContents.send(AppEvents.ON_HIDE)
+  })
+
   webCameraWindow.on("show", () => {
     webCameraWindow.webContents.send(AppEvents.ON_SHOW)
+    modalWindow?.webContents.send(AppEvents.ON_SHOW)
     mainWindow.webContents.send(AppEvents.ON_SHOW)
   })
 
@@ -1283,15 +1290,26 @@ function handleMoveWindows(name: WindowNames) {
       )
       // const lastDirX = lastScreenBounds.x > 0 ? -1 : 1
       // const lastDirY = lastScreenBounds.y > 0 ? -1 : 1
-      const newDirX = lastWindowPos.x < 0 ? -1 : 1
-      const newDirY = lastWindowPos.y < 0 ? -1 : 1
-      const lastX = Math.abs(lastWindowPos.x / lastScreenBounds.width)
-      const lastY = Math.abs(lastWindowPos.y / lastScreenBounds.height)
+      // const newDirX = lastWindowPos.x < 0 ? -1 : 1
+      // const newDirY = lastWindowPos.y < 0 ? -1 : 1
+      // const lastX = Math.abs(lastWindowPos.x / lastScreenBounds.width)
+      // const lastY = Math.abs(lastWindowPos.y / lastScreenBounds.height)
       // const newX = newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
       // const newY = newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
+      const maxX =
+        newScreenBounds.x + newScreenBounds.width - lastWindowPos.width
+      const maxY =
+        newScreenBounds.y + newScreenBounds.height - lastWindowPos.height
+      let newX = newScreenBounds.x + offsetX
+      let newY = newScreenBounds.y + offsetY
 
-      const newX = newScreenBounds.x
-      const newY = newScreenBounds.y
+      if (newX > maxX) {
+        newX = maxX
+      }
+
+      if (newY > maxY) {
+        newY = maxY
+      }
 
       window.setPosition(newX, newY, false)
       window.show()
@@ -1348,8 +1366,8 @@ function createLoginWindow() {
   })
 }
 
-ipcMain.handle("isMainWindowVisible", (event, key) => {
-  return mainWindow?.isVisible()
+ipcMain.handle("isWebCameraWindowVisible", (event, key) => {
+  return webCameraWindow?.isVisible()
 })
 
 function createScreenshotWindow(dataURL: string) {
@@ -1468,10 +1486,10 @@ function showWindows() {
   registerShortCutsOnShow()
   registerUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
-    // if (mainWindow) {
-    //   mainWindow.show()
-    //   mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-    // }
+    if (mainWindow && isDrawActive) {
+      mainWindow.show()
+      mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+    }
     if (modalWindow) {
       modalWindow.show()
       modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
@@ -1510,7 +1528,7 @@ function hideWindows() {
 
 function toggleWindows() {
   if (TokenStorage.dataIsActual()) {
-    if (modalWindow.isVisible() && mainWindow.isVisible()) {
+    if (modalWindow.isVisible() && webCameraWindow.isVisible()) {
       hideWindows()
     } else {
       showWindows()
@@ -1674,15 +1692,24 @@ app.on("before-quit", () => {
 //   watchMediaDevicesAccessChange()
 // })
 
-ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
-  // mainWindow?.setIgnoreMouseEvents(true, { forward: true })
-  // mainWindow.hide()
+// ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
+// mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+// mainWindow.hide()
+// })
+
+ipcMain.on(MainWindowEvents.HIDE, (event, data) => {
+  mainWindow?.hide()
 })
 
-ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
-  // mainWindow?.setIgnoreMouseEvents(false)
-  // mainWindow.show()
+ipcMain.on(MainWindowEvents.SHOW, (event, data) => {
+  mainWindow?.show()
+  mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+  mainWindow.focus()
 })
+// ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
+// mainWindow?.setIgnoreMouseEvents(false)
+// mainWindow.show()
+// })
 // ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
 // const win = BrowserWindow.fromWebContents(event.sender)
 // win?.setIgnoreMouseEvents(ignore, options)
@@ -1787,13 +1814,13 @@ ipcMain.on(DrawEvents.DRAW_START, (event, data) => {
   isDrawActive = true
   mainWindow?.webContents.send(DrawEvents.DRAW_START, data)
   webCameraWindow?.webContents.send(DrawEvents.DRAW_START, data)
-  ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_END)
+  ipcMain.emit(MainWindowEvents.SHOW)
 })
 ipcMain.on(DrawEvents.DRAW_END, (event, data) => {
   isDrawActive = false
   mainWindow?.webContents.send(DrawEvents.DRAW_END, data)
   webCameraWindow?.webContents.send(DrawEvents.DRAW_END, data)
-  ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_START)
+  ipcMain.emit(MainWindowEvents.HIDE)
   mainWindow?.blur()
 })
 
@@ -1832,7 +1859,7 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+          mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
           modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
