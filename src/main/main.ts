@@ -464,8 +464,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
-                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver")
                     }
                   })
                   .catch((e) => {})
@@ -486,8 +486,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
-                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver")
                     }
                   })
                   .catch((e) => {})
@@ -797,8 +797,8 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-  mainWindow.setAlwaysOnTop(true, "screen-saver", 999)
+  // mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+  mainWindow.setAlwaysOnTop(true, "screen-saver")
 
   // mainWindow.setFullScreenable(false)
   // mainWindow.setIgnoreMouseEvents(true, { forward: true })
@@ -820,9 +820,12 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
-    mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
-    webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 999990)
-    modalWindow?.setAlwaysOnTop(true, "screen-saver", 999991)
+    mainWindow.setAlwaysOnTop(true, "screen-saver")
+    webCameraWindow?.setAlwaysOnTop(true, "screen-saver")
+    modalWindow?.setAlwaysOnTop(true, "screen-saver")
+
+    webCameraWindow?.moveTop()
+    modalWindow?.moveTop()
   })
 
   mainWindow.on("hide", () => {
@@ -831,11 +834,17 @@ function createWindow() {
   })
 
   mainWindow.on("blur", () => {
-    mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
+    // mainWindow.setAlwaysOnTop(true, "screen-saver")
+    // webCameraWindow?.setAlwaysOnTop(true, "screen-saver")
+    // modalWindow?.setAlwaysOnTop(true, "screen-saver")
   })
 
   mainWindow.on("focus", () => {
-    mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
+    // mainWindow.setAlwaysOnTop(true, "screen-saver")
+    webCameraWindow?.setAlwaysOnTop(true, "screen-saver")
+    modalWindow?.setAlwaysOnTop(true, "screen-saver")
+    webCameraWindow?.moveTop()
+    modalWindow?.moveTop()
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
@@ -967,7 +976,7 @@ function createWebcameraWindow(parentWindow) {
   })
 
   // modalWindow.webContents.openDevTools()
-  webCameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  webCameraWindow.setAlwaysOnTop(true, "screen-saver")
 
   webCameraWindow.on("hide", () => {})
 
@@ -1050,7 +1059,7 @@ function createModal(parentWindow) {
   draggableWindows.add({ window: modalWindow, name: WindowNames.MODAL })
   // modalWindow.webContents.openDevTools()
 
-  modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
+  modalWindow.setAlwaysOnTop(true, "screen-saver")
 
   modalWindow.on("hide", () => {
     modalWindow.webContents.send(ModalWindowEvents.HIDE)
@@ -1159,7 +1168,7 @@ function createDropdownWindow(parentWindow) {
     },
   })
   // dropdownWindow.webContents.openDevTools()
-  dropdownWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  dropdownWindow.setAlwaysOnTop(true, "screen-saver")
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
   }
@@ -1315,7 +1324,7 @@ function handleMoveWindows(name: WindowNames) {
 
       window.setPosition(newX, newY, false)
       window.show()
-      window.setAlwaysOnTop(true, "screen-saver", 999990)
+      window.setAlwaysOnTop(true, "screen-saver")
 
       logSender.sendLog(
         "window.screen-change",
@@ -1490,17 +1499,17 @@ function showWindows() {
   if (TokenStorage.dataIsActual()) {
     if (mainWindow && isDrawActive) {
       mainWindow.show()
-      mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
-      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
-      webCameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+      mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+      modalWindow.setAlwaysOnTop(true, "screen-saver")
+      webCameraWindow.setAlwaysOnTop(true, "screen-saver")
     }
     if (modalWindow) {
       modalWindow.show()
-      modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
+      modalWindow.setAlwaysOnTop(true, "screen-saver")
     }
     if (webCameraWindow) {
       webCameraWindow.show()
-      webCameraWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+      webCameraWindow.setAlwaysOnTop(true, "screen-saver")
     }
     logSender.sendLog("mainWindow.visibility", mainWindow?.isVisible() + "")
   } else {
@@ -1707,7 +1716,7 @@ ipcMain.on(MainWindowEvents.HIDE, (event, data) => {
 
 ipcMain.on(MainWindowEvents.SHOW, (event, data) => {
   mainWindow?.show()
-  mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
+  mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
   mainWindow.focus()
 })
 // ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
@@ -1863,8 +1872,8 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "pop-up-menu", 999)
-          modalWindow.setAlwaysOnTop(true, "screen-saver", 999991)
+          mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+          modalWindow.setAlwaysOnTop(true, "screen-saver")
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
           modalWindow.setAlwaysOnTop(true, "modal-panel")
