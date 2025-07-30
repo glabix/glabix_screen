@@ -820,12 +820,12 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
-    mainWindow.setAlwaysOnTop(true, "screen-saver")
-    webCameraWindow?.setAlwaysOnTop(true, "screen-saver")
-    modalWindow?.setAlwaysOnTop(true, "screen-saver")
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 0)
+    webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 2)
+    modalWindow?.setAlwaysOnTop(true, "screen-saver", 2)
 
-    webCameraWindow?.moveTop()
-    modalWindow?.moveTop()
+    // webCameraWindow?.moveTop()
+    // modalWindow?.moveTop()
   })
 
   mainWindow.on("hide", () => {
@@ -840,11 +840,11 @@ function createWindow() {
   })
 
   mainWindow.on("focus", () => {
-    // mainWindow.setAlwaysOnTop(true, "screen-saver")
-    webCameraWindow?.setAlwaysOnTop(true, "screen-saver")
-    modalWindow?.setAlwaysOnTop(true, "screen-saver")
-    webCameraWindow?.moveTop()
-    modalWindow?.moveTop()
+    mainWindow.setAlwaysOnTop(true, "screen-saver", 0)
+    webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 2)
+    modalWindow?.setAlwaysOnTop(true, "screen-saver", 2)
+    // webCameraWindow?.moveTop()
+    // modalWindow?.moveTop()
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
