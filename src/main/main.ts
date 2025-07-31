@@ -820,12 +820,7 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 0)
-    webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 2)
-    modalWindow?.setAlwaysOnTop(true, "screen-saver", 2)
-
-    // webCameraWindow?.moveTop()
-    // modalWindow?.moveTop()
+    moveWindowsToTop()
   })
 
   mainWindow.on("hide", () => {
@@ -834,17 +829,11 @@ function createWindow() {
   })
 
   mainWindow.on("blur", () => {
-    // mainWindow.setAlwaysOnTop(true, "screen-saver")
-    // webCameraWindow?.setAlwaysOnTop(true, "screen-saver")
-    // modalWindow?.setAlwaysOnTop(true, "screen-saver")
+    moveWindowsToTop()
   })
 
   mainWindow.on("focus", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 0)
-    webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 2)
-    modalWindow?.setAlwaysOnTop(true, "screen-saver", 2)
-    // webCameraWindow?.moveTop()
-    // modalWindow?.moveTop()
+    moveWindowsToTop()
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
@@ -860,6 +849,12 @@ function createWindow() {
   createWebcameraWindow(mainWindow)
   createModal(mainWindow)
   createLoginWindow()
+}
+
+function moveWindowsToTop() {
+  mainWindow?.setAlwaysOnTop(true, "screen-saver", 0)
+  webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 2)
+  modalWindow?.setAlwaysOnTop(true, "screen-saver", 2)
 }
 
 function sendUserSettings() {
@@ -1292,21 +1287,6 @@ function handleMoveWindows(name: WindowNames) {
       )
       const offsetX = lastWindowPos.x - lastScreenBounds.x
       const offsetY = lastWindowPos.y - lastScreenBounds.y
-      logSender.sendLog(
-        "window.bounds",
-        JSON.stringify({
-          original: window.getBounds(),
-          correct: lastWindowPos,
-        })
-      )
-      // const lastDirX = lastScreenBounds.x > 0 ? -1 : 1
-      // const lastDirY = lastScreenBounds.y > 0 ? -1 : 1
-      // const newDirX = lastWindowPos.x < 0 ? -1 : 1
-      // const newDirY = lastWindowPos.y < 0 ? -1 : 1
-      // const lastX = Math.abs(lastWindowPos.x / lastScreenBounds.width)
-      // const lastY = Math.abs(lastWindowPos.y / lastScreenBounds.height)
-      // const newX = newScreenBounds.x + newDirX * Math.round(newScreenBounds.width * lastX)
-      // const newY = newScreenBounds.y + newDirY * Math.round(newScreenBounds.height * lastY)
       const maxX =
         newScreenBounds.x + newScreenBounds.width - lastWindowPos.width
       const maxY =
@@ -1324,7 +1304,7 @@ function handleMoveWindows(name: WindowNames) {
 
       window.setPosition(newX, newY, false)
       window.show()
-      window.setAlwaysOnTop(true, "screen-saver")
+      moveWindowsToTop()
 
       logSender.sendLog(
         "window.screen-change",

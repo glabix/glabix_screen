@@ -25,10 +25,7 @@ export function getCurrentDisplay(
   window: BrowserWindow,
   activeDisplay: Display
 ): Display {
-  const winBounds = getCorrectBounds(
-    window.getBounds(),
-    activeDisplay.scaleFactor
-  )
+  const winBounds = window.getBounds()
   const displays = screen.getAllDisplays()
   let currentDisplay = activeDisplay
 
