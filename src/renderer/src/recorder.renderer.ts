@@ -1001,9 +1001,11 @@ window.electronAPI.ipcRenderer.on(
           screen.classList.add("is-recording")
           const screenMove = cropMoveable!.getControlBoxElement()
           screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
-          window.electronAPI.ipcRenderer.send(
-            MainWindowEvents.IGNORE_MOUSE_START
-          )
+          if (!isDrawing) {
+            window.electronAPI.ipcRenderer.send(
+              MainWindowEvents.IGNORE_MOUSE_START
+            )
+          }
           sendCropData().then(() => {
             startRecording()
           })
