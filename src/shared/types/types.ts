@@ -7,7 +7,7 @@ export type ScreenAction =
   | "cameraOnly"
   | "fullScreenshot"
   | "cropScreenshot"
-export type RecorderState = "recording" | "paused" | "stopped"
+export type RecorderState = "recording" | "paused" | "stopped" | "countdown"
 export type MediaDeviceType = "camera" | "microphone" | "screen"
 export interface IStreamSettings {
   action: ScreenAction
@@ -163,6 +163,31 @@ export enum ModalWindowEvents {
   UPLOAD_PROGRESS_SHOW = "modal-window:upload_progress:show",
   UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
+
+export enum WebCameraWindowEvents {
+  RESIZE = "web-camera-window:resize",
+  AVATAR_UPDATE = "web-camera-window:avatar-update",
+}
+
+export enum DrawEvents {
+  DRAW_START = "draw:start",
+  SETTINGS_CHANGE = "draw:settings:change",
+  DRAW_END = "draw:end",
+}
+
+export interface IDrawSettings {
+  color: string
+  width: number
+}
+
+export enum MainWindowEvents {
+  IGNORE_MOUSE_START = "main-window:ignore-mouse:start",
+  IGNORE_MOUSE_END = "main-window:ignore-mouse:end",
+
+  SHOW = "main-window:show",
+  HIDE = "main-window:hide",
+}
+
 export interface IModalWindowTabData {
   activeTab: "video" | "screenshot"
 }

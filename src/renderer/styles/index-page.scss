@@ -14,6 +14,7 @@ body {
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-app-region: no-drag;
+  zoom: 1 !important;
 }
 
 .page-backdrop {
@@ -27,18 +28,14 @@ body {
 
 /* change width height movable styles */
 .webcamera-view-container {
-  // position: fixed;
-  // top: 600px;
-  // left: 20px;
   position: relative;
-  // width: 200px;
-  // height: 200px;
-  background-color: var(--dark);
+  color: #ffffff;
+  background-color: #0f1928;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10;
-  overflow: hidden;
+  // overflow: hidden;
 
   &.circle-sm {
     width: 200px;
@@ -79,7 +76,7 @@ body {
   }
 
   &.rect-xl {
-    width: 80vw;
+    width: 100vw;
     height: auto;
     aspect-ratio: 16/9;
     border-radius: 10px;
@@ -93,6 +90,31 @@ body {
   &.circle-xl {
     video {
       border-radius: 50%;
+    }
+  }
+
+  &.camera-only-sm {
+    width: 410px;
+  }
+  &.camera-only-lg {
+    width: 820px;
+  }
+  &.camera-only-xl {
+    width: 100vw;
+  }
+  &.camera-only-sm,
+  &.camera-only-lg,
+  &.camera-only-xl {
+    aspect-ratio: 16/9;
+    border: 5px solid var(--accent);
+    border-radius: 4px;
+    video {
+      border-radius: 0;
+    }
+
+    .webcamera-only-title {
+      opacity: 1;
+      pointer-events: auto;
     }
   }
 
@@ -110,6 +132,10 @@ body {
   }
 }
 
+#panel-webcamera {
+  padding: 5px;
+}
+
 .webcamera-view-error {
   position: absolute;
   left: 0;
@@ -119,7 +145,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--light);
+  color: #ffffff;
   padding: 20px;
   text-align: center;
 }
@@ -188,6 +214,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  // margin-top: 48px;
 
   .microphone-alert {
     position: absolute;
@@ -205,7 +232,7 @@ body {
   width: 820px;
 }
 .webcamera-only-container.xl {
-  width: 80vw;
+  width: 100vw;
 }
 
 .webcamera-only-error {
@@ -234,6 +261,8 @@ body {
   display: flex;
   white-space: nowrap;
   align-items: center;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .webcamera-only-menu-container {
@@ -405,9 +434,21 @@ body.no-microphone .microphone-alert-container {
 .draggable-zone {
   position: fixed;
   z-index: 1001;
-  top: calc(80% - 200px);
-  left: 5%;
+  top: 0;
+  left: 50%;
   min-width: 200px;
+  translate: -50% 0;
+  -webkit-app-region: drag;
+}
+.draggable-zone.without-camera {
+  margin-top: 30px;
+}
+.draggable-zone.has-webcamera-only {
+  margin-top: 48px;
+  .webcamera-only-title {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 body:not(.body--is-recording) .recorder-btn {

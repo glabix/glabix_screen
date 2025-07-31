@@ -26,6 +26,7 @@ import { TokenStorage } from "./storages/token-storage"
 import {
   DialogWindowEvents,
   DisplayEvents,
+  DrawEvents,
   HotkeysEvents,
   IAccountData,
   IAuthData,
@@ -33,6 +34,7 @@ import {
   ICropVideoData,
   IDialogWindowCallbackData,
   IDialogWindowData,
+  IDrawSettings,
   IDropdownPageData,
   IDropdownPageSelectData,
   IHandleChunkDataEvent,
@@ -43,7 +45,9 @@ import {
   IRecordUploadProgressData,
   IScreenshotImageData,
   ISimpleStoreData,
+  IStreamSettings,
   IUser,
+  MainWindowEvents,
   MediaDeviceType,
   ModalWindowEvents,
   ModalWindowHeight,
@@ -51,6 +55,7 @@ import {
   ScreenshotActionEvents,
   ScreenshotWindowEvents,
   SimpleStoreEvents,
+  WebCameraWindowEvents,
 } from "@shared/types/types"
 import { AppState } from "./storages/app-state"
 import { SimpleStore } from "./storages/simple-store"
@@ -72,6 +77,7 @@ import {
   ChunkSaverEvents,
   RecordEvents,
   RecordSettingsEvents,
+  VideoRecorderEvents,
 } from "../shared/events/record.events"
 import { getOsLog } from "./helpers/get-os-log"
 import { showRecordErrorBox } from "./helpers/show-record-error-box"
@@ -105,7 +111,6 @@ import AutoLaunch from "./helpers/auto-launch.helper"
 import { RecorderFacadeV3 } from "@main/v3/recorder-facade-v3"
 import { RecordEventsV3 } from "@main/v3/events/record-v3-events"
 import {
-  ChunkPart,
   RecordCancelEventV3,
   RecordDataEventV3,
   RecordLastChunkHandledV3,
@@ -114,8 +119,20 @@ import {
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 import { ChunkProcessor } from "@main/chunk-saver"
+import { WindowNames, WindowsHelper } from "@shared/helpers/windows.helper"
+import {
+  getLastWebcameraPosition,
+  getWebCameraWindowPosition,
+  getWebCameraWindowSize,
+} from "./helpers/webcamera-size"
+import {
+  ILastWebCameraSize,
+  IWebCameraWindowSettings,
+} from "@shared/types/webcamera.types"
+import { getCorrectBounds, getCurrentDisplay } from "./helpers/display.helper"
 
 let activeDisplay: Electron.Display
+let webCameraWindow: BrowserWindow
 let dropdownWindow: BrowserWindow
 let screenshotWindow: BrowserWindow
 let screenshotWindowBounds: Rectangle | undefined = undefined
@@ -129,8 +146,12 @@ let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
 let isDrawActive = false
+let isIgnoreMouse = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
+let lastStreamSettings: IStreamSettings = {
+  action: "fullScreenVideo",
+}
 let lastDeviceAccessData: IMediaDevicesAccess = {
   camera: false,
   microphone: false,
@@ -143,11 +164,15 @@ const logSender = new LogSender(TokenStorage)
 const appState = new AppState()
 const store = new SimpleStore()
 const chunkProcessor = new ChunkProcessor()
+const draggableWindows = new WindowsHelper()
 
 app.setAppUserModelId(import.meta.env.VITE_APP_ID)
 app.removeAsDefaultProtocolClient(import.meta.env.VITE_PROTOCOL_SCHEME)
 app.commandLine.appendSwitch("enable-transparent-visuals")
 app.commandLine.appendSwitch("disable-software-rasterizer")
+app.commandLine.appendSwitch("high-dpi-support", "true")
+app.commandLine.appendSwitch("enable-high-dpi-support", "true")
+// app.commandLine.appendSwitch("force-device-scale-factor", "1")
 // app.commandLine.appendSwitch("disable-gpu-compositing")
 
 getAutoUpdater().on("error", (error) => {
@@ -353,9 +378,25 @@ if (!gotTheLock) {
         getLastStreamSettings(modalWindow).then((settings) => {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-          if (!isStartByAutoLaunch) {
-            showWindows()
-          }
+          lastStreamSettings = settings
+          getLastWebcameraPosition(webCameraWindow).then((settings) => {
+            const size = getWebCameraWindowSize(activeDisplay, settings)
+            webCameraWindow.webContents.send(
+              WebCameraWindowEvents.AVATAR_UPDATE,
+              settings
+            )
+            webCameraWindow.setBounds({
+              x: settings.left,
+              y: settings.top,
+              width: size.width,
+              height: size.height,
+            })
+            adjustWindowPosition(WindowNames.WEB_CAMERA)
+
+            if (!isStartByAutoLaunch) {
+              showWindows()
+            }
+          })
         })
       })
     } catch (e) {
@@ -424,8 +465,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver")
                     }
                   })
                   .catch((e) => {})
@@ -446,8 +487,8 @@ if (!gotTheLock) {
                       exec(
                         'open "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"'
                       )
-                      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-                      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+                      mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+                      modalWindow.setAlwaysOnTop(true, "screen-saver")
                     }
                   })
                   .catch((e) => {})
@@ -517,13 +558,14 @@ function registerUserShortCuts() {
               activeDisplay = screen.getDisplayNearestPoint(cursorPosition)
               // mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
               modalWindow.hide()
+              webCameraWindow.hide()
               mainWindow.setBounds(activeDisplay.bounds)
 
-              if (!mainWindow.isVisible()) {
-                mainWindow.show()
-                mainWindow.focus()
-                mainWindow.focusOnWebView()
-              }
+              // if (!mainWindow.isVisible()) {
+              //   mainWindow.show()
+              //   mainWindow.focus()
+              //   mainWindow.focusOnWebView()
+              // }
             }
           }
         })
@@ -740,7 +782,6 @@ function createWindow() {
     height,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
@@ -754,8 +795,8 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-  mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  // mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+  mainWindow.setAlwaysOnTop(true, "screen-saver")
 
   // mainWindow.setFullScreenable(false)
   // mainWindow.setIgnoreMouseEvents(true, { forward: true })
@@ -769,7 +810,7 @@ function createWindow() {
     mainWindow.loadFile(join(import.meta.dirname, "../renderer/index.html"))
   }
 
-  mainWindow.webContents.setFrameRate(60)
+  // mainWindow.webContents.setFrameRate(60)
   mainWindow.on("close", () => {
     app.quit()
   })
@@ -777,33 +818,42 @@ function createWindow() {
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    moveWindowsToTop()
   })
 
   mainWindow.on("hide", () => {
-    mainWindow.webContents.send(AppEvents.ON_HIDE)
-    modalWindow.webContents.send(AppEvents.ON_HIDE)
+    // mainWindow.webContents.send(AppEvents.ON_HIDE)
+    // modalWindow.webContents.send(AppEvents.ON_HIDE)
   })
 
   mainWindow.on("blur", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    moveWindowsToTop()
   })
 
   mainWindow.on("focus", () => {
-    mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+    moveWindowsToTop()
   })
 
   mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow.webContents.setZoomFactor(1)
     getLastStreamSettings(mainWindow).then((settings) => {
       modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      lastStreamSettings = settings
     })
 
     mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
   })
 
+  createWebcameraWindow(mainWindow)
   createModal(mainWindow)
   createLoginWindow()
+}
+
+function moveWindowsToTop() {
+  mainWindow?.setAlwaysOnTop(true, "screen-saver", 0)
+  webCameraWindow?.setAlwaysOnTop(true, "screen-saver", 2)
+  modalWindow?.setAlwaysOnTop(true, "screen-saver", 2)
 }
 
 function sendUserSettings() {
@@ -844,10 +894,26 @@ function sendUserSettings() {
     )
   }
 
+  if (webCameraWindow) {
+    webCameraWindow.webContents.send(
+      UserSettingsEvents.SHORTCUTS_GET,
+      getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+    webCameraWindow.webContents.send(
+      UserSettingsEvents.DRAW_SETTING_GET,
+      eStore.get(UserSettingsKeys.DRAW_SETTINGS)
+    )
+  }
+
   if (mainWindow) {
     mainWindow.webContents.send(
       UserSettingsEvents.SHORTCUTS_GET,
       getUserShortcutsSettings(eStore.get(UserSettingsKeys.SHORT_CUTS))
+    )
+
+    mainWindow.webContents.send(
+      UserSettingsEvents.DRAW_SETTING_GET,
+      eStore.get(UserSettingsKeys.DRAW_SETTINGS)
     )
 
     mainWindow.webContents.send(
@@ -872,6 +938,94 @@ function sendUserSettings() {
   }
 }
 
+function createWebcameraWindow(parentWindow) {
+  const { x, y, width, height } = screen.getPrimaryDisplay().bounds
+  const windowSize = getWebCameraWindowSize(activeDisplay, {})
+  // Create the browser window.
+  webCameraWindow = new BrowserWindow({
+    transparent: true,
+    frame: false,
+    thickFrame: false,
+    resizable: false,
+    minimizable: false,
+    roundedCorners: false, // macOS, not working on Windows
+    show: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    width: windowSize.width,
+    height: windowSize.height,
+    // parent: parentWindow,
+    x,
+    y,
+    webPreferences: {
+      preload: join(import.meta.dirname, "../preload/preload.mjs"),
+      devTools: !app.isPackaged,
+      nodeIntegration: true, // Enable Node.js integration
+      // contextIsolation: false, // Disable context isolation (not recommended for production)
+    },
+  })
+  draggableWindows.add({
+    window: webCameraWindow,
+    name: WindowNames.WEB_CAMERA,
+  })
+
+  // modalWindow.webContents.openDevTools()
+  webCameraWindow.setAlwaysOnTop(true, "screen-saver")
+
+  webCameraWindow.on("hide", () => {})
+
+  let dragEndTimer: NodeJS.Timeout
+  webCameraWindow.on("will-move", () => {
+    draggableWindows.setDragging(WindowNames.WEB_CAMERA)
+  })
+
+  webCameraWindow.on("move", () => {
+    if (draggableWindows.isDragging(WindowNames.WEB_CAMERA)) {
+      handleMoveWindows(WindowNames.WEB_CAMERA)
+
+      clearTimeout(dragEndTimer)
+      dragEndTimer = setTimeout(() => {
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
+      }, 250)
+    }
+  })
+
+  webCameraWindow.on("ready-to-show", () => {
+    webCameraWindow.webContents.setZoomFactor(1)
+    getLastStreamSettings(modalWindow).then((settings) => {
+      webCameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
+  })
+
+  webCameraWindow.on("hide", () => {
+    mainWindow.webContents.send(AppEvents.ON_HIDE)
+    modalWindow.webContents.send(AppEvents.ON_HIDE)
+    webCameraWindow.webContents.send(AppEvents.ON_HIDE)
+  })
+
+  webCameraWindow.on("show", () => {
+    webCameraWindow.webContents.send(AppEvents.ON_SHOW)
+    modalWindow?.webContents.send(AppEvents.ON_SHOW)
+    mainWindow.webContents.send(AppEvents.ON_SHOW)
+  })
+
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    webCameraWindow.loadURL(
+      `${process.env["ELECTRON_RENDERER_URL"]}/webcamera.html`
+    )
+  } else {
+    webCameraWindow.loadFile(
+      join(import.meta.dirname, "../renderer/webcamera.html")
+    )
+  }
+
+  webCameraWindow.webContents.on("did-finish-load", () => {
+    getLastStreamSettings(modalWindow).then((settings) => {
+      webCameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    })
+  })
+}
+
 function createModal(parentWindow) {
   modalWindow = new BrowserWindow({
     titleBarStyle: "hidden",
@@ -882,18 +1036,24 @@ function createModal(parentWindow) {
     height: ModalWindowHeight.MODAL,
     show: false,
     alwaysOnTop: true,
-    parent: parentWindow,
+    // parent: parentWindow,
     minimizable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
     },
   })
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
+  } else {
+    modalWindow.loadFile(join(import.meta.dirname, "../renderer/modal.html"))
+  }
+  draggableWindows.add({ window: modalWindow, name: WindowNames.MODAL })
   // modalWindow.webContents.openDevTools()
-  modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+
+  modalWindow.setAlwaysOnTop(true, "screen-saver")
 
   modalWindow.on("hide", () => {
     modalWindow.webContents.send(ModalWindowEvents.HIDE)
@@ -906,6 +1066,7 @@ function createModal(parentWindow) {
   })
 
   modalWindow.on("ready-to-show", () => {
+    modalWindow.webContents.setZoomFactor(1)
     modalWindow.webContents.send(
       "mediaDevicesAccess:get",
       getMediaDevicesAccess()
@@ -914,7 +1075,6 @@ function createModal(parentWindow) {
     loadAccountData()
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
     sendUserSettings()
-
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
@@ -932,6 +1092,9 @@ function createModal(parentWindow) {
     checkOrganizationLimits()
     loadAccountData()
     sendUserSettings()
+
+    mainWindow.webContents.send(AppEvents.ON_SHOW)
+    modalWindow?.webContents.send(AppEvents.ON_SHOW)
   })
 
   modalWindow.on("blur", () => {})
@@ -945,11 +1108,22 @@ function createModal(parentWindow) {
     }
   })
 
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
-  } else {
-    modalWindow.loadFile(join(import.meta.dirname, "../renderer/modal.html"))
-  }
+  modalWindow.on("will-move", () => {
+    draggableWindows.setDragging(WindowNames.MODAL)
+  })
+
+  let dragEndTimer: NodeJS.Timeout
+  modalWindow.on("move", () => {
+    dropdownWindow.hide()
+    if (draggableWindows.isDragging(WindowNames.MODAL)) {
+      handleMoveWindows(WindowNames.MODAL)
+
+      clearTimeout(dragEndTimer)
+      dragEndTimer = setTimeout(() => {
+        adjustWindowPosition(WindowNames.MODAL)
+      }, 250)
+    }
+  })
 
   modalWindow.webContents.on("did-finish-load", () => {
     modalWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
@@ -982,14 +1156,13 @@ function createDropdownWindow(parentWindow) {
     movable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
     },
   })
   // dropdownWindow.webContents.openDevTools()
-  dropdownWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+  dropdownWindow.setAlwaysOnTop(true, "screen-saver")
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
   }
@@ -1005,25 +1178,148 @@ function createDropdownWindow(parentWindow) {
   }
 
   dropdownWindow.webContents.on("did-finish-load", () => {
+    dropdownWindow.webContents.setZoomFactor(1)
     dropdownWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 
   dropdownWindow.on("hide", () => {
     modalWindow.webContents.send("dropdown:hide", {})
   })
+}
 
-  modalWindow.on("move", () => {
-    const currentScreen = screen.getDisplayNearestPoint(modalWindow.getBounds())
+function adjustWindowPosition(name: WindowNames) {
+  const window = draggableWindows.getAll().find((w) => w.name == name)?.window
 
-    if (activeDisplay && activeDisplay.id != currentScreen.id) {
-      mainWindow.webContents.send(DisplayEvents.UPDATE, currentScreen)
+  if (!window) {
+    return
+  }
+
+  const windowBounds = window.getBounds()
+  const windowRight = windowBounds.x + windowBounds.width
+  const windowBottom = windowBounds.y + windowBounds.height
+  const screenBounds = activeDisplay.bounds
+  const screenRight = screenBounds.x + screenBounds.width
+  const screenBottom = screenBounds.y + screenBounds.height
+  let posX = windowBounds.x
+  let posY = windowBounds.y
+
+  if (windowBounds.x < screenBounds.x) {
+    posX = screenBounds.x
+  }
+
+  if (windowBounds.y < screenBounds.y) {
+    posY = screenBounds.y
+  }
+
+  if (windowRight > screenRight) {
+    posX = screenRight - windowBounds.width
+  }
+
+  if (windowBottom > screenBottom) {
+    posY = screenBottom - windowBounds.height
+  }
+
+  if (posX != windowBounds.x || posY != windowBounds.y) {
+    window.setPosition(posX, posY, true)
+    logSender.sendLog(
+      "[window.adjust-position]:",
+      JSON.stringify({
+        windowName: name,
+        prevPos: `x: ${windowBounds.x}, y: ${windowBounds.y}`,
+        newPos: `x: ${posX}, y: ${posY}`,
+      })
+    )
+  }
+
+  if (name == WindowNames.WEB_CAMERA) {
+    if (lastStreamSettings.action != "cameraOnly") {
+      const currentSettings = eStore.get(
+        UserSettingsKeys.WEB_CAMERA_SIZE
+      ) as ILastWebCameraSize
+      const settings: ILastWebCameraSize = currentSettings
+        ? { ...currentSettings, left: posX, top: posY }
+        : { left: posX, top: posY, avatarType: "circle-sm" }
+      eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
+      logSender.sendLog(
+        "window.save-position-settings",
+        JSON.stringify({
+          windowName: name,
+          settings,
+        })
+      )
     }
+  }
+}
 
-    activeDisplay = currentScreen
-    const screenBounds = activeDisplay.bounds
-    dropdownWindow.hide()
-    mainWindow.setBounds(screenBounds)
-  })
+function handleMoveWindows(name: WindowNames) {
+  const isRecording = ["recording", "paused", "countdown"].includes(
+    store.get()["recordingState"]
+  )
+
+  if (isRecording) {
+    return
+  }
+
+  const allWindows = draggableWindows.getAll()
+  const draggingWindow = draggableWindows.getDragging()
+  const staticWindows = allWindows.filter((w) => w.name != draggingWindow?.name)
+  const currentScreen = getCurrentDisplay(
+    draggingWindow!.window!,
+    activeDisplay
+  )
+
+  if (activeDisplay && activeDisplay.id != currentScreen.id) {
+    mainWindow.webContents.send("screen:change", currentScreen)
+    const lastScreenBounds = getCorrectBounds(
+      activeDisplay.bounds,
+      activeDisplay.scaleFactor
+    )
+    const newScreenBounds = getCorrectBounds(
+      currentScreen.bounds,
+      currentScreen.scaleFactor
+    )
+    staticWindows.forEach((w) => {
+      const window = w.window!
+      const lastWindowPos = getCorrectBounds(
+        window.getBounds(),
+        activeDisplay.scaleFactor
+      )
+      const offsetX = lastWindowPos.x - lastScreenBounds.x
+      const offsetY = lastWindowPos.y - lastScreenBounds.y
+      const maxX =
+        newScreenBounds.x + newScreenBounds.width - lastWindowPos.width
+      const maxY =
+        newScreenBounds.y + newScreenBounds.height - lastWindowPos.height
+      let newX = newScreenBounds.x + offsetX
+      let newY = newScreenBounds.y + offsetY
+
+      if (newX > maxX) {
+        newX = maxX
+      }
+
+      if (newY > maxY) {
+        newY = maxY
+      }
+
+      window.setPosition(newX, newY, false)
+      window.show()
+      moveWindowsToTop()
+
+      logSender.sendLog(
+        "window.screen-change",
+        JSON.stringify({
+          windowName: w.name,
+          prevPos: `x: ${lastWindowPos.x}, y: ${lastWindowPos.y}`,
+          newPos: `x: ${newX}, y: ${newY}`,
+          lastScreenBounds: lastScreenBounds,
+          newScreenBounds: newScreenBounds,
+        })
+      )
+    })
+  }
+
+  activeDisplay = currentScreen
+  mainWindow.setBounds(activeDisplay.bounds)
 }
 
 function createLoginWindow() {
@@ -1038,7 +1334,6 @@ function createLoginWindow() {
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },
@@ -1056,12 +1351,13 @@ function createLoginWindow() {
   })
 
   loginWindow.webContents.on("did-finish-load", () => {
+    loginWindow.webContents.setZoomFactor(1)
     loginWindow.webContents.send(AppEvents.GET_VERSION, app.getVersion())
   })
 }
 
-ipcMain.handle("isMainWindowVisible", (event, key) => {
-  return mainWindow?.isVisible()
+ipcMain.handle("isWebCameraWindowVisible", (event, key) => {
+  return webCameraWindow?.isVisible()
 })
 
 function createScreenshotWindow(dataURL: string) {
@@ -1143,7 +1439,6 @@ function createScreenshotWindow(dataURL: string) {
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"), // для безопасного взаимодействия с рендерером
       nodeIntegration: true, // повышаем безопасность
-      zoomFactor: 1.0,
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },
@@ -1160,6 +1455,7 @@ function createScreenshotWindow(dataURL: string) {
   }
 
   screenshotWindow.webContents.on("did-finish-load", () => {
+    screenshotWindow.webContents.setZoomFactor(1)
     screenshotWindow.webContents.send(
       ScreenshotWindowEvents.RENDER_IMAGE,
       imageData
@@ -1180,13 +1476,20 @@ function showWindows() {
   registerShortCutsOnShow()
   registerUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
-    if (mainWindow) {
+    if (
+      mainWindow &&
+      (isDrawActive || lastStreamSettings.action == "cropVideo")
+    ) {
       mainWindow.show()
-      mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
     }
+    if (webCameraWindow) {
+      webCameraWindow.show()
+    }
+
     if (modalWindow) {
       modalWindow.show()
-      modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+      modalWindow.focus()
+      modalWindow.webContents.focus()
     }
   } else {
     if (loginWindow) loginWindow.show()
@@ -1206,6 +1509,10 @@ function hideWindows() {
       modalWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
       modalWindow.hide()
     }
+    if (webCameraWindow) {
+      webCameraWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
+      webCameraWindow.hide()
+    }
   } else {
     if (loginWindow) loginWindow.hide()
   }
@@ -1213,7 +1520,7 @@ function hideWindows() {
 
 function toggleWindows() {
   if (TokenStorage.dataIsActual()) {
-    if (modalWindow.isVisible() && mainWindow.isVisible()) {
+    if (modalWindow.isVisible() && webCameraWindow.isVisible()) {
       hideWindows()
     } else {
       showWindows()
@@ -1325,6 +1632,7 @@ function logOut() {
   mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
   mainWindow.hide()
   modalWindow.hide()
+  webCameraWindow.hide()
   loginWindow.show()
 }
 function createScreenshot(crop?: Rectangle) {
@@ -1338,6 +1646,7 @@ function createScreenshot(crop?: Rectangle) {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit()
@@ -1375,10 +1684,30 @@ app.on("before-quit", () => {
 //   watchMediaDevicesAccessChange()
 // })
 
-ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  win?.setIgnoreMouseEvents(ignore, options)
+ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
+  isIgnoreMouse = true
+  mainWindow?.setIgnoreMouseEvents(true, { forward: true })
 })
+ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
+  isIgnoreMouse = false
+  mainWindow?.setIgnoreMouseEvents(false)
+})
+
+ipcMain.on(MainWindowEvents.HIDE, (event, data) => {
+  mainWindow?.hide()
+})
+
+ipcMain.on(MainWindowEvents.SHOW, (event, data) => {
+  if (mainWindow && !mainWindow.isVisible()) {
+    mainWindow.show()
+  }
+  moveWindowsToTop()
+})
+
+// ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
+// const win = BrowserWindow.fromWebContents(event.sender)
+// win?.setIgnoreMouseEvents(ignore, options)
+// })
 
 ipcMain.on("change-organization", (event, orgId: number) => {
   const lastTokenStorageData: IAuthData = {
@@ -1436,6 +1765,15 @@ ipcMain.on(UserSettingsEvents.THEME_SET, (event, theme: UserSettingsThemes) => {
 })
 
 ipcMain.on(
+  UserSettingsEvents.DRAW_SETTING_SET,
+  (event, settings: IDrawSettings) => {
+    eStore.set(UserSettingsKeys.DRAW_SETTINGS, settings)
+    logSender.sendLog("settings.draw-settings.update", JSON.stringify(settings))
+    sendUserSettings()
+  }
+)
+
+ipcMain.on(
   UserSettingsEvents.SHORTCUTS_SET,
   (event, data: IUserSettingsShortcut[]) => {
     eStore.set(UserSettingsKeys.SHORT_CUTS, data)
@@ -1465,35 +1803,47 @@ ipcMain.on(HotkeysEvents.GLOBAL_PAUSE, (event, data) => {
 ipcMain.on(HotkeysEvents.GLOBAL_RESUME, (event, data) => {
   isHotkeysLocked = false
 })
-
-ipcMain.on("draw:start", (event, data) => {
+ipcMain.on(DrawEvents.SETTINGS_CHANGE, (event, settings: IDrawSettings) => {})
+ipcMain.on(DrawEvents.DRAW_START, (event, data) => {
   isDrawActive = true
+  mainWindow?.webContents.send(DrawEvents.DRAW_START, data)
+  webCameraWindow?.webContents.send(DrawEvents.DRAW_START, data)
+  ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_END)
+
+  if (mainWindow && !mainWindow.isVisible()) {
+    ipcMain.emit(MainWindowEvents.SHOW)
+    mainWindow?.focus()
+  }
 })
-ipcMain.on("draw:end", (event, data) => {
+
+ipcMain.on(DrawEvents.DRAW_END, (event, data) => {
   isDrawActive = false
+  mainWindow?.webContents.send(DrawEvents.DRAW_END, data)
+  webCameraWindow?.webContents.send(DrawEvents.DRAW_END, data)
+
+  if (lastStreamSettings.action == "cropVideo") {
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+    if (isRecording) {
+      ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_START)
+    }
+  } else {
+    ipcMain.emit(MainWindowEvents.HIDE)
+    mainWindow?.blur()
+  }
 })
 
 ipcMain.on(ModalWindowEvents.RENDER, (event, data) => {
-  if (modalWindow) {
-    modalWindow.webContents.send(ModalWindowEvents.RENDER, data)
-  }
+  modalWindow?.webContents.send(ModalWindowEvents.RENDER, data)
 })
 ipcMain.on(ModalWindowEvents.TAB, (event, data: IModalWindowTabData) => {
-  if (mainWindow) {
-    mainWindow.webContents.send(ModalWindowEvents.TAB, data)
-    if (data.activeTab == "video") {
-      mainWindow.focus()
-    }
-  }
-
-  if (dropdownWindow) {
-    dropdownWindow.hide()
-  }
+  mainWindow?.webContents.send(ModalWindowEvents.TAB, data)
+  dropdownWindow?.hide()
+  moveWindowsToTop()
 })
 ipcMain.on(ModalWindowEvents.OPEN, (event, data) => {
-  if (modalWindow) {
-    modalWindow.show()
-  }
+  modalWindow?.show()
 })
 
 ipcMain.on(
@@ -1508,12 +1858,52 @@ ipcMain.on(
 
       if (os.platform() == "darwin") {
         if (data.alwaysOnTop) {
-          mainWindow.setAlwaysOnTop(true, "screen-saver", 999990)
-          modalWindow.setAlwaysOnTop(true, "screen-saver", 999990)
+          mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+          modalWindow.setAlwaysOnTop(true, "screen-saver")
         } else {
           mainWindow.setAlwaysOnTop(true, "modal-panel")
           modalWindow.setAlwaysOnTop(true, "modal-panel")
         }
+      }
+    }
+  }
+)
+
+// eStore.delete(UserSettingsKeys.WEB_CAMERA_SIZE)
+
+ipcMain.on(
+  WebCameraWindowEvents.RESIZE,
+  (event, settings: IWebCameraWindowSettings) => {
+    if (webCameraWindow) {
+      // const isOnlyCameraMode = settings.avatarType?.includes('camera-only')
+      const size = getWebCameraWindowSize(activeDisplay, settings)
+      // console.log('isOnlyCameraMode', isOnlyCameraMode)
+      const position = settings.skipPosition
+        ? { x: webCameraWindow.getBounds().x, y: webCameraWindow.getBounds().y }
+        : getWebCameraWindowPosition(
+            activeDisplay,
+            settings,
+            webCameraWindow.getBounds()
+          )
+
+      webCameraWindow.setBounds({
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+      })
+
+      const newSettings: ILastWebCameraSize = {
+        left: position.x,
+        top: position.y,
+        avatarType: settings.avatarType!,
+      }
+
+      if (newSettings.avatarType?.includes("camera-only")) {
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
+      } else {
+        eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, newSettings)
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
       }
     }
   }
@@ -1543,7 +1933,9 @@ ipcMain.on("system-settings:open", (event, device: MediaDeviceType) => {
   }
 })
 ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
+  lastStreamSettings = data
   mainWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
+  webCameraWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
 ipcMain.on("dropdown:close", (event, data) => {
@@ -1605,6 +1997,7 @@ ipcMain.on(ScreenshotActionEvents.FULL, (event, data) => {
 
 ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {
   modalWindow?.hide()
+  webCameraWindow?.hide()
   mainWindow?.focus()
   mainWindow?.webContents.send(ScreenshotActionEvents.CROP, data)
 })
@@ -1686,6 +2079,23 @@ ipcMain.on(
     }
   }
 )
+
+// Video Recorder
+ipcMain.on(VideoRecorderEvents.STOP, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.STOP, data)
+})
+ipcMain.on(VideoRecorderEvents.PAUSE, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.PAUSE, data)
+})
+ipcMain.on(VideoRecorderEvents.DELETE, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.DELETE, data)
+})
+ipcMain.on(VideoRecorderEvents.RESTART, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.RESTART, data)
+})
+ipcMain.on(VideoRecorderEvents.RESUME, async (event, data) => {
+  mainWindow?.webContents.send(VideoRecorderEvents.RESUME, data)
+})
 
 // V3 Record Start
 ipcMain.on(RecordEvents.START, async (event, data) => {
@@ -1843,13 +2253,10 @@ ipcMain.on("windows:maximize", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
-  if (mainWindow) {
-    mainWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  }
 
-  if (modalWindow) {
-    modalWindow.webContents.send(SimpleStoreEvents.CHANGED, store.get())
-  }
+  mainWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  modalWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
+  webCameraWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
 
   const isRecording = ["recording", "paused"].includes(
     store.get()["recordingState"]
@@ -1859,17 +2266,6 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
     PowerSaveBlocker.start()
   } else {
     PowerSaveBlocker.stop()
-  }
-})
-
-ipcMain.on("main-window-focus", (event, data) => {
-  if (
-    modalWindow &&
-    modalWindow.isAlwaysOnTop() &&
-    !isDialogWindowOpen &&
-    !isHotkeysLocked
-  ) {
-    mainWindow.focus()
   }
 })
 
@@ -1905,8 +2301,24 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.show()
-      modalWindow.show()
+      webCameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      lastStreamSettings = settings
+      getLastWebcameraPosition(webCameraWindow).then((settings) => {
+        const size = getWebCameraWindowSize(activeDisplay, settings)
+        webCameraWindow.webContents.send(
+          WebCameraWindowEvents.AVATAR_UPDATE,
+          settings
+        )
+        webCameraWindow.setBounds({
+          x: settings.left,
+          y: settings.top,
+          width: size.width,
+          height: size.height,
+        })
+        adjustWindowPosition(WindowNames.WEB_CAMERA)
+        modalWindow.show()
+        webCameraWindow.show()
+      })
     })
   })
 })
@@ -1932,6 +2344,7 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
 ipcMain.on(RecordEvents.STOP, (event, data) => {
   const { fileUuid } = data
   //StorageService.endRecord(fileUuid)
+  // moveWindowsToTop()
 })
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
@@ -1977,7 +2390,8 @@ ipcMain.on(DialogWindowEvents.CREATE, (evt, data: IDialogWindowData) => {
     modalWindow.hide()
   }
 
-  mainWindow.webContents.send(DialogWindowEvents.CREATE, data)
+  mainWindow?.webContents.send(DialogWindowEvents.CREATE, data)
+  webCameraWindow?.webContents.send(DialogWindowEvents.CREATE, data)
 
   createDialogWindow({ data })
   isDialogWindowOpen = true

@@ -1,6 +1,7 @@
 import "@renderer/styles/login-page.scss"
 import { LoginEvents } from "@shared/events/login.events"
 import { LoggerEvents } from "../../shared/events/logger.events"
+import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
 
 document.addEventListener("DOMContentLoaded", () => {
   const authLink = `${import.meta.env.VITE_AUTH_APP_URL}recorder/auth?protocol_scheme=${import.meta.env.VITE_PROTOCOL_SCHEME}`
@@ -17,6 +18,8 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault()
     window.electronAPI.ipcRenderer.send("openLinkInBrowser", registrationLink)
   })
+
+  const zoomPageDisabled = new ZoomPageDisabled()
 })
 
 // document.getElementById('loginForm').addEventListener('submit', (event) => {

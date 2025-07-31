@@ -21,30 +21,30 @@ if (process.contextIsolated) {
   window.api = api
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  const backdrop = document.querySelector(".page-backdrop")
+// window.addEventListener("DOMContentLoaded", () => {
+//   const backdrop = document.querySelector(".page-backdrop")
 
-  if (backdrop) {
-    backdrop.addEventListener(
-      "mouseenter",
-      (event) => {
-        ipcRenderer.send("ignore-mouse-events:set", true, {
-          forward: true,
-        })
-      },
-      false
-    )
+//   if (backdrop) {
+//     backdrop.addEventListener(
+//       "mouseenter",
+//       (event) => {
+//         ipcRenderer.send("ignore-mouse-events:set", true, {
+//           forward: true,
+//         })
+//       },
+//       false
+//     )
 
-    backdrop.addEventListener(
-      "mouseleave",
-      (event) => {
-        ipcRenderer.send("ignore-mouse-events:set", false)
-      },
-      false
-    )
-  }
+//     backdrop.addEventListener(
+//       "mouseleave",
+//       (event) => {
+//         ipcRenderer.send("ignore-mouse-events:set", false)
+//       },
+//       false
+//     )
+//   }
 
-  document.body.addEventListener("mouseenter", (event) => {
-    ipcRenderer.send("main-window-focus", null)
-  })
-})
+//   document.body.addEventListener("mouseenter", (event) => {
+//     ipcRenderer.send("main-window-focus", null)
+//   })
+// })

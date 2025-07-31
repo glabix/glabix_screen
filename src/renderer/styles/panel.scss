@@ -256,7 +256,9 @@ body.is-drawing #panel-draw {
 }
 
 body.is-webcamera-size-open .has-webcamera-only #panel-webcamera-only,
-body.is-webcamera-size-open .has-avatar #panel-webcamera {
+body.is-webcamera-size-open
+  .has-avatar:not(.has-webcamera-only)
+  #panel-webcamera {
   display: inline-flex;
 }
 

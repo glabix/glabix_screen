@@ -35,6 +35,7 @@ import {
 import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
+import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
 type SettingsTabType =
   | "root"
   | "shortCuts"
@@ -972,6 +973,10 @@ if (isWindows) {
   windowsToolbar.removeAttribute("hidden")
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  const zoomPageDisabled = new ZoomPageDisabled()
+})
+
 windowsMinimizeBtn.addEventListener(
   "click",
   () => {
@@ -1173,10 +1178,6 @@ systemAudioCheckbox.addEventListener(
 )
 
 function start() {
-  // if (streamSettings.action == "fullScreenVideo") {
-  //   sendSettings()
-  // }
-
   window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
     title: "recording.started",
     body: JSON.stringify({

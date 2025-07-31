@@ -55,6 +55,7 @@ const options: Configuration = {
       NSScreenCaptureDescription: "Предоставьте доступ к записи экрана",
       NSMicrophoneUsageDescription: "Предоставьте доступ к микрофону",
       NSCameraUsageDescription: "Предоставьте доступ к камере",
+      NSHighResolutionCapable: true,
     },
     notarize: true,
     entitlements: "build/entitlements.mac.plist",

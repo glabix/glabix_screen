@@ -19,3 +19,12 @@ export enum ChunkSaverEvents {
   CHUNK_FINALIZED = "chunk_finalized",
   RECORD_STOPPED = "record_stopped",
 }
+
+export enum VideoRecorderEvents {
+  START = "video-recorder:start",
+  STOP = "video-recorder:stop",
+  PAUSE = "video-recorder:pause",
+  RESUME = "video-recorder:resume",
+  DELETE = "video-recorder:delete",
+  RESTART = "video-recorder:restart",
+}
