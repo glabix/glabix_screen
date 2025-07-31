@@ -987,7 +987,7 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings, file_uuid: string) => {
     const data = filterStreamSettings(settings)
     // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
-    window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+    // window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
     initRecord(data).then(() => {
       currentRecordedUuid = file_uuid
       currentRecordChunksCount = 0
@@ -1001,11 +1001,15 @@ window.electronAPI.ipcRenderer.on(
           screen.classList.add("is-recording")
           const screenMove = cropMoveable!.getControlBoxElement()
           screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
+          window.electronAPI.ipcRenderer.send(
+            MainWindowEvents.IGNORE_MOUSE_START
+          )
           sendCropData().then(() => {
             startRecording()
           })
         } else {
           startRecording()
+          window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
         }
       })
     })
@@ -1034,7 +1038,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     document.body.classList.add("body--is-recording")
     if (!isDrawing) {
       // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
-      window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+      // window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
     }
   } else {
     document.body.classList.remove("body--is-recording")
@@ -1052,6 +1056,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
       showModal: !isRecordRestart,
     })
     lastScreenAction = undefined
+    window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
 
     if (lastStreamSettings?.action == "cameraOnly") {
       initRecord(lastStreamSettings)

@@ -146,6 +146,7 @@ let contextMenu: Menu
 let tray: Tray
 let isAppQuitting = false
 let isDrawActive = false
+let isIgnoreMouse = false
 let deviceAccessInterval: NodeJS.Timeout | undefined
 let checkForUpdatesInterval: NodeJS.Timeout | undefined
 let lastStreamSettings: IStreamSettings = {
@@ -663,9 +664,6 @@ function registerUserShortCutsOnShow() {
 
           mainWindow?.webContents.send(HotkeysEvents.DRAW)
 
-          if (isDrawActive) {
-          }
-
           if (isDrawActive && os.platform() == "win32") {
             mainWindow?.blur()
           }
@@ -841,6 +839,7 @@ function createWindow() {
     getLastStreamSettings(mainWindow).then((settings) => {
       modalWindow?.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      lastStreamSettings = settings
     })
 
     mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
@@ -1477,21 +1476,21 @@ function showWindows() {
   registerShortCutsOnShow()
   registerUserShortCutsOnShow()
   if (TokenStorage.dataIsActual()) {
-    if (mainWindow && isDrawActive) {
+    if (
+      mainWindow &&
+      (isDrawActive || lastStreamSettings.action == "cropVideo")
+    ) {
       mainWindow.show()
-      mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
-      modalWindow.setAlwaysOnTop(true, "screen-saver")
-      webCameraWindow.setAlwaysOnTop(true, "screen-saver")
-    }
-    if (modalWindow) {
-      modalWindow.show()
-      modalWindow.setAlwaysOnTop(true, "screen-saver")
     }
     if (webCameraWindow) {
       webCameraWindow.show()
-      webCameraWindow.setAlwaysOnTop(true, "screen-saver")
     }
-    logSender.sendLog("mainWindow.visibility", mainWindow?.isVisible() + "")
+
+    if (modalWindow) {
+      modalWindow.show()
+      modalWindow.focus()
+      modalWindow.webContents.focus()
+    }
   } else {
     if (loginWindow) loginWindow.show()
   }
@@ -1685,24 +1684,26 @@ app.on("before-quit", () => {
 //   watchMediaDevicesAccessChange()
 // })
 
-// ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
-// mainWindow?.setIgnoreMouseEvents(true, { forward: true })
-// mainWindow.hide()
-// })
+ipcMain.on(MainWindowEvents.IGNORE_MOUSE_START, (event, data) => {
+  isIgnoreMouse = true
+  mainWindow?.setIgnoreMouseEvents(true, { forward: true })
+})
+ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
+  isIgnoreMouse = false
+  mainWindow?.setIgnoreMouseEvents(false)
+})
 
 ipcMain.on(MainWindowEvents.HIDE, (event, data) => {
   mainWindow?.hide()
 })
 
 ipcMain.on(MainWindowEvents.SHOW, (event, data) => {
-  mainWindow?.show()
-  mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
-  mainWindow.focus()
+  if (mainWindow && !mainWindow.isVisible()) {
+    mainWindow.show()
+  }
+  moveWindowsToTop()
 })
-// ipcMain.on(MainWindowEvents.IGNORE_MOUSE_END, (event, data) => {
-// mainWindow?.setIgnoreMouseEvents(false)
-// mainWindow.show()
-// })
+
 // ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
 // const win = BrowserWindow.fromWebContents(event.sender)
 // win?.setIgnoreMouseEvents(ignore, options)
@@ -1807,37 +1808,42 @@ ipcMain.on(DrawEvents.DRAW_START, (event, data) => {
   isDrawActive = true
   mainWindow?.webContents.send(DrawEvents.DRAW_START, data)
   webCameraWindow?.webContents.send(DrawEvents.DRAW_START, data)
-  ipcMain.emit(MainWindowEvents.SHOW)
+  ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_END)
+
+  if (mainWindow && !mainWindow.isVisible()) {
+    ipcMain.emit(MainWindowEvents.SHOW)
+    mainWindow?.focus()
+  }
 })
+
 ipcMain.on(DrawEvents.DRAW_END, (event, data) => {
   isDrawActive = false
   mainWindow?.webContents.send(DrawEvents.DRAW_END, data)
   webCameraWindow?.webContents.send(DrawEvents.DRAW_END, data)
-  ipcMain.emit(MainWindowEvents.HIDE)
-  mainWindow?.blur()
+
+  if (lastStreamSettings.action == "cropVideo") {
+    const isRecording = ["recording", "paused"].includes(
+      store.get()["recordingState"]
+    )
+    if (isRecording) {
+      ipcMain.emit(MainWindowEvents.IGNORE_MOUSE_START)
+    }
+  } else {
+    ipcMain.emit(MainWindowEvents.HIDE)
+    mainWindow?.blur()
+  }
 })
 
 ipcMain.on(ModalWindowEvents.RENDER, (event, data) => {
-  if (modalWindow) {
-    modalWindow.webContents.send(ModalWindowEvents.RENDER, data)
-  }
+  modalWindow?.webContents.send(ModalWindowEvents.RENDER, data)
 })
 ipcMain.on(ModalWindowEvents.TAB, (event, data: IModalWindowTabData) => {
-  if (mainWindow) {
-    mainWindow.webContents.send(ModalWindowEvents.TAB, data)
-    if (data.activeTab == "video") {
-      mainWindow.focus()
-    }
-  }
-
-  if (dropdownWindow) {
-    dropdownWindow.hide()
-  }
+  mainWindow?.webContents.send(ModalWindowEvents.TAB, data)
+  dropdownWindow?.hide()
+  moveWindowsToTop()
 })
 ipcMain.on(ModalWindowEvents.OPEN, (event, data) => {
-  if (modalWindow) {
-    modalWindow.show()
-  }
+  modalWindow?.show()
 })
 
 ipcMain.on(
@@ -2295,6 +2301,8 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
     getLastStreamSettings(modalWindow).then((settings) => {
       modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
       mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      webCameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+      lastStreamSettings = settings
       getLastWebcameraPosition(webCameraWindow).then((settings) => {
         const size = getWebCameraWindowSize(activeDisplay, settings)
         webCameraWindow.webContents.send(
@@ -2308,7 +2316,6 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
           height: size.height,
         })
         adjustWindowPosition(WindowNames.WEB_CAMERA)
-        // mainWindow.show()
         modalWindow.show()
         webCameraWindow.show()
       })
@@ -2337,6 +2344,7 @@ ipcMain.on(LoginEvents.TOKEN_CONFIRMED, (event: unknown) => {
 ipcMain.on(RecordEvents.STOP, (event, data) => {
   const { fileUuid } = data
   //StorageService.endRecord(fileUuid)
+  // moveWindowsToTop()
 })
 
 ipcMain.on(LoginEvents.LOGOUT, (event) => {
