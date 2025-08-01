@@ -1705,3 +1705,6 @@
   container-type: inline-size !important;
 }
 // @end Container queries helpers
+.user-select-none {
+  user-select: none;
+}

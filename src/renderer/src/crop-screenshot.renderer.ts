@@ -141,7 +141,6 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
     canvasContainer.setAttribute("hidden", "")
     initView()
     window.electronAPI.ipcRenderer.send(AppEvents.HIDE)
-    // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
     window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
   }
 })

@@ -164,8 +164,9 @@ function cancelRecording() {
     updateRecorderState(null)
 
     if (lastStreamSettings?.action == "cropVideo") {
-      // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_END)
       window.electronAPI.ipcRenderer.send(MainWindowEvents.SHOW)
+    } else {
+      window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
     }
   }
 }
@@ -1039,8 +1040,10 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
   if (isRecording) {
     document.body.classList.add("body--is-recording")
     if (!isDrawing) {
-      // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
-      // window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+      if (lastStreamSettings?.action != "cropVideo") {
+        window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+      } else {
+      }
     }
   } else {
     document.body.classList.remove("body--is-recording")

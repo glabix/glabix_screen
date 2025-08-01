@@ -903,6 +903,14 @@ function sendUserSettings() {
       UserSettingsEvents.DRAW_SETTING_GET,
       eStore.get(UserSettingsKeys.DRAW_SETTINGS)
     )
+    webCameraWindow.webContents.send(
+      UserSettingsEvents.PANEL_VISIBILITY_GET,
+      eStore.get(UserSettingsKeys.PANEL_VISIBILITY)
+    )
+    webCameraWindow.webContents.send(
+      UserSettingsEvents.PANEL_HIDDEN_GET,
+      eStore.get(UserSettingsKeys.PANEL_HIDDEN)
+    )
   }
 
   if (mainWindow) {
@@ -1358,6 +1366,9 @@ function createLoginWindow() {
 
 ipcMain.handle("isWebCameraWindowVisible", (event, key) => {
   return webCameraWindow?.isVisible()
+})
+ipcMain.handle("getLastWebcameraPosition", (event, key) => {
+  return getLastWebcameraPosition(webCameraWindow)
 })
 
 function createScreenshotWindow(dataURL: string) {

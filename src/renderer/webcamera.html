@@ -14,9 +14,9 @@
     <title>%VITE_PRODUCT_NAME%</title>
   </head>
 
-  <body style="-webkit-app-region: drag">
+  <body>
     <div class="draggable-zone">
-      <div class="draggable-zone-target">
+      <div class="draggable-zone-target" style="-webkit-app-region: drag">
         <!-- CAMERA ONLY -->
         <!-- <div class="webcamera-only-container sm" hidden>
           <div class="webcamera-only-title">
@@ -67,7 +67,10 @@
               <span class="i i-ellipsis i--lg pointer-events-none"></span>
             </div>
           </div>
-          <div class="panel panel-recording items-center transition-visibility">
+          <div
+            class="panel panel-recording items-center transition-visibility"
+            style="-webkit-app-region: drag"
+          >
             <button
               id="stopBtn"
               class="panel-btn recorder-btn relative flex-center-8"
@@ -89,7 +92,10 @@
                 </div>
               </div>
             </button>
-            <div id="timerDisplay" class="mr-2 ml-2 text-center text-xs">
+            <div
+              id="timerDisplay"
+              class="mr-2 user-select-none ml-2 text-center text-xs"
+            >
               00:00
             </div>
             <button id="pauseBtn" class="panel-btn recorder-btn flex-center-8">

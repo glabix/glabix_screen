@@ -91,6 +91,7 @@ export const getWebCameraWindowPosition = (
     : prevBounds.x + prevBounds.width / 2 - nextSize.width / 2
   return { x, y }
 }
+
 export const getLastWebcameraPosition = (
   win: BrowserWindow
 ): Promise<ILastWebCameraSize> => {
