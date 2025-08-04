@@ -18,6 +18,7 @@ import {
   ModalWindowWidth,
   HotkeysEvents,
   ILastDeviceSettings,
+  DropdownWindowEvents,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -491,7 +492,7 @@ function initMediaDevice() {
 
 const changeMediaDevices = debounce(() => {
   initMediaDevice()
-  window.electronAPI.ipcRenderer.send("dropdown:close", {})
+  window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
 })
 navigator.mediaDevices.addEventListener(
   "devicechange",
@@ -779,7 +780,7 @@ window.electronAPI.ipcRenderer.on(
 )
 
 window.electronAPI.ipcRenderer.on(
-  "dropdown:select",
+  DropdownWindowEvents.SELECT,
   (event, data: IDropdownPageSelectData) => {
     streamSettings = { ...streamSettings, ...data }
 
@@ -789,7 +790,7 @@ window.electronAPI.ipcRenderer.on(
     )
 
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
-      title: "dropdown:select",
+      title: DropdownWindowEvents.SELECT,
     })
 
     if (data.action && data.action != activeScreenAction) {
@@ -862,7 +863,7 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, (event) => {
   stopVisualAudio()
 })
 
-window.electronAPI.ipcRenderer.on("dropdown:hide", (event) => {
+window.electronAPI.ipcRenderer.on(DropdownWindowEvents.ON_HIDE, (event) => {
   openedDropdownType = undefined
 })
 
@@ -921,7 +922,7 @@ window.electronAPI.ipcRenderer.on(
           event.stopPropagation()
           setPageView("settings")
           showSettingsTab("root")
-          window.electronAPI.ipcRenderer.send("dropdown:close", {})
+          window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
           window.electronAPI.ipcRenderer.send(ModalWindowEvents.RESIZE, {
             alwaysOnTop: true,
             width: ModalWindowWidth.SETTINGS,
@@ -1014,7 +1015,7 @@ document.addEventListener(
 
     if (btn.classList.contains("js-btn-action-type")) {
       if (openedDropdownType == "screenActions") {
-        window.electronAPI.ipcRenderer.send("dropdown:close", {})
+        window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
         openedDropdownType = undefined
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: "screen.settings.close",
@@ -1031,7 +1032,7 @@ document.addEventListener(
           title: `screen.settings.open - offsetY: ${offsetY}`,
         })
 
-        window.electronAPI.ipcRenderer.send("dropdown:open", {
+        window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SHOW, {
           action,
           offsetY,
           list,
@@ -1042,7 +1043,7 @@ document.addEventListener(
 
     if (btn.classList.contains("js-video-device")) {
       if (openedDropdownType == "videoDevices") {
-        window.electronAPI.ipcRenderer.send("dropdown:close", {})
+        window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
         openedDropdownType = undefined
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: "webcam.settings.close",
@@ -1058,7 +1059,7 @@ document.addEventListener(
           title: `webcam.settings.open - offsetY: ${offsetY}`,
         })
 
-        window.electronAPI.ipcRenderer.send("dropdown:open", {
+        window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SHOW, {
           offsetY,
           list,
         })
@@ -1068,7 +1069,7 @@ document.addEventListener(
 
     if (btn.classList.contains("js-audio-device")) {
       if (openedDropdownType == "audioDevices") {
-        window.electronAPI.ipcRenderer.send("dropdown:close", {})
+        window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
         openedDropdownType = undefined
         window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
           title: "microphone.settings.close",
@@ -1084,7 +1085,7 @@ document.addEventListener(
           title: `microphone.settings.open - offsetY: ${offsetY}`,
         })
 
-        window.electronAPI.ipcRenderer.send("dropdown:open", {
+        window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SHOW, {
           offsetY,
           list,
         })
@@ -1216,7 +1217,7 @@ unmuteBtn.addEventListener(
 
     if (item) {
       const data: IDropdownPageSelectData = { item, audioDeviceId: item.id }
-      window.electronAPI.ipcRenderer.send("dropdown:select", data)
+      window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SELECT, data)
       setPageView("modal")
     } else {
       setPageView("modal")
@@ -1276,7 +1277,7 @@ profileToggleBtn.forEach((btn) => {
           height: height,
         })
       }
-      window.electronAPI.ipcRenderer.send("dropdown:close", {})
+      window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
     },
     false
   )

@@ -44,7 +44,7 @@
           class="webcamera-view-container is-flip circle-sm"
           hidden
         >
-          <div class="webcamera-only-title">
+          <div class="webcamera-only-title" style="-webkit-app-region: drag">
             <i class="i i-dot i--lg"></i>
             <div class="fw-500">Запись только камеры</div>
           </div>
@@ -58,19 +58,19 @@
               системы.
             </div>
           </div>
+          <div class="webcamera-view-error webcamera-view-no-camera" hidden>
+            <div>Выберите камеру</div>
+          </div>
         </div>
 
         <!-- CONTROL PANEL -->
         <div class="panel-wrapper hover">
-          <div class="panel panel-recording-preview">
+          <!-- <div class="panel panel-recording-preview">
             <div class="flex-center-8">
               <span class="i i-ellipsis i--lg pointer-events-none"></span>
             </div>
-          </div>
-          <div
-            class="panel panel-recording items-center transition-visibility"
-            style="-webkit-app-region: drag"
-          >
+          </div> -->
+          <div class="panel panel-recording items-center">
             <button
               id="stopBtn"
               class="panel-btn recorder-btn relative flex-center-8"

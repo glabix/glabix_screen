@@ -1,5 +1,6 @@
 import "@renderer/styles/dropdown-page.scss"
 import {
+  DropdownWindowEvents,
   IDropdownItem,
   IDropdownPageData,
   IDropdownPageSelectData,
@@ -60,7 +61,7 @@ function renderItem(item: IDropdownItem): HTMLElement {
 }
 
 window.electronAPI.ipcRenderer.on(
-  "dropdown:open",
+  DropdownWindowEvents.SHOW,
   (event, data: IDropdownPageData) => {
     switch (data.list.type) {
       case "videoDevices":
@@ -110,19 +111,19 @@ document.addEventListener("click", (event) => {
     if (currentData.list.type == "screenActions") {
       const action = id
       const data: IDropdownPageSelectData = { action, item }
-      window.electronAPI.ipcRenderer.send("dropdown:select", data)
+      window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SELECT, data)
       container.innerHTML = ""
     }
 
     if (currentData.list.type == "videoDevices") {
       const data: IDropdownPageSelectData = { item, cameraDeviceId: id }
-      window.electronAPI.ipcRenderer.send("dropdown:select", data)
+      window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SELECT, data)
       container.innerHTML = ""
     }
 
     if (currentData.list.type == "audioDevices") {
       const data: IDropdownPageSelectData = { item, audioDeviceId: id }
-      window.electronAPI.ipcRenderer.send("dropdown:select", data)
+      window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SELECT, data)
       container.innerHTML = ""
     }
   }

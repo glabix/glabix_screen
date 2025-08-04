@@ -65,6 +65,9 @@ const videoContainerError = videoContainer.querySelector(
 const videoContainerPermissionError = videoContainer.querySelector(
   ".webcamera-view-no-permission"
 ) as HTMLDivElement
+const videoContainerNoCamera = videoContainer.querySelector(
+  ".webcamera-view-no-camera"
+) as HTMLDivElement
 const video = document.getElementById("video") as HTMLVideoElement
 const changeCameraViewSizeBtn = document.querySelectorAll(
   ".js-camera-view-size"
@@ -116,14 +119,13 @@ function getLastMediaDevices() {
   })
 }
 
-function showVideo(hasError?: boolean, errorType?: "no-permission") {
-  // if (lastStreamSettings?.action == "cameraOnly") {
-  //   stopStreamTracks()
-  // } else {
-  // }
-
+function showVideo(
+  hasError?: boolean,
+  errorType?: "no-permission" | "no-camera"
+) {
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
+  videoContainerNoCamera.setAttribute("hidden", "")
   videoContainer.removeAttribute("hidden")
   draggableZone.classList.add("has-avatar")
 
@@ -132,7 +134,9 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
   }
 
   if (hasError) {
-    if (errorType == "no-permission") {
+    if (errorType == "no-camera") {
+      videoContainerNoCamera.removeAttribute("hidden")
+    } else if (errorType == "no-permission") {
       videoContainerPermissionError.removeAttribute("hidden")
     } else {
       videoContainerError.removeAttribute("hidden")
@@ -142,6 +146,7 @@ function showVideo(hasError?: boolean, errorType?: "no-permission") {
 
 function startStream(deviseId) {
   if (!deviseId || deviseId == "no-camera") {
+    showVideo(true, "no-camera")
     return
   }
 
@@ -287,25 +292,33 @@ window.electronAPI.ipcRenderer.on(
 
     draggableZone.classList.remove("has-webcamera-only")
     ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
-      videoContainer.classList.remove(t)
+      if (t) {
+        videoContainer.classList.remove(t)
+      }
     })
 
     if (data.action == "cameraOnly") {
       draggableZone.classList.add("has-webcamera-only")
     } else {
-      videoContainer.classList.add(savedCameraWindowType)
+      if (savedCameraWindowType) {
+        videoContainer.classList.add(savedCameraWindowType)
+      }
+
       webCameraWindowSettings = {
         ...webCameraWindowSettings,
         skipPosition: false,
         avatarType: savedCameraWindowType,
       }
+
       window.electronAPI.ipcRenderer.send(
         WebCameraWindowEvents.RESIZE,
         webCameraWindowSettings
       )
     }
 
-    handlePanelWithoutCamera(data)
+    if (isAppShown) {
+      handlePanelWithoutCamera(data)
+    }
   }
 )
 
@@ -318,7 +331,14 @@ window.electronAPI.ipcRenderer.on(
       startStream(lastStreamSettings.cameraDeviceId)
     }
 
-    handlePanelWithoutCamera(settings)
+    if (
+      settings.action != "cameraOnly" &&
+      (!settings.cameraDeviceId || settings.cameraDeviceId == "no-camera")
+    ) {
+      draggableZone.classList.add("without-camera")
+    } else {
+      draggableZone.classList.remove("without-camera")
+    }
   }
 )
 
@@ -470,9 +490,14 @@ changeCameraOnlySizeBtn.forEach((button) => {
 function renderWebcameraView(target: HTMLElement) {
   const type = target.dataset.type! as WebCameraAvatarTypes
   ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
-    videoContainer.classList.remove(t)
+    if (t) {
+      videoContainer.classList.remove(t)
+    }
   })
-  videoContainer.classList.add(type)
+
+  if (type) {
+    videoContainer.classList.add(type)
+  }
 
   webCameraWindowSettings = {
     ...webCameraWindowSettings,
@@ -495,13 +520,11 @@ let isWebcameraSizeOpen = false
 function openWebcameraSize() {
   isWebcameraSizeOpen = true
   document.body.classList.add("is-webcamera-size-open")
-  checkDropdownVisibility()
 }
 
 function closeWebcameraSize() {
   isWebcameraSizeOpen = false
   document.body.classList.remove("is-webcamera-size-open")
-  checkDropdownVisibility()
 }
 
 function checkDropdownVisibility() {
@@ -550,26 +573,9 @@ webcameraSizeBtn.addEventListener(
   false
 )
 
-document.addEventListener(
-  "mouseenter",
-  () => {
-    draggableZone.classList.add("is-mouseenter")
-  },
-  false
-)
-
-controlPanel.addEventListener(
-  "mouseenter",
-  () => {
-    draggableZone.classList.add("is-panel-mouseenter")
-  },
-  false
-)
-
-document.addEventListener(
+draggableZone.addEventListener(
   "mouseleave",
   () => {
-    draggableZone.classList.remove("is-mouseenter", "is-panel-mouseenter")
     if (isControlsHidden && draggableZone.classList.contains("has-avatar")) {
       closeWebcameraSize()
     }
@@ -655,10 +661,14 @@ function setupAvatarSettings(settings: ILastWebCameraSize) {
   const type = settings.avatarType || "circle-sm"
 
   AVATAR_TYPES.forEach((t) => {
-    videoContainer.classList.remove(t)
+    if (t) {
+      videoContainer.classList.remove(t)
+    }
   })
 
-  videoContainer.classList.add(type)
+  if (type) {
+    videoContainer.classList.add(type)
+  }
 
   webCameraWindowSettings = {
     ...webCameraWindowSettings,

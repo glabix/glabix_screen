@@ -106,7 +106,7 @@ export const getLastWebcameraPosition = (
     ) as ILastWebCameraSize
 
     if (storeSettings) {
-      resolve(storeSettings)
+      return resolve(storeSettings)
     } else {
       win.webContents
         .executeJavaScript('localStorage.getItem("LAST_PANEL_SETTINGS");', true)
@@ -115,10 +115,10 @@ export const getLastWebcameraPosition = (
             settings = JSON.parse(result)
             eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
           }
-          resolve(settings)
+          return resolve(settings)
         })
         .catch((e) => {
-          resolve(settings)
+          return resolve(settings)
         })
     }
   })

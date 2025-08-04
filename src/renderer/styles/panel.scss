@@ -70,56 +70,32 @@ body.is-dialog-open .panel-wrapper {
     padding: 3px;
   }
 }
-body.is-drawing
-  .draggable-zone.has-avatar.is-controls-hidden
-  .panel-recording-preview,
-body.is-drawing
-  .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
-  .panel-recording-preview,
-body.is-paused
-  .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
-  .panel-recording-preview,
-.draggable-zone .panel-recording-preview,
-.draggable-zone.has-avatar.is-controls-hidden.is-mouseenter.is-panel-mouseenter
-  .panel-recording-preview {
-  display: none;
+.draggable-zone .panel-recording {
+  -webkit-app-region: drag;
 }
 
-.draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
-  .panel-recording-preview {
-  display: inline-flex;
-  margin-left: auto;
-  margin-right: auto;
+.has-avatar.is-controls-hidden .panel-recording {
+  -webkit-app-region: no-drag;
+  opacity: 0;
 }
 
 body.is-drawing .draggable-zone.has-avatar.is-controls-hidden .panel-recording,
-.has-avatar.is-controls-hidden .panel-recording {
-  display: none;
+.has-avatar.is-controls-hidden:hover .panel-recording {
+  opacity: 1;
 }
 
-body.is-drawing
-  .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
-  .panel-recording,
-body.is-paused .draggable-zone.has-avatar.is-controls-hidden .panel-recording,
-.draggable-zone.has-avatar.is-controls-hidden.is-mouseenter.is-panel-mouseenter
-  .panel-recording {
+body.is-paused .draggable-zone.has-avatar.is-controls-hidden .panel-recording {
   display: flex;
 }
 
-body.is-drawing
-  .draggable-zone.has-avatar.is-controls-hidden
-  .panel-settings-container,
-.draggable-zone.has-avatar.is-controls-hidden .panel-settings-container {
-  display: none;
+body.is-drawing .draggable-zone.has-avatar.is-controls-hidden .panel-settings-container
+// .draggable-zone.has-avatar.is-controls-hidden .panel-settings-container
+{
+  // display: none;
 }
 
 body.is-paused
   .draggable-zone.has-avatar.is-controls-hidden
-  .panel-settings-container,
-body.is-drawing
-  .draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
-  .panel-settings-container,
-.draggable-zone.has-avatar.is-controls-hidden.is-mouseenter
   .panel-settings-container {
   display: flex;
 }

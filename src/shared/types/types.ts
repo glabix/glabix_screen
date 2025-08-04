@@ -164,6 +164,13 @@ export enum ModalWindowEvents {
   UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
 
+export enum DropdownWindowEvents {
+  SHOW = "dropdown-window:show",
+  HIDE = "dropdown-window:hide",
+  ON_HIDE = "dropdown-window:onHide",
+  SELECT = "dropdown-window:select",
+}
+
 export enum WebCameraWindowEvents {
   RESIZE = "web-camera-window:resize",
   AVATAR_UPDATE = "web-camera-window:avatar-update",
