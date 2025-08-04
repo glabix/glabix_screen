@@ -1915,6 +1915,13 @@ ipcMain.on(
             webCameraWindow.getBounds()
           )
 
+      console.log(
+        `
+        WebCameraWindowEvents.RESIZE`,
+        settings,
+        position
+      )
+
       webCameraWindow.setBounds({
         x: position.x,
         y: position.y,

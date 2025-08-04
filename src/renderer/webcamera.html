@@ -44,7 +44,7 @@
           class="webcamera-view-container is-flip circle-sm"
           hidden
         >
-          <div class="webcamera-only-title">
+          <div class="webcamera-only-title" style="-webkit-app-region: drag">
             <i class="i i-dot i--lg"></i>
             <div class="fw-500">Запись только камеры</div>
           </div>
@@ -57,6 +57,9 @@
               Доступ к камере запрещен. Включите доступ к камере в настройках
               системы.
             </div>
+          </div>
+          <div class="webcamera-view-error webcamera-view-no-camera" hidden>
+            <div>Выберите камеру</div>
           </div>
         </div>
 
