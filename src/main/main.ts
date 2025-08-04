@@ -27,6 +27,7 @@ import {
   DialogWindowEvents,
   DisplayEvents,
   DrawEvents,
+  DropdownWindowEvents,
   HotkeysEvents,
   IAccountData,
   IAuthData,
@@ -379,15 +380,32 @@ if (!gotTheLock) {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           lastStreamSettings = settings
-          getLastWebcameraPosition(webCameraWindow).then((settings) => {
-            const size = getWebCameraWindowSize(activeDisplay, settings)
+          getLastWebcameraPosition(webCameraWindow).then((_settings) => {
+            const size = getWebCameraWindowSize(activeDisplay, _settings)
             webCameraWindow.webContents.send(
               WebCameraWindowEvents.AVATAR_UPDATE,
-              settings
+              _settings
             )
+
+            console.log(
+              `
+              {
+              x: _settings.left,
+              y: _settings.top,
+              width: size.width,
+              height: size.height,
+            }`,
+              {
+                x: _settings.left,
+                y: _settings.top,
+                width: size.width,
+                height: size.height,
+              }
+            )
+
             webCameraWindow.setBounds({
-              x: settings.left,
-              y: settings.top,
+              x: _settings.left,
+              y: _settings.top,
               width: size.width,
               height: size.height,
             })
@@ -1191,7 +1209,7 @@ function createDropdownWindow(parentWindow) {
   })
 
   dropdownWindow.on("hide", () => {
-    modalWindow.webContents.send("dropdown:hide", {})
+    modalWindow.webContents.send(DropdownWindowEvents.ON_HIDE, {})
   })
 }
 
@@ -1641,11 +1659,13 @@ function createMenu() {
 function logOut() {
   TokenStorage.reset()
   mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
+  webCameraWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
   mainWindow.hide()
   modalWindow.hide()
   webCameraWindow.hide()
   loginWindow.show()
 }
+
 function createScreenshot(crop?: Rectangle) {
   getScreenshot(activeDisplay, crop)
     .then((dataUrl) => {
@@ -1886,9 +1906,7 @@ ipcMain.on(
   WebCameraWindowEvents.RESIZE,
   (event, settings: IWebCameraWindowSettings) => {
     if (webCameraWindow) {
-      // const isOnlyCameraMode = settings.avatarType?.includes('camera-only')
       const size = getWebCameraWindowSize(activeDisplay, settings)
-      // console.log('isOnlyCameraMode', isOnlyCameraMode)
       const position = settings.skipPosition
         ? { x: webCameraWindow.getBounds().x, y: webCameraWindow.getBounds().y }
         : getWebCameraWindowPosition(
@@ -1949,15 +1967,18 @@ ipcMain.on(RecordSettingsEvents.UPDATE, (event, data) => {
   webCameraWindow.webContents.send(RecordSettingsEvents.UPDATE, data)
 })
 
-ipcMain.on("dropdown:close", (event, data) => {
+ipcMain.on(DropdownWindowEvents.HIDE, (event, data) => {
   dropdownWindow.hide()
 })
-ipcMain.on("dropdown:select", (event, data: IDropdownPageSelectData) => {
-  dropdownWindow.hide()
-  modalWindow.webContents.send("dropdown:select", data)
-})
+ipcMain.on(
+  DropdownWindowEvents.SELECT,
+  (event, data: IDropdownPageSelectData) => {
+    dropdownWindow.hide()
+    modalWindow.webContents.send(DropdownWindowEvents.SELECT, data)
+  }
+)
 
-ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
+ipcMain.on(DropdownWindowEvents.SHOW, (event, data: IDropdownPageData) => {
   const dropdownWindowBounds = dropdownWindow.getBounds()
   const modalWindowBounds = modalWindow.getBounds()
   const screenBounds = screen.getDisplayNearestPoint(
@@ -1994,7 +2015,7 @@ ipcMain.on("dropdown:open", (event, data: IDropdownPageData) => {
   dropdownWindow.show()
 
   if (dropdownWindow) {
-    dropdownWindow.webContents.send("dropdown:open", data)
+    dropdownWindow.webContents.send(DropdownWindowEvents.SHOW, data)
   }
 })
 
@@ -2309,20 +2330,40 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
   checkOrganizationLimits().then(() => {
     contextMenu.getMenuItemById("menuLogOutItem")!.visible = true
     loginWindow.hide()
-    getLastStreamSettings(modalWindow).then((settings) => {
-      modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
-      webCameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
+    getLastStreamSettings(modalWindow).then((s) => {
+      const settings = {
+        ...s,
+        action: s.action == "cameraOnly" ? "fullScreenVideo" : s.action,
+      }
+
+      const data: IDropdownPageSelectData = {
+        action: settings.action,
+        cameraDeviceId: settings.cameraDeviceId,
+        audioDeviceId: settings.audioDeviceId,
+        item: {
+          id: "fullScreenVideo",
+          label: "Запись всего экрана",
+          isSelected: true,
+          extraData: {
+            icon: "i-display",
+          },
+        },
+      }
+      modalWindow.webContents.send(DropdownWindowEvents.SELECT, data)
+      modalWindow.webContents.send(RecordSettingsEvents.UPDATE, settings)
+      mainWindow.webContents.send(RecordSettingsEvents.UPDATE, settings)
+      webCameraWindow.webContents.send(RecordSettingsEvents.UPDATE, settings)
       lastStreamSettings = settings
-      getLastWebcameraPosition(webCameraWindow).then((settings) => {
-        const size = getWebCameraWindowSize(activeDisplay, settings)
+
+      getLastWebcameraPosition(webCameraWindow).then((_settings) => {
+        const size = getWebCameraWindowSize(activeDisplay, _settings)
         webCameraWindow.webContents.send(
           WebCameraWindowEvents.AVATAR_UPDATE,
-          settings
+          _settings
         )
         webCameraWindow.setBounds({
-          x: settings.left,
-          y: settings.top,
+          x: _settings.left,
+          y: _settings.top,
           width: size.width,
           height: size.height,
         })

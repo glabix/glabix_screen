@@ -1319,7 +1319,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })
 
 window.addEventListener("mousedown", (event) => {
-  window.electronAPI.ipcRenderer.send("dropdown:close", {})
+  window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
 })
 
 window.addEventListener("error", (event) => {

@@ -495,13 +495,11 @@ let isWebcameraSizeOpen = false
 function openWebcameraSize() {
   isWebcameraSizeOpen = true
   document.body.classList.add("is-webcamera-size-open")
-  checkDropdownVisibility()
 }
 
 function closeWebcameraSize() {
   isWebcameraSizeOpen = false
   document.body.classList.remove("is-webcamera-size-open")
-  checkDropdownVisibility()
 }
 
 function checkDropdownVisibility() {
@@ -550,26 +548,9 @@ webcameraSizeBtn.addEventListener(
   false
 )
 
-document.addEventListener(
-  "mouseenter",
-  () => {
-    draggableZone.classList.add("is-mouseenter")
-  },
-  false
-)
-
-controlPanel.addEventListener(
-  "mouseenter",
-  () => {
-    draggableZone.classList.add("is-panel-mouseenter")
-  },
-  false
-)
-
-document.addEventListener(
+draggableZone.addEventListener(
   "mouseleave",
   () => {
-    draggableZone.classList.remove("is-mouseenter", "is-panel-mouseenter")
     if (isControlsHidden && draggableZone.classList.contains("has-avatar")) {
       closeWebcameraSize()
     }
