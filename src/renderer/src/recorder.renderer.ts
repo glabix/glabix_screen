@@ -167,7 +167,9 @@ function cancelRecording() {
     if (lastStreamSettings?.action == "cropVideo") {
       window.electronAPI.ipcRenderer.send(MainWindowEvents.SHOW)
     } else {
-      window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+      if (!isDrawing) {
+        window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+      }
     }
   }
 }
@@ -1003,17 +1005,21 @@ window.electronAPI.ipcRenderer.on(
           screen.classList.add("is-recording")
           const screenMove = cropMoveable!.getControlBoxElement()
           screenMove.style.cssText = `pointer-events: none; opacity: 0; ${screenMove.style.cssText}`
+
           if (!isDrawing) {
             window.electronAPI.ipcRenderer.send(
               MainWindowEvents.IGNORE_MOUSE_START
             )
           }
+
           sendCropData().then(() => {
             startRecording()
           })
         } else {
           startRecording()
-          window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+          if (!isDrawing) {
+            window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+          }
         }
       })
     })
@@ -1076,6 +1082,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     } else {
       // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
       window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
+      window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_END)
     }
   }
 
