@@ -380,16 +380,19 @@ if (!gotTheLock) {
           modalWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           lastStreamSettings = settings
+
           getLastWebcameraPosition(webCameraWindow).then((_settings) => {
             const hasCameraId =
-              settings.cameraDeviceId && settings.cameraDeviceId != "no-camera"
+              lastStreamSettings.cameraDeviceId &&
+              lastStreamSettings.cameraDeviceId != "no-camera"
             const s = {
               ..._settings,
               avatarType:
-                _settings.avatarType == null && hasCameraId
+                !_settings.avatarType && hasCameraId
                   ? "circle-sm"
                   : _settings.avatarType,
             }
+
             const size = getWebCameraWindowSize(activeDisplay, s)
             webCameraWindow.webContents.send(
               WebCameraWindowEvents.AVATAR_UPDATE,
@@ -1729,11 +1732,6 @@ ipcMain.on(MainWindowEvents.SHOW, (event, data) => {
   moveWindowsToTop()
 })
 
-// ipcMain.on("ignore-mouse-events:set", (event, ignore, options) => {
-// const win = BrowserWindow.fromWebContents(event.sender)
-// win?.setIgnoreMouseEvents(ignore, options)
-// })
-
 ipcMain.on("change-organization", (event, orgId: number) => {
   const lastTokenStorageData: IAuthData = {
     token: TokenStorage.token!,
@@ -2351,14 +2349,16 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
 
       getLastWebcameraPosition(webCameraWindow).then((_settings) => {
         const hasCameraId =
-          settings.cameraDeviceId && settings.cameraDeviceId != "no-camera"
+          lastStreamSettings.cameraDeviceId &&
+          lastStreamSettings.cameraDeviceId != "no-camera"
         const s = {
           ..._settings,
           avatarType:
-            _settings.avatarType == null && hasCameraId
+            !_settings.avatarType && hasCameraId
               ? "circle-sm"
               : _settings.avatarType,
         }
+
         const size = getWebCameraWindowSize(activeDisplay, s)
         webCameraWindow.webContents.send(WebCameraWindowEvents.AVATAR_UPDATE, s)
         webCameraWindow.setBounds({
