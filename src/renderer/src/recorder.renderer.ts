@@ -19,6 +19,7 @@ import {
   DisplayEvents,
   MainWindowEvents,
   DrawEvents,
+  DropdownWindowEvents,
 } from "@shared/types/types"
 import { Timer } from "./helpers/timer"
 import { APIEvents } from "@shared/events/api.events"

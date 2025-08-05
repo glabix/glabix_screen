@@ -118,7 +118,7 @@ class Draw {
         window.clearTimeout(this.countdownTimer)
       }
       isPaint = true
-      const pos = this.stage.getPointerPosition()
+      const pos = this.stage.getPointerPosition()!
 
       lastLine = new Konva.Line({
         stroke: this.laserColor,
@@ -146,7 +146,7 @@ class Draw {
       // prevent scrolling on touch devices
       e.evt.preventDefault()
 
-      const pos = this.stage.getPointerPosition()
+      const pos = this.stage.getPointerPosition()!
       const newPoints = lastLine.points().concat([pos.x, pos.y])
       lastLine.points(newPoints)
       circle.x(pos.x)
