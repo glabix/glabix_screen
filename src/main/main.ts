@@ -381,34 +381,28 @@ if (!gotTheLock) {
           mainWindow.webContents.send(RecordSettingsEvents.INIT, settings)
           lastStreamSettings = settings
           getLastWebcameraPosition(webCameraWindow).then((_settings) => {
-            const size = getWebCameraWindowSize(activeDisplay, _settings)
+            const hasCameraId =
+              settings.cameraDeviceId && settings.cameraDeviceId != "no-camera"
+            const s = {
+              ..._settings,
+              avatarType:
+                _settings.avatarType == null && hasCameraId
+                  ? "circle-sm"
+                  : _settings.avatarType,
+            }
+            const size = getWebCameraWindowSize(activeDisplay, s)
             webCameraWindow.webContents.send(
               WebCameraWindowEvents.AVATAR_UPDATE,
-              _settings
-            )
-
-            console.log(
-              `
-              {
-              x: _settings.left,
-              y: _settings.top,
-              width: size.width,
-              height: size.height,
-            }`,
-              {
-                x: _settings.left,
-                y: _settings.top,
-                width: size.width,
-                height: size.height,
-              }
+              s
             )
 
             webCameraWindow.setBounds({
-              x: _settings.left,
-              y: _settings.top,
+              x: s.left,
+              y: s.top,
               width: size.width,
               height: size.height,
             })
+
             adjustWindowPosition(WindowNames.WEB_CAMERA)
 
             if (!isStartByAutoLaunch) {
@@ -1915,13 +1909,6 @@ ipcMain.on(
             webCameraWindow.getBounds()
           )
 
-      console.log(
-        `
-        WebCameraWindowEvents.RESIZE`,
-        settings,
-        position
-      )
-
       webCameraWindow.setBounds({
         x: position.x,
         y: position.y,
@@ -2363,14 +2350,20 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
       lastStreamSettings = settings
 
       getLastWebcameraPosition(webCameraWindow).then((_settings) => {
-        const size = getWebCameraWindowSize(activeDisplay, _settings)
-        webCameraWindow.webContents.send(
-          WebCameraWindowEvents.AVATAR_UPDATE,
-          _settings
-        )
+        const hasCameraId =
+          settings.cameraDeviceId && settings.cameraDeviceId != "no-camera"
+        const s = {
+          ..._settings,
+          avatarType:
+            _settings.avatarType == null && hasCameraId
+              ? "circle-sm"
+              : _settings.avatarType,
+        }
+        const size = getWebCameraWindowSize(activeDisplay, s)
+        webCameraWindow.webContents.send(WebCameraWindowEvents.AVATAR_UPDATE, s)
         webCameraWindow.setBounds({
-          x: _settings.left,
-          y: _settings.top,
+          x: s.left,
+          y: s.top,
           width: size.width,
           height: size.height,
         })
