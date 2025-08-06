@@ -146,7 +146,10 @@ function showVideo(
 
 function startStream(deviseId) {
   if (!deviseId || deviseId == "no-camera") {
-    showVideo(true, "no-camera")
+    if (lastStreamSettings?.action == "cameraOnly") {
+      showVideo(true, "no-camera")
+    }
+
     return
   }
 

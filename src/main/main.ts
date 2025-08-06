@@ -997,6 +997,13 @@ function createWebcameraWindow(parentWindow) {
 
   webCameraWindow.on("hide", () => {})
 
+  webCameraWindow.on("close", (event) => {
+    if (!isAppQuitting) {
+      event.preventDefault()
+      hideWindows()
+    }
+  })
+
   let dragEndTimer: NodeJS.Timeout
   webCameraWindow.on("will-move", () => {
     draggableWindows.setDragging(WindowNames.WEB_CAMERA)
