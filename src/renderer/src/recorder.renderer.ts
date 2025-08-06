@@ -1082,8 +1082,9 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     } else {
       // window.electronAPI.ipcRenderer.send(MainWindowEvents.IGNORE_MOUSE_START)
       window.electronAPI.ipcRenderer.send(MainWindowEvents.HIDE)
-      window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_END)
     }
+
+    window.electronAPI.ipcRenderer.send(DrawEvents.DRAW_END)
   }
 
   window.electronAPI.ipcRenderer.send("invalidate-shadow", {})
