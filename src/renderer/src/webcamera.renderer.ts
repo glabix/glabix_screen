@@ -381,12 +381,6 @@ window.electronAPI.ipcRenderer.on(AppEvents.ON_SHOW, () => {
     }
   }
 
-  window.electronAPI.ipcRenderer
-    .invoke("getLastWebcameraPosition")
-    .then((settings) => {
-      setupAvatarSettings(settings)
-    })
-
   skipAppShowEvent = false
 })
 
@@ -740,6 +734,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       })
   }
+
+  window.electronAPI.ipcRenderer
+    .invoke("getLastWebcameraPosition")
+    .then((settings) => {
+      setupAvatarSettings(settings)
+    })
 })
 
 window.addEventListener("error", (event) => {
