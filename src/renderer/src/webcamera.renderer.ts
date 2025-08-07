@@ -123,7 +123,6 @@ function showVideo(
   hasError?: boolean,
   errorType?: "no-permission" | "no-camera"
 ) {
-  draggableZone.classList.add("has-avatar")
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   videoContainerNoCamera.setAttribute("hidden", "")
@@ -147,11 +146,13 @@ function showVideo(
 function startStream(deviseId) {
   if (!deviseId || deviseId == "no-camera") {
     if (lastStreamSettings?.action == "cameraOnly") {
+      draggableZone.classList.add("has-avatar")
       showVideo(true, "no-camera")
     }
-
     return
   }
+
+  draggableZone.classList.add("has-avatar")
 
   const constraints = {
     video: { deviceId: { exact: deviseId } },
