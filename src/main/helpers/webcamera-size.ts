@@ -8,7 +8,8 @@ import eStore from "./electron-store.helper"
 import { UserSettingsKeys } from "@shared/types/user-settings.types"
 
 const PANEL_HEIGHT_DEFAULT = 58
-const PANEL_HEIGHT_SM = 44
+// const PANEL_HEIGHT_SM = 44
+const PANEL_HEIGHT_SM = 58
 const PANEL_DROPDOWN_HEIGHT = 40
 const MIN_WIDTH = 260
 
