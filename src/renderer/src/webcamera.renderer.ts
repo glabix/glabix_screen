@@ -125,11 +125,11 @@ function showVideo(
   hasError?: boolean,
   errorType?: "no-permission" | "no-camera"
 ) {
+  draggableZone.classList.add("has-avatar")
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   videoContainerNoCamera.setAttribute("hidden", "")
   videoContainer.removeAttribute("hidden")
-  draggableZone.classList.add("has-avatar")
 
   if (currentStream) {
     video.srcObject = currentStream
