@@ -1904,6 +1904,12 @@ ipcMain.on(
 ipcMain.on(
   WebCameraWindowEvents.RESIZE,
   (event, settings: IWebCameraWindowSettings) => {
+    console.log(
+      `
+      WebCameraWindowEvents.RESIZE settings:`,
+      settings
+    )
+
     if (webCameraWindow) {
       const size = getWebCameraWindowSize(activeDisplay, settings)
       const position = settings.skipPosition

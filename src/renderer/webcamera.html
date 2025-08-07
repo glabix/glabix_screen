@@ -17,27 +17,6 @@
   <body>
     <div class="draggable-zone">
       <div class="draggable-zone-target" style="-webkit-app-region: drag">
-        <!-- CAMERA ONLY -->
-        <!-- <div class="webcamera-only-container sm" hidden>
-          <div class="webcamera-only-title">
-            <i class="i i-dot i--lg"></i>
-            <div class="fw-500">Запись только камеры</div>
-          </div>
-          <div class="webcamera-only-error webcamera-only-no-device" hidden>
-            <div>Камера не доступна или используется другой программой</div>
-          </div>
-          <div class="webcamera-only-error webcamera-only-no-permission" hidden>
-            <div>
-              Доступ к камере запрещен. Включите доступ к камере в настройках
-              системы.
-            </div>
-          </div>
-          <div class="webcamera-only-error webcamera-only-no-camera" hidden>
-            <div>Выберите камеру</div>
-          </div>
-          <video id="webcam_only_video" autoplay muted></video>
-        </div> -->
-
         <!-- AVATAR SETTINGS -->
         <div
           id="webcamera-view"
@@ -65,11 +44,6 @@
 
         <!-- CONTROL PANEL -->
         <div class="panel-wrapper hover">
-          <!-- <div class="panel panel-recording-preview">
-            <div class="flex-center-8">
-              <span class="i i-ellipsis i--lg pointer-events-none"></span>
-            </div>
-          </div> -->
           <div class="panel panel-recording items-center">
             <button
               id="stopBtn"
@@ -262,6 +236,12 @@
         <!-- AVATAR SETTINGS -->
         <div id="panel-webcamera" class="panel webcamera-settings">
           <div class="flex gap-1 items-center">
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="null"
+            >
+              <i class="i pointer-events-none i-close"></i>
+            </button>
             <button
               class="flex-center-6 min-w-6 js-camera-view-size"
               data-type="circle-sm"
