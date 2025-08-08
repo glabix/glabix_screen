@@ -39,7 +39,7 @@ let webCameraWindowSettings: IWebCameraWindowSettings = {
   skipPosition: false,
 }
 
-let savedCameraWindowType: WebCameraAvatarTypes
+let savedCameraWindowType: WebCameraAvatarTypes | null
 
 const AVATAR_TYPES: WebCameraAvatarTypes[] = [
   "circle-sm",
@@ -145,6 +145,8 @@ function showVideo(
 }
 
 function startStream(deviseId) {
+  closeWebcameraSize()
+
   if (!deviseId || deviseId == "no-camera") {
     if (lastStreamSettings?.action == "cameraOnly") {
       draggableZone.classList.add("has-avatar")
@@ -273,6 +275,7 @@ function handlePanelWithoutCamera(data: IStreamSettings) {
         skipPosition: false,
         avatarType: type,
       }
+
       window.electronAPI.ipcRenderer.send(
         WebCameraWindowEvents.RESIZE,
         webCameraWindowSettings
@@ -496,6 +499,7 @@ function renderWebcameraView(target: HTMLElement) {
 
   if (type) {
     videoContainer.classList.add(type)
+    savedCameraWindowType = type
   }
 
   webCameraWindowSettings = {
@@ -503,6 +507,7 @@ function renderWebcameraView(target: HTMLElement) {
     skipPosition: false,
     avatarType: type,
   }
+
   window.electronAPI.ipcRenderer.send(
     WebCameraWindowEvents.RESIZE,
     webCameraWindowSettings
