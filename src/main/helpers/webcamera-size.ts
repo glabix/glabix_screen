@@ -8,7 +8,8 @@ import eStore from "./electron-store.helper"
 import { UserSettingsKeys } from "@shared/types/user-settings.types"
 
 const PANEL_HEIGHT_DEFAULT = 58
-const PANEL_HEIGHT_SM = 44
+// const PANEL_HEIGHT_SM = 44
+const PANEL_HEIGHT_SM = 58
 const PANEL_DROPDOWN_HEIGHT = 40
 const MIN_WIDTH = 265
 
@@ -38,7 +39,7 @@ export const getAvatarSize = (
     case "rect-xl":
       return {
         width: Math.round(0.8 * screenWidth),
-        height: Math.round((9 / 16) * 0.8 * screenWidth),
+        height: Math.round((9 / 16) * 0.8 * screenWidth) + PANEL_HEIGHT_SM,
       }
 
     case "camera-only-sm":
