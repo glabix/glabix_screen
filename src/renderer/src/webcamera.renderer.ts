@@ -39,7 +39,7 @@ let webCameraWindowSettings: IWebCameraWindowSettings = {
   skipPosition: false,
 }
 
-let savedCameraWindowType: WebCameraAvatarTypes
+let savedCameraWindowType: WebCameraAvatarTypes | null
 
 const AVATAR_TYPES: WebCameraAvatarTypes[] = [
   "circle-sm",
@@ -126,8 +126,6 @@ function showVideo(
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   videoContainerNoCamera.setAttribute("hidden", "")
-  videoContainer.removeAttribute("hidden")
-  draggableZone.classList.add("has-avatar")
 
   if (currentStream) {
     video.srcObject = currentStream
@@ -142,16 +140,22 @@ function showVideo(
       videoContainerError.removeAttribute("hidden")
     }
   }
+
+  videoContainer.removeAttribute("hidden")
 }
 
 function startStream(deviseId) {
+  closeWebcameraSize()
+
   if (!deviseId || deviseId == "no-camera") {
     if (lastStreamSettings?.action == "cameraOnly") {
+      draggableZone.classList.add("has-avatar")
       showVideo(true, "no-camera")
     }
-
     return
   }
+
+  draggableZone.classList.add("has-avatar")
 
   const constraints = {
     video: { deviceId: { exact: deviseId } },
@@ -271,6 +275,7 @@ function handlePanelWithoutCamera(data: IStreamSettings) {
         skipPosition: false,
         avatarType: type,
       }
+
       window.electronAPI.ipcRenderer.send(
         WebCameraWindowEvents.RESIZE,
         webCameraWindowSettings
@@ -494,6 +499,7 @@ function renderWebcameraView(target: HTMLElement) {
 
   if (type) {
     videoContainer.classList.add(type)
+    savedCameraWindowType = type
   }
 
   webCameraWindowSettings = {
@@ -501,6 +507,7 @@ function renderWebcameraView(target: HTMLElement) {
     skipPosition: false,
     avatarType: type,
   }
+
   window.electronAPI.ipcRenderer.send(
     WebCameraWindowEvents.RESIZE,
     webCameraWindowSettings

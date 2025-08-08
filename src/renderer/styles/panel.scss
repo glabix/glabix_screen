@@ -74,9 +74,12 @@ body.is-dialog-open .panel-wrapper {
   -webkit-app-region: drag;
 }
 
-.has-avatar.is-controls-hidden .panel-recording {
-  -webkit-app-region: no-drag;
+.draggable-zone.is-controls-hidden.has-avatar .panel-recording {
   opacity: 0;
+  -webkit-app-region: no-drag;
+}
+
+.draggable-zone.has-avatar.is-controls-hidden .panel-recording {
 }
 
 body.is-drawing .draggable-zone.has-avatar.is-controls-hidden .panel-recording,
