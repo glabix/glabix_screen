@@ -126,7 +126,6 @@ function showVideo(
   videoContainerError.setAttribute("hidden", "")
   videoContainerPermissionError.setAttribute("hidden", "")
   videoContainerNoCamera.setAttribute("hidden", "")
-  videoContainer.removeAttribute("hidden")
 
   if (currentStream) {
     video.srcObject = currentStream
@@ -141,6 +140,8 @@ function showVideo(
       videoContainerError.removeAttribute("hidden")
     }
   }
+
+  videoContainer.removeAttribute("hidden")
 }
 
 function startStream(deviseId) {

@@ -39,7 +39,7 @@ export const getAvatarSize = (
     case "rect-xl":
       return {
         width: Math.round(0.8 * screenWidth),
-        height: Math.round((9 / 16) * 0.8 * screenWidth),
+        height: Math.round((9 / 16) * 0.8 * screenWidth) + PANEL_HEIGHT_SM,
       }
 
     case "camera-only-sm":

@@ -993,8 +993,8 @@ function createWebcameraWindow(parentWindow) {
   })
 
   // modalWindow.webContents.openDevTools()
+  webCameraWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   webCameraWindow.setAlwaysOnTop(true, "screen-saver")
-
   webCameraWindow.on("hide", () => {})
 
   webCameraWindow.on("close", (event) => {
@@ -1082,7 +1082,7 @@ function createModal(parentWindow) {
   }
   draggableWindows.add({ window: modalWindow, name: WindowNames.MODAL })
   // modalWindow.webContents.openDevTools()
-
+  modalWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   modalWindow.setAlwaysOnTop(true, "screen-saver")
 
   modalWindow.on("hide", () => {
