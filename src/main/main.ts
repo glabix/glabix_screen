@@ -926,6 +926,10 @@ function sendUserSettings() {
       UserSettingsEvents.PANEL_HIDDEN_GET,
       eStore.get(UserSettingsKeys.PANEL_HIDDEN)
     )
+    webCameraWindow.webContents.send(
+      UserSettingsEvents.FLIP_CAMERA_GET,
+      eStore.get(UserSettingsKeys.FLIP_CAMERA)
+    )
   }
 
   if (mainWindow) {
