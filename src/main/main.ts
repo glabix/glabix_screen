@@ -926,6 +926,10 @@ function sendUserSettings() {
       UserSettingsEvents.PANEL_HIDDEN_GET,
       eStore.get(UserSettingsKeys.PANEL_HIDDEN)
     )
+    webCameraWindow.webContents.send(
+      UserSettingsEvents.FLIP_CAMERA_GET,
+      eStore.get(UserSettingsKeys.FLIP_CAMERA)
+    )
   }
 
   if (mainWindow) {
@@ -1225,19 +1229,19 @@ function adjustWindowPosition(name: WindowNames) {
   }
 
   const windowBounds = window.getBounds()
-  const windowRight = windowBounds.x + windowBounds.width
-  const windowBottom = windowBounds.y + windowBounds.height
+  const windowRight = windowBounds.x + 0.1 * windowBounds.width
+  const windowBottom = windowBounds.y + 0.1 * windowBounds.height
   const screenBounds = activeDisplay.bounds
   const screenRight = screenBounds.x + screenBounds.width
   const screenBottom = screenBounds.y + screenBounds.height
   let posX = windowBounds.x
   let posY = windowBounds.y
 
-  if (windowBounds.x < screenBounds.x) {
+  if (windowBounds.x + 0.9 * windowBounds.width < screenBounds.x) {
     posX = screenBounds.x
   }
 
-  if (windowBounds.y < screenBounds.y) {
+  if (windowBounds.y + 0.9 * windowBounds.height < screenBounds.y) {
     posY = screenBounds.y
   }
 
