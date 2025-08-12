@@ -14,6 +14,7 @@ import {
   WebCameraWindowEvents,
   IDropdownPageSelectData,
   DropdownWindowEvents,
+  CameraSettings,
 } from "@shared/types/types"
 import {
   RecordSettingsEvents,
@@ -497,21 +498,7 @@ changeCameraOnlySizeBtn.forEach((button) => {
 function renderWebcameraView(target: HTMLElement) {
   if (target.dataset.type == "null") {
     closeWebcameraSize()
-    const data: IDropdownPageSelectData = {
-      cameraDeviceId: "no-camera",
-      action: lastStreamSettings?.action,
-      audioDeviceId: lastStreamSettings?.audioDeviceId,
-      item: {
-        label: "Без Камеры",
-        id: "no-camera",
-        isSelected: true,
-        extraData: {
-          icon: "i-video-slash",
-        },
-      },
-    }
-
-    window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SELECT, data)
+    window.electronAPI.ipcRenderer.send(CameraSettings.NO_CAMERA)
     return
   }
 
@@ -538,6 +525,8 @@ function renderWebcameraView(target: HTMLElement) {
     WebCameraWindowEvents.RESIZE,
     webCameraWindowSettings
   )
+
+  window.electronAPI.ipcRenderer.send(CameraSettings.FIRST_CAMERA)
 }
 
 // Toggle webcamera size

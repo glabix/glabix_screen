@@ -164,6 +164,11 @@ export enum ModalWindowEvents {
   UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
 
+export enum CameraSettings {
+  NO_CAMERA = "camera-settings:noCamera",
+  FIRST_CAMERA = "camera-settings:firstCamera",
+}
+
 export enum DropdownWindowEvents {
   SHOW = "dropdown-window:show",
   HIDE = "dropdown-window:hide",

@@ -24,6 +24,7 @@ import { LoginEvents } from "@shared/events/login.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { TokenStorage } from "./storages/token-storage"
 import {
+  CameraSettings,
   DialogWindowEvents,
   DisplayEvents,
   DrawEvents,
@@ -1916,12 +1917,6 @@ ipcMain.on(
 ipcMain.on(
   WebCameraWindowEvents.RESIZE,
   (event, settings: IWebCameraWindowSettings) => {
-    console.log(
-      `
-      WebCameraWindowEvents.RESIZE settings:`,
-      settings
-    )
-
     if (webCameraWindow) {
       const size = getWebCameraWindowSize(activeDisplay, settings)
       const position = settings.skipPosition
@@ -2491,6 +2486,14 @@ ipcMain.on(
     isDialogWindowOpen = false
   }
 )
+
+ipcMain.on(CameraSettings.FIRST_CAMERA, (event: unknown) => {
+  modalWindow.webContents.send(CameraSettings.FIRST_CAMERA)
+})
+
+ipcMain.on(CameraSettings.NO_CAMERA, (event: unknown) => {
+  modalWindow.webContents.send(CameraSettings.NO_CAMERA)
+})
 
 ipcMain.on(FileUploadEvents.FILE_CREATE_ON_SERVER_ERROR, (event: unknown) => {
   dialog.showMessageBox(mainWindow, {
