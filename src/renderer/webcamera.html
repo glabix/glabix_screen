@@ -44,11 +44,6 @@
 
         <!-- CONTROL PANEL -->
         <div class="panel-wrapper hover">
-          <!-- <div class="panel panel-recording-preview">
-            <div class="flex-center-8">
-              <span class="i i-ellipsis i--lg pointer-events-none"></span>
-            </div>
-          </div> -->
           <div class="panel panel-recording items-center">
             <button
               id="stopBtn"
@@ -241,6 +236,12 @@
         <!-- AVATAR SETTINGS -->
         <div id="panel-webcamera" class="panel webcamera-settings">
           <div class="flex gap-1 items-center">
+            <button
+              class="flex-center-6 min-w-6 js-camera-view-size"
+              data-type="null"
+            >
+              <i class="i pointer-events-none i-close"></i>
+            </button>
             <button
               class="flex-center-6 min-w-6 js-camera-view-size"
               data-type="circle-sm"

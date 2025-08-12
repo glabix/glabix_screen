@@ -233,12 +233,15 @@ body.is-drawing #panel-draw {
   display: none;
   padding: 11px 5px;
 }
-
-body.is-webcamera-size-open .has-webcamera-only #panel-webcamera-only,
-body.is-webcamera-size-open
-  .has-avatar:not(.has-webcamera-only)
-  #panel-webcamera {
+body.is-webcamera-size-open #panel-webcamera {
   display: inline-flex;
+}
+
+body.is-webcamera-size-open .has-webcamera-only #panel-webcamera-only {
+  display: inline-flex;
+}
+body.is-webcamera-size-open .has-webcamera-only #panel-webcamera {
+  display: none;
 }
 
 .panel-slider {
@@ -275,12 +278,12 @@ body.is-webcamera-size-open
 }
 
 #webcamera-size-btn {
-  display: none;
+  // display: none;
 
-  .has-avatar &,
-  .has-webcamera-only & {
-    display: flex;
-  }
+  // .has-avatar &,
+  // .has-webcamera-only & {
+  //   display: flex;
+  // }
 
   .is-webcamera-size-open & {
     background-color: rgba(58, 58, 58, 1);

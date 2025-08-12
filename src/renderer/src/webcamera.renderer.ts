@@ -12,6 +12,9 @@ import {
   IOrganizationLimits,
   DrawEvents,
   WebCameraWindowEvents,
+  IDropdownPageSelectData,
+  DropdownWindowEvents,
+  CameraSettings,
 } from "@shared/types/types"
 import {
   RecordSettingsEvents,
@@ -291,9 +294,7 @@ window.electronAPI.ipcRenderer.on(
     lastStreamSettings = data
 
     if (!isScreenshotMode) {
-      if (!isRecording) {
-        checkStream(data)
-      }
+      checkStream(data)
     } else {
       isScreenshotMode = false
     }
@@ -308,14 +309,19 @@ window.electronAPI.ipcRenderer.on(
     if (data.action == "cameraOnly") {
       draggableZone.classList.add("has-webcamera-only")
     } else {
-      if (savedCameraWindowType) {
-        videoContainer.classList.add(savedCameraWindowType)
+      const savedType =
+        !data.cameraDeviceId || data.cameraDeviceId == "no-camera"
+          ? null
+          : savedCameraWindowType
+
+      if (savedType) {
+        videoContainer.classList.add(savedType)
       }
 
       webCameraWindowSettings = {
         ...webCameraWindowSettings,
         skipPosition: false,
-        avatarType: savedCameraWindowType,
+        avatarType: savedType,
       }
 
       window.electronAPI.ipcRenderer.send(
@@ -490,7 +496,14 @@ changeCameraOnlySizeBtn.forEach((button) => {
 })
 
 function renderWebcameraView(target: HTMLElement) {
+  if (target.dataset.type == "null") {
+    closeWebcameraSize()
+    window.electronAPI.ipcRenderer.send(CameraSettings.NO_CAMERA)
+    return
+  }
+
   const type = target.dataset.type! as WebCameraAvatarTypes
+
   ;[...AVATAR_TYPES, ...ONLY_CAMERA_TYPES].forEach((t) => {
     if (t) {
       videoContainer.classList.remove(t)
@@ -512,6 +525,8 @@ function renderWebcameraView(target: HTMLElement) {
     WebCameraWindowEvents.RESIZE,
     webCameraWindowSettings
   )
+
+  window.electronAPI.ipcRenderer.send(CameraSettings.FIRST_CAMERA)
 }
 
 // Toggle webcamera size

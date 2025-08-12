@@ -19,6 +19,7 @@ import {
   HotkeysEvents,
   ILastDeviceSettings,
   DropdownWindowEvents,
+  CameraSettings,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -471,6 +472,39 @@ async function setupMediaDevices() {
     sendSettings()
   }
 }
+
+function initCameraDevice(selectFirstDevice?: boolean) {
+  const items = getDropdownItems("videoDevices")
+  const item = selectFirstDevice ? items[1] || items[0]! : items[0]!
+
+  if (item?.id == activeVideoDevice?.deviceId) {
+    return
+  }
+
+  const data: IDropdownPageSelectData = {
+    cameraDeviceId: item.id,
+    action: streamSettings.action,
+    audioDeviceId: streamSettings.audioDeviceId,
+    item: item,
+  }
+
+  window.electronAPI.ipcRenderer.send(DropdownWindowEvents.SELECT, data)
+}
+
+window.electronAPI.ipcRenderer.on(
+  CameraSettings.FIRST_CAMERA,
+  (event, version) => {
+    initCameraDevice(true)
+    window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
+  }
+)
+window.electronAPI.ipcRenderer.on(
+  CameraSettings.NO_CAMERA,
+  (event, version) => {
+    initCameraDevice(false)
+    window.electronAPI.ipcRenderer.send(DropdownWindowEvents.HIDE, {})
+  }
+)
 
 function initMediaDevice() {
   setupMediaDevices()
