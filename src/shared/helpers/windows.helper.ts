@@ -1,12 +1,14 @@
+import { WindowNames } from "@main/helpers/window-manager"
 import { BrowserWindow } from "electron"
 
-export enum WindowNames {
-  MAIN = "main",
-  MODAL = "modal",
-  WEB_CAMERA = "web_camera",
-  DROPDOWN = "dropdown",
-  SCREENSHOT = "screenshot",
-}
+// export enum WindowNames {
+//   LOGIN = "main",
+//   MAIN = "main",
+//   MODAL = "modal",
+//   WEB_CAMERA = "web_camera",
+//   DROPDOWN = "dropdown",
+//   SCREENSHOT = "screenshot",
+// }
 
 export interface IWindow {
   window: BrowserWindow | undefined

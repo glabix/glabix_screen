@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  BrowserWindowConstructorOptions,
   clipboard,
   desktopCapturer,
   dialog,
@@ -122,7 +123,7 @@ import {
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 import { ChunkProcessor } from "@main/chunk-saver"
-import { WindowNames, WindowsHelper } from "@shared/helpers/windows.helper"
+import { WindowsHelper } from "@shared/helpers/windows.helper"
 import {
   getLastWebcameraPosition,
   getWebCameraWindowPosition,
@@ -133,6 +134,7 @@ import {
   IWebCameraWindowSettings,
 } from "@shared/types/webcamera.types"
 import { getCorrectBounds, getCurrentDisplay } from "./helpers/display.helper"
+import { windowManager, WindowNames } from "./helpers/window-manager"
 
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
@@ -783,7 +785,7 @@ if (process.defaultApp) {
 function createWindow() {
   const { x, y, width, height } = screen.getPrimaryDisplay().bounds
   // Create the browser window.
-  mainWindow = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     transparent: true,
     frame: false,
     thickFrame: false,
@@ -803,7 +805,10 @@ function createWindow() {
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
     },
-  })
+  }
+
+  mainWindow = windowManager.create(WindowNames.MAIN, options)
+
   mainWindow.setBounds(screen.getPrimaryDisplay().bounds)
   activeDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds())
 
@@ -812,22 +817,8 @@ function createWindow() {
   }
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  // mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
   mainWindow.setAlwaysOnTop(true, "screen-saver")
 
-  // mainWindow.setFullScreenable(false)
-  // mainWindow.setIgnoreMouseEvents(true, { forward: true })
-
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
-
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"])
-  } else {
-    mainWindow.loadFile(join(import.meta.dirname, "../renderer/index.html"))
-  }
-
-  // mainWindow.webContents.setFrameRate(60)
   mainWindow.on("close", () => {
     app.quit()
   })
@@ -862,8 +853,8 @@ function createWindow() {
     mainWindow.webContents.send(DisplayEvents.UPDATE, activeDisplay)
   })
 
-  createWebcameraWindow(mainWindow)
-  createModal(mainWindow)
+  createWebcameraWindow()
+  createModal()
   createLoginWindow()
 }
 
@@ -977,11 +968,10 @@ function sendUserSettings() {
   }
 }
 
-function createWebcameraWindow(parentWindow) {
+function createWebcameraWindow() {
   const { x, y, width, height } = screen.getPrimaryDisplay().bounds
   const windowSize = getWebCameraWindowSize(activeDisplay, {})
-  // Create the browser window.
-  webCameraWindow = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     transparent: true,
     frame: false,
     thickFrame: false,
@@ -993,7 +983,6 @@ function createWebcameraWindow(parentWindow) {
     hasShadow: false,
     width: windowSize.width,
     height: windowSize.height,
-    // parent: parentWindow,
     x,
     y,
     webPreferences: {
@@ -1002,13 +991,15 @@ function createWebcameraWindow(parentWindow) {
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
     },
-  })
+  }
+
+  webCameraWindow = windowManager.create(WindowNames.WEB_CAMERA, options)
+
   draggableWindows.add({
     window: webCameraWindow,
     name: WindowNames.WEB_CAMERA,
   })
 
-  // modalWindow.webContents.openDevTools()
   webCameraWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   webCameraWindow.setAlwaysOnTop(true, "screen-saver")
   webCameraWindow.on("hide", () => {})
@@ -1055,16 +1046,6 @@ function createWebcameraWindow(parentWindow) {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
   })
 
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    webCameraWindow.loadURL(
-      `${process.env["ELECTRON_RENDERER_URL"]}/webcamera.html`
-    )
-  } else {
-    webCameraWindow.loadFile(
-      join(import.meta.dirname, "../renderer/webcamera.html")
-    )
-  }
-
   webCameraWindow.webContents.on("did-finish-load", () => {
     getLastStreamSettings(modalWindow).then((settings) => {
       webCameraWindow.webContents.send(RecordSettingsEvents.INIT, settings)
@@ -1072,8 +1053,8 @@ function createWebcameraWindow(parentWindow) {
   })
 }
 
-function createModal(parentWindow) {
-  modalWindow = new BrowserWindow({
+function createModal() {
+  const options: BrowserWindowConstructorOptions = {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
@@ -1082,7 +1063,6 @@ function createModal(parentWindow) {
     height: ModalWindowHeight.MODAL,
     show: false,
     alwaysOnTop: true,
-    // parent: parentWindow,
     minimizable: false,
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/preload.mjs"),
@@ -1090,14 +1070,10 @@ function createModal(parentWindow) {
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
     },
-  })
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    modalWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/modal.html`)
-  } else {
-    modalWindow.loadFile(join(import.meta.dirname, "../renderer/modal.html"))
   }
+  modalWindow = windowManager.create(WindowNames.MODAL, options)
+
   draggableWindows.add({ window: modalWindow, name: WindowNames.MODAL })
-  // modalWindow.webContents.openDevTools()
   modalWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   modalWindow.setAlwaysOnTop(true, "screen-saver")
 
@@ -1186,7 +1162,7 @@ function createModal(parentWindow) {
 }
 
 function createDropdownWindow(parentWindow) {
-  dropdownWindow = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     titleBarStyle: "hidden",
     fullscreen: false,
     fullscreenable: false,
@@ -1206,21 +1182,12 @@ function createDropdownWindow(parentWindow) {
       nodeIntegration: true, // Enable Node.js integration
       // contextIsolation: false, // Disable context isolation (not recommended for production)
     },
-  })
-  // dropdownWindow.webContents.openDevTools()
+  }
+  dropdownWindow = windowManager.create(WindowNames.DROPDOWN, options)
   dropdownWindow.setAlwaysOnTop(true, "screen-saver")
+
   if (os.platform() == "darwin") {
     dropdownWindow.setWindowButtonVisibility(false)
-  }
-
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    dropdownWindow.loadURL(
-      `${process.env["ELECTRON_RENDERER_URL"]}/dropdown.html`
-    )
-  } else {
-    dropdownWindow.loadFile(
-      join(import.meta.dirname, "../renderer/dropdown.html")
-    )
   }
 
   dropdownWindow.webContents.on("did-finish-load", () => {
@@ -1369,7 +1336,7 @@ function handleMoveWindows(name: WindowNames) {
 }
 
 function createLoginWindow() {
-  loginWindow = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     width: 390,
     height: 265,
     show: false,
@@ -1383,13 +1350,9 @@ function createLoginWindow() {
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },
-  })
-
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    loginWindow.loadURL(`${process.env["ELECTRON_RENDERER_URL"]}/login.html`)
-  } else {
-    loginWindow.loadFile(join(import.meta.dirname, "../renderer/login.html"))
   }
+
+  loginWindow = windowManager.create(WindowNames.LOGIN, options)
 
   loginWindow.on("show", () => {
     mainWindow?.webContents.send(AppEvents.ON_BEFORE_HIDE)
@@ -1465,11 +1428,12 @@ function createScreenshotWindow(dataURL: string) {
   const bounds: Electron.Rectangle = { x, y, width, height: height + spacing }
 
   const isRecording = (store.get() as any).recordingState == "recording"
+
   if (!isRecording) {
     hideWindows()
   }
 
-  screenshotWindow = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     titleBarStyle: "hidden",
     fullscreenable: false,
     maximizable: false,
@@ -1491,17 +1455,9 @@ function createScreenshotWindow(dataURL: string) {
       devTools: !app.isPackaged,
       // contextIsolation: true,  // повышаем безопасность
     },
-  })
-
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    screenshotWindow.loadURL(
-      `${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`
-    )
-  } else {
-    screenshotWindow.loadFile(
-      join(import.meta.dirname, "../renderer/screenshot.html")
-    )
   }
+
+  screenshotWindow = windowManager.create(WindowNames.SCREENSHOT, options)
 
   screenshotWindow.webContents.on("did-finish-load", () => {
     screenshotWindow.webContents.setZoomFactor(1)
