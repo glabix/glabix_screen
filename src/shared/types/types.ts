@@ -192,6 +192,11 @@ export interface IDrawSettings {
   width: number
 }
 
+export interface IDrawLaserDelaySettings {
+  disabled: boolean
+  delay: number
+}
+
 export enum MainWindowEvents {
   IGNORE_MOUSE_START = "main-window:ignore-mouse:start",
   IGNORE_MOUSE_END = "main-window:ignore-mouse:end",

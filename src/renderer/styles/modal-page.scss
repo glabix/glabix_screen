@@ -214,7 +214,9 @@ body {
 .settings-section {
   width: 100%;
   padding: 0.75rem 0;
-  border-bottom: solid 1px var(--gray-300);
+  &:not(:last-child) {
+    border-bottom: solid 1px var(--gray-300);
+  }
 }
 .settings-section.is-disabled {
   color: var(--gray-600);
@@ -228,14 +230,18 @@ body {
 .settings-shortcut-input-wrapper {
   border: solid 1px var(--gray-300);
   border-radius: 0.25rem;
-  padding: 0.25rem 2rem 0.25rem 0.5rem;
+  padding: 0.25rem 1.5rem 0.25rem 0.5rem;
   position: relative;
   display: inline-block;
+
+  &.has-error {
+    border-color: var(--error);
+  }
 
   .form-check {
     position: absolute;
     top: 0.25rem;
-    right: 0.5rem;
+    right: 0.25rem;
   }
 
   input[type="text"] {
@@ -300,4 +306,11 @@ body.is-update-downloading .footer-update,
   .no-microphone-light {
     display: none;
   }
+}
+
+.laser-delay-wrapper {
+}
+
+.laser-delay-input {
+  max-width: 40px;
 }

@@ -37,6 +37,9 @@ export enum UserSettingsEvents {
   DRAW_SETTING_GET = "settings:draw:settings:get",
   DRAW_SETTING_SET = "settings:draw:settings:set",
 
+  DRAW_LASER_DELAY_SETTINGS_GET = "settings:draw:laser_delay_settings:get",
+  DRAW_LASER_DELAY_SETTINGS_SET = "settings:draw:laser_delay_settings:set",
+
   WEB_CAMERA_SIZE_GET = "settings:web_camera:size:get",
   WEB_CAMERA_SIZE_SET = "settings:web_camera:size:set",
 }
@@ -50,9 +53,6 @@ export enum UserSettingsKeys {
   COUNTDOWN = "countdown",
   THEME = "theme",
   DRAW_SETTINGS = "draw_settings",
+  DRAW_LASER_DELAY_SETTINGS = "draw_laser_delay_settings",
   WEB_CAMERA_SIZE = "web_camera_size",
 }
-
-// export interface IUserSettings {
-//   [UserSettingsKeys.SHORT_CUTS]?: IUserSettingsShortcut[]
-// }

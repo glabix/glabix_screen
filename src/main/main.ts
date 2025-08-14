@@ -36,6 +36,7 @@ import {
   ICropVideoData,
   IDialogWindowCallbackData,
   IDialogWindowData,
+  IDrawLaserDelaySettings,
   IDrawSettings,
   IDropdownPageData,
   IDropdownPageSelectData,
@@ -908,6 +909,11 @@ function sendUserSettings() {
       UserSettingsEvents.AUTO_LAUNCH_GET,
       eStore.get(UserSettingsKeys.AUTO_LAUNCH)
     )
+
+    modalWindow.webContents.send(
+      UserSettingsEvents.DRAW_LASER_DELAY_SETTINGS_GET,
+      eStore.get(UserSettingsKeys.DRAW_LASER_DELAY_SETTINGS)
+    )
   }
 
   if (webCameraWindow) {
@@ -942,6 +948,11 @@ function sendUserSettings() {
     mainWindow.webContents.send(
       UserSettingsEvents.DRAW_SETTING_GET,
       eStore.get(UserSettingsKeys.DRAW_SETTINGS)
+    )
+
+    mainWindow.webContents.send(
+      UserSettingsEvents.DRAW_LASER_DELAY_SETTINGS_GET,
+      eStore.get(UserSettingsKeys.DRAW_LASER_DELAY_SETTINGS)
     )
 
     mainWindow.webContents.send(
@@ -1817,6 +1828,18 @@ ipcMain.on(
 )
 
 ipcMain.on(
+  UserSettingsEvents.DRAW_LASER_DELAY_SETTINGS_SET,
+  (event, settings: IDrawLaserDelaySettings) => {
+    eStore.set(UserSettingsKeys.DRAW_LASER_DELAY_SETTINGS, settings)
+    logSender.sendLog(
+      "settings.draw-laser-settings.update",
+      JSON.stringify(settings)
+    )
+    sendUserSettings()
+  }
+)
+
+ipcMain.on(
   UserSettingsEvents.SHORTCUTS_SET,
   (event, data: IUserSettingsShortcut[]) => {
     eStore.set(UserSettingsKeys.SHORT_CUTS, data)
@@ -1911,8 +1934,6 @@ ipcMain.on(
     }
   }
 )
-
-// eStore.delete(UserSettingsKeys.WEB_CAMERA_SIZE)
 
 ipcMain.on(
   WebCameraWindowEvents.RESIZE,
