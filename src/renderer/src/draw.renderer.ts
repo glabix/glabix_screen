@@ -6,13 +6,15 @@ import {
   DialogWindowEvents,
   DrawEvents,
   HotkeysEvents,
+  IDrawLaserDelaySettings,
   IDrawSettings,
   IModalWindowTabData,
   ModalWindowEvents,
 } from "@shared/types/types"
 import { UserSettingsEvents } from "@shared/types/user-settings.types"
 
-const COUNTDOWN_DELAY = 2000
+const COUNTDOWN_DELAY_DAY = 1000 * 60 * 60 * 24
+let COUNTDOWN_DELAY = 2000
 
 class Draw {
   stage: Konva.Stage
@@ -54,6 +56,19 @@ class Draw {
             document.documentElement
           ).getPropertyValue(`${settings.color}`)
           this.laserStrokeWidth = settings.width
+        }
+      }
+    )
+
+    window.electronAPI.ipcRenderer.on(
+      UserSettingsEvents.DRAW_LASER_DELAY_SETTINGS_GET,
+      (event, data: IDrawLaserDelaySettings) => {
+        if (typeof data.delay == "number") {
+          COUNTDOWN_DELAY = data.delay
+        }
+
+        if (data.disabled) {
+          COUNTDOWN_DELAY = COUNTDOWN_DELAY_DAY
         }
       }
     )
@@ -114,9 +129,11 @@ class Draw {
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: "tools.lazer.drawing.started",
       })
+
       if (this.countdownTimer) {
         window.clearTimeout(this.countdownTimer)
       }
+
       isPaint = true
       const pos = this.stage.getPointerPosition()!
 

@@ -20,6 +20,7 @@ import {
   ILastDeviceSettings,
   DropdownWindowEvents,
   CameraSettings,
+  IDrawLaserDelaySettings,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -38,6 +39,7 @@ import { ShortcutsUpdater } from "./helpers/shortcuts.helper"
 import { AppEvents } from "@shared/events/app.events"
 import { AppUpdaterEvents } from "@shared/events/app_updater.events"
 import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
+import { BindLaserDelayInput } from "./helpers/laser-delay-input.helper"
 type SettingsTabType =
   | "root"
   | "shortCuts"
@@ -89,6 +91,23 @@ const organizationContainer = document.querySelector(
 const systemAudioCheckbox = document.querySelector(
   ".system-audio-checkbox"
 ) as HTMLInputElement
+
+let laserSettings: IDrawLaserDelaySettings = {
+  delay: 2000,
+  disabled: false,
+}
+const laserDelayCheckbox = document.querySelector(
+  ".js-laser-delay-checkbox"
+) as HTMLInputElement
+const laserDelayInput = document.querySelector(
+  ".js-laser-delay-input"
+) as HTMLInputElement
+
+const laserDelayHelper = new BindLaserDelayInput(
+  laserDelayInput,
+  laserDelayCheckbox,
+  laserSettings
+)
 
 let isRecording = false
 
@@ -1611,6 +1630,15 @@ window.electronAPI.ipcRenderer.on(
       SHORTCUTS_TEXT_MAP[s.name] = s.disabled ? "" : s.keyCodes
     })
     updateHotkeysTexts()
+  }
+)
+
+window.electronAPI.ipcRenderer.on(
+  UserSettingsEvents.DRAW_LASER_DELAY_SETTINGS_GET,
+  (event, data: IDrawLaserDelaySettings) => {
+    if (data) {
+      laserDelayHelper.setValue(data)
+    }
   }
 )
 
