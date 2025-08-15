@@ -79,6 +79,11 @@ const activeColorBtn = document.querySelector(
 const activeColorBtns = document.querySelectorAll(
   "[data-color]"
 )! as NodeListOf<HTMLButtonElement>
+
+const historyBtns = document.querySelectorAll(
+  "[data-history]"
+)! as NodeListOf<HTMLButtonElement>
+
 const colorPopover = document.querySelector(
   ".js-active-color-popover"
 )! as HTMLDivElement
@@ -114,6 +119,10 @@ const stage = new Konva.Stage({
 const layer = new Konva.Layer()
 stage.add(layer)
 
+// const s = layer.toObject()
+
+// layer.add(Konva.Node.create(s));
+
 // Init Global Transformer
 const trId = "transformer"
 const trDefaultConfig: TransformerConfig = {
@@ -135,6 +144,7 @@ const trDefaultConfig: TransformerConfig = {
       shadowOpacity: 0.6,
     })
   },
+  ignoreHistory: true,
 }
 let tr = new Konva.Transformer(trDefaultConfig)
 
@@ -152,6 +162,7 @@ const transformCircleConfig: CircleConfig = {
   draggable: true,
   hitStrokeWidth: 10,
   visible: false,
+  ignoreHistory: true,
 }
 
 let arrowCircleStart = new Konva.Circle({
@@ -163,6 +174,56 @@ let arrowCircleEnd = new Konva.Circle({
   id: arrowCircleEndId,
   ...transformCircleConfig,
 })
+
+//
+let history = new Map<number, any>()
+let currentHistoryIndex = history.size
+
+const historyInit = (): void => {
+  history.clear()
+  currentHistoryIndex = history.size
+}
+const historySave = (): void => {
+  // console.log('historySave start', currentHistoryIndex)
+  history.set(
+    currentHistoryIndex++,
+    layer.children
+      .filter((i) => !i.getAttr("ignoreHistory"))
+      .map((i) => i.toObject())
+  )
+  console.log("history.size", history.size)
+  console.log("historySave", history)
+}
+const historyUndo = (): void => {
+  // currentHistoryIndex = currentHistoryIndex - 1
+  historyApply(--currentHistoryIndex)
+  // historyApply(currentHistoryIndex)
+}
+const historyRedo = (): void => {
+  // currentHistoryIndex = currentHistoryIndex + 1
+  historyApply(++currentHistoryIndex)
+  // console.log('historyRedo', history.get(++currentHistoryIndex))
+  // historyApply(currentHistoryIndex)
+}
+
+const historyApply = (index: number): void => {
+  // if (index < 0)
+
+  const state = history.get(index)
+  console.log("historyApply", index, state)
+
+  if (state) {
+    layer.children
+      .filter((i) => !i.getAttr("ignoreHistory"))
+      .forEach((node) => {
+        node.destroy()
+      })
+    state.forEach((i) => layer.add(Konva.Node.create(i)))
+    init()
+    layer.batchDraw()
+    // historyInit()
+  }
+}
 
 const getActiveColorByName = (colorName: string): string => {
   return COLORS_MAP.find((c) => c.name == colorName)!.hex
@@ -253,6 +314,7 @@ window.electronAPI?.ipcRenderer?.on(
 
     layer.destroyChildren()
     init()
+    historyInit()
     lastData = data
 
     let imageWidth = Math.ceil(lastData.width / lastData.scale)
@@ -277,6 +339,7 @@ window.electronAPI?.ipcRenderer?.on(
         image: imageObj,
         width: imageWidth,
         height: imageHeight,
+        ignoreHistory: true,
       })
       screenshot.moveToBottom()
       screenshot.x((stage.width() - imageWidth) / 2)
@@ -398,7 +461,7 @@ const createShape = (type: ShapeTypes) => {
       fill: activeColor,
       strokeWidth: activeShapeWidth,
       draggable: true,
-      hitStrokeWidth: 2,
+      hitStrokeWidth: 20,
     })
 
     layer.add(activeShape)
@@ -412,7 +475,7 @@ const createShape = (type: ShapeTypes) => {
       stroke: activeColor,
       strokeWidth: activeShapeWidth,
       draggable: true,
-      hitStrokeWidth: 2,
+      hitStrokeWidth: 20,
     }) as CurvedLine
 
     layer.add(activeShape)
@@ -426,7 +489,7 @@ const createShape = (type: ShapeTypes) => {
       stroke: activeColor,
       strokeWidth: activeShapeWidth,
       draggable: true,
-      hitStrokeWidth: 2,
+      hitStrokeWidth: 20,
     })
 
     layer.add(activeShape)
@@ -496,6 +559,8 @@ const createShape = (type: ShapeTypes) => {
 
   layer.batchDraw()
   isShapeCreated = true
+
+  historySave()
 }
 
 stage.on("mouseover", (event) => {
@@ -876,6 +941,38 @@ uploadBtn.addEventListener(
   },
   false
 )
+
+historyBtns.forEach((btn) => {
+  btn.addEventListener(
+    "click",
+    (event) => {
+      const activeBtn = event.target as HTMLButtonElement
+      const actionName = activeBtn.dataset.history
+
+      if (actionName == "undo") {
+        historyUndo()
+      }
+
+      if (actionName == "redo") {
+        historyRedo()
+      }
+      // setActiveColor(colorName!)
+      // colorPopover.toggleAttribute("hidden")
+
+      // if (clickedShapeId) {
+      //   const activeShape = stage.findOne(`#${clickedShapeId}`)
+      //   if (activeShape) {
+      //     if (activeShape instanceof Text) {
+      //       activeShape.fill(activeColor)
+      //     } else {
+      //       ;(activeShape as Arrow).stroke(activeColor)
+      //     }
+      //   }
+      // }
+    },
+    false
+  )
+})
 
 activeColorBtns.forEach((btn) => {
   btn.addEventListener(
