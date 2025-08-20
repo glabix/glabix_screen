@@ -2,12 +2,15 @@ import "@renderer/styles/screenshot-page.scss"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
 import { dataURLtoBlob } from "@shared/helpers/data-url-to-blob"
+import { debounce } from "@shared/helpers/debounce"
 import { getTitle } from "@shared/helpers/get-title"
 import {
   IScreenshotImageData,
   ScreenshotWindowEvents,
 } from "@shared/types/types"
 import Konva from "konva"
+import { Group } from "konva/lib/Group"
+import { Shape, ShapeConfig } from "konva/lib/Shape"
 import { Arrow } from "konva/lib/shapes/Arrow"
 import { Circle, CircleConfig } from "konva/lib/shapes/Circle"
 import { Ellipse } from "konva/lib/shapes/Ellipse"
@@ -19,6 +22,7 @@ import { Vector2d } from "konva/lib/types"
 
 type ShapeTypes = "arrow" | "text" | "line" | "ellipse" | "rect" | "curved_line"
 class CurvedLine extends Konva.Line {}
+
 const COLORS_MAP = [
   { name: "accent-0", hex: "#00962a" },
   { name: "accent-1", hex: "#0061fd" },
@@ -119,10 +123,6 @@ const stage = new Konva.Stage({
 const layer = new Konva.Layer()
 stage.add(layer)
 
-// const s = layer.toObject()
-
-// layer.add(Konva.Node.create(s));
-
 // Init Global Transformer
 const trId = "transformer"
 const trDefaultConfig: TransformerConfig = {
@@ -175,53 +175,74 @@ let arrowCircleEnd = new Konva.Circle({
   ...transformCircleConfig,
 })
 
-//
-let history = new Map<number, any>()
-let currentHistoryIndex = history.size
+let history = new Map<number, any[]>()
+let currentHistoryIndex = 0
 
-const historyInit = (): void => {
+const getHistoryNodes = (): (Group | Shape<ShapeConfig>)[] => {
+  return layer.children.filter((i) => !i.getAttr("ignoreHistory"))
+}
+const historyClear = (): void => {
   history.clear()
   currentHistoryIndex = history.size
 }
+
+const historyClearNodes = (): void => {
+  getHistoryNodes().forEach((i) => i.destroy())
+}
+
+const historyInit = (): void => {
+  historyClear()
+  const emptyElement = new Konva.Circle()
+  layer.add(emptyElement)
+  historySave()
+}
+
 const historySave = (): void => {
-  // console.log('historySave start', currentHistoryIndex)
-  history.set(
-    currentHistoryIndex++,
-    layer.children
-      .filter((i) => !i.getAttr("ignoreHistory"))
-      .map((i) => i.toObject())
-  )
-  console.log("history.size", history.size)
+  const state = getHistoryNodes().map((i) => i.toObject())
+
+  // Replace Old History
+  if (currentHistoryIndex < history.size) {
+    const entries = [...history.entries()].slice(0, currentHistoryIndex)
+    history.clear()
+    entries.forEach((entry) => history.set(entry[0], entry[1]))
+  }
+
+  history.set(currentHistoryIndex, state)
+  currentHistoryIndex = history.size
+
   console.log("historySave", history)
 }
-const historyUndo = (): void => {
-  // currentHistoryIndex = currentHistoryIndex - 1
-  historyApply(--currentHistoryIndex)
-  // historyApply(currentHistoryIndex)
-}
-const historyRedo = (): void => {
-  // currentHistoryIndex = currentHistoryIndex + 1
-  historyApply(++currentHistoryIndex)
-  // console.log('historyRedo', history.get(++currentHistoryIndex))
-  // historyApply(currentHistoryIndex)
+
+const historyUndo = (step = 1): void => {
+  const index = currentHistoryIndex - step
+  currentHistoryIndex = index < 0 ? 0 : index
+  historyApply(currentHistoryIndex - 1)
 }
 
-const historyApply = (index: number): void => {
-  // if (index < 0)
+const historyRedo = (step = 1): void => {
+  const index = currentHistoryIndex + step
+  currentHistoryIndex = index >= history.size ? history.size : index
+  historyApply(currentHistoryIndex - 1)
+}
 
+const historyApply = (index: number) => {
   const state = history.get(index)
-  console.log("historyApply", index, state)
 
   if (state) {
-    layer.children
-      .filter((i) => !i.getAttr("ignoreHistory"))
-      .forEach((node) => {
-        node.destroy()
-      })
-    state.forEach((i) => layer.add(Konva.Node.create(i)))
-    init()
+    hideArrowCircles()
+
+    if (tr.nodes().length) {
+      tr.nodes([])
+    }
+
+    getHistoryNodes().forEach((node) => {
+      node.destroy()
+    })
+    state.forEach((node) => {
+      const shape = Konva.Node.create(node) as Group | Shape<ShapeConfig>
+      layer.add(shape)
+    })
     layer.batchDraw()
-    // historyInit()
   }
 }
 
@@ -299,10 +320,21 @@ const init = () => {
   arrowCircleStart.on("dragmove", () => {
     moveArrow(arrowCircleStart)
   })
+  arrowCircleStart.on("dragend", () => {
+    historySave()
+  })
+
   arrowCircleEnd.on("dragmove", () => {
     moveArrow(arrowCircleEnd)
   })
+
+  arrowCircleEnd.on("dragend", () => {
+    historySave()
+  })
+
+  historyInit()
 }
+
 init()
 
 window.electronAPI?.ipcRenderer?.on(
@@ -314,7 +346,6 @@ window.electronAPI?.ipcRenderer?.on(
 
     layer.destroyChildren()
     init()
-    historyInit()
     lastData = data
 
     let imageWidth = Math.ceil(lastData.width / lastData.scale)
@@ -559,8 +590,6 @@ const createShape = (type: ShapeTypes) => {
 
   layer.batchDraw()
   isShapeCreated = true
-
-  historySave()
 }
 
 stage.on("mouseover", (event) => {
@@ -597,14 +626,32 @@ stage.on("mousedown", (event) => {
 
   // Add Transform Rectangle
   if (clickedShape instanceof Text || clickedShape instanceof CurvedLine) {
+    tr.off("dragend")
+    tr.off("transformend")
     tr.nodes([clickedShape])
     tr.setAttrs(trDefaultConfig)
     tr.moveToTop()
+    tr.on("dragend", () => {
+      historySave()
+    })
+    tr.on("transformend", () => {
+      console.log("transformend")
+      historySave()
+    })
     layer.batchDraw()
   } else if (clickedShape instanceof Ellipse || clickedShape instanceof Rect) {
+    tr.off("dragend")
+    tr.off("transformend")
     tr.nodes([clickedShape])
     tr.setAttrs({ resizeEnabled: true })
     tr.moveToTop()
+    tr.on("dragend", () => {
+      historySave()
+    })
+    tr.on("transformend", () => {
+      historySave()
+    })
+
     layer.batchDraw()
   } else {
     if (tr.nodes().length) {
@@ -634,6 +681,12 @@ stage.on("mousedown", (event) => {
         clickableArrow.on("dragmove", (event) => {
           moveArrowCircles(clickableArrow as Arrow)
         })
+
+        clickableArrow.off("dragend")
+
+        clickableArrow.on("dragend", (event) => {
+          historySave()
+        })
       }
     }
   } else {
@@ -657,7 +710,6 @@ stage.on("mousemove", (event) => {
       const pos = stage.getPointerPosition()!
       const newPoints = activeShape.points().concat([pos.x, pos.y])
       activeShape.points(newPoints)
-
       layer.batchDraw()
     }
 
@@ -716,6 +768,10 @@ stage.on("mousemove", (event) => {
 })
 
 stage.on("mouseup", () => {
+  if (isShapeCreated) {
+    historySave()
+  }
+
   activeShape = undefined
   isMouseDown = false
   isShapeCreated = false
@@ -774,6 +830,14 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
     )
   }
 
+  if (e.keyCode == 90 && (e.metaKey || e.ctrlKey)) {
+    if (e.shiftKey) {
+      historyRedo()
+    } else {
+      historyUndo()
+    }
+  }
+
   switch (e.keyCode) {
     case 84:
       clickOnShapeBtn("text")
@@ -801,6 +865,7 @@ textarea.addEventListener(
   () => {
     textarea.setAttribute("hidden", "")
     isTextareaFocused = false
+    historySave()
   },
   false
 )
@@ -816,6 +881,11 @@ textarea.addEventListener(
   },
   false
 )
+
+const inputWidthSliderDebounce = debounce(() => {
+  historySave()
+}, 200)
+
 activeWidthSlider.addEventListener(
   "input",
   (event) => {
@@ -835,6 +905,7 @@ activeWidthSlider.addEventListener(
         } else {
           ;(activeShape as Arrow).strokeWidth(activeShapeWidth)
         }
+        inputWidthSliderDebounce()
       }
     }
   },
@@ -956,19 +1027,11 @@ historyBtns.forEach((btn) => {
       if (actionName == "redo") {
         historyRedo()
       }
-      // setActiveColor(colorName!)
-      // colorPopover.toggleAttribute("hidden")
 
-      // if (clickedShapeId) {
-      //   const activeShape = stage.findOne(`#${clickedShapeId}`)
-      //   if (activeShape) {
-      //     if (activeShape instanceof Text) {
-      //       activeShape.fill(activeColor)
-      //     } else {
-      //       ;(activeShape as Arrow).stroke(activeColor)
-      //     }
-      //   }
-      // }
+      if (actionName == "clear") {
+        historyClearNodes()
+        historyInit()
+      }
     },
     false
   )
@@ -991,6 +1054,7 @@ activeColorBtns.forEach((btn) => {
           } else {
             ;(activeShape as Arrow).stroke(activeColor)
           }
+          historySave()
         }
       }
     },
