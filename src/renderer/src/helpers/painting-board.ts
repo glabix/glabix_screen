@@ -630,6 +630,13 @@ export class PaintingBoard extends EventTarget {
     let diffY = 0
     let scale = 1
 
+    const bg = this.stage.findOne(`#${this.bgId}`)
+
+    if (bg) {
+      bg.width(this.elems.pageContainer!.clientWidth)
+      bg.height(this.elems.pageContainer!.clientWidth)
+    }
+
     const image = this.stage.findOne(
       `#${this.screenshotImageId}`
     ) as Konva.Image

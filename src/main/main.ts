@@ -2041,6 +2041,7 @@ ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {
 
 ipcMain.on(PaintingBoardWindowEvents.OPEN, (event, data) => {
   createPaintingBoardWindow(activeDisplay)
+  screenshotWindowBounds = undefined
   ipcMain.emit(DrawEvents.DRAW_END)
 })
 
@@ -2283,12 +2284,12 @@ ipcMain.on("windows:close", (event, data) => {
 
 ipcMain.on("windows:maximize", (event, data) => {
   const win = BrowserWindow.fromWebContents(event.sender)
-  if (screenshotWindow) {
+  if (win) {
     if (!screenshotWindowBounds) {
-      screenshotWindowBounds = screenshotWindow.getBounds()
-      screenshotWindow.setBounds(activeDisplay.workArea)
+      screenshotWindowBounds = win.getBounds()
+      win.setBounds(activeDisplay.workArea)
     } else if (screenshotWindowBounds) {
-      screenshotWindow.setBounds(screenshotWindowBounds)
+      win.setBounds(screenshotWindowBounds)
       screenshotWindowBounds = undefined
     }
   }
