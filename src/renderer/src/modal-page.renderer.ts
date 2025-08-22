@@ -1050,7 +1050,7 @@ windowsCloseBtn.addEventListener(
   "click",
   () => {
     if (isWindows) {
-      window.electronAPI.ipcRenderer.send("windows:close", {})
+      window.electronAPI.ipcRenderer.send("windows:close", { isHide: true })
     }
   },
   false

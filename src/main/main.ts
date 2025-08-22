@@ -141,7 +141,7 @@ import { createPaintingBoardWindow } from "./browser-windows/painting-borard-win
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
 let dropdownWindow: BrowserWindow
-let screenshotWindow: BrowserWindow
+let screenshotWindow: BrowserWindow | undefined
 let screenshotWindowBounds: Rectangle | undefined = undefined
 let isScreenshotAllowed = false
 let isDialogWindowOpen = false
@@ -1391,6 +1391,7 @@ function createScreenshotWindow(dataURL: string) {
   if (screenshotWindow) {
     screenshotWindowBounds = undefined
     screenshotWindow.destroy()
+    screenshotWindow = undefined
   }
 
   const cursor = screen.getCursorScreenPoint()
@@ -1475,15 +1476,15 @@ function createScreenshotWindow(dataURL: string) {
   screenshotWindow = windowManager.create(WindowNames.SCREENSHOT, options)
 
   screenshotWindow.webContents.on("did-finish-load", () => {
-    screenshotWindow.webContents.setZoomFactor(1)
-    screenshotWindow.webContents.send(
+    screenshotWindow!.webContents.setZoomFactor(1)
+    screenshotWindow!.webContents.send(
       ScreenshotWindowEvents.RENDER_IMAGE,
       imageData
     )
     mainWindow?.webContents.send(ScreenshotWindowEvents.RENDER_IMAGE, imageData)
-    screenshotWindow.setBounds(bounds)
-    screenshotWindow.show()
-    screenshotWindow.moveTop()
+    screenshotWindow!.setBounds(bounds)
+    screenshotWindow!.show()
+    screenshotWindow!.moveTop()
   })
 }
 
@@ -2271,15 +2272,17 @@ ipcMain.on("windows:minimize", (event, data) => {
   }
 })
 ipcMain.on("windows:close", (event, data) => {
+  const isHide = data?.isHide
   const win = BrowserWindow.fromWebContents(event.sender)
-  if (win == screenshotWindow) {
-    screenshotWindow.hide()
-  } else {
+  if (isHide) {
     hideWindows()
+  } else {
+    win?.destroy()
   }
 })
 
 ipcMain.on("windows:maximize", (event, data) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
   if (screenshotWindow) {
     if (!screenshotWindowBounds) {
       screenshotWindowBounds = screenshotWindow.getBounds()
