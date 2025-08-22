@@ -25,7 +25,7 @@ export enum ModalWindowHeight {
   // MODAL_WIN = 535,
   // MODAL_MAC = 460,
   MODAL = 470,
-  SCREENSHOT_TAB = 345,
+  SCREENSHOT_TAB = 405,
   PROFILE = 500,
   SETTINGS = 500,
 }
@@ -164,6 +164,10 @@ export enum ModalWindowEvents {
   UPLOAD_PROGRESS_HIDE = "modal-window:upload_progress:hide",
 }
 
+export enum PaintingBoardWindowEvents {
+  OPEN = "open",
+}
+
 export enum CameraSettings {
   NO_CAMERA = "camera-settings:noCamera",
   FIRST_CAMERA = "camera-settings:firstCamera",
@@ -253,6 +257,9 @@ export enum HotkeysEvents {
   // Screenshots
   FULL_SCREENSHOT = "hotkeys:screenshot:full",
   CROP_SCREENSHOT = "hotkeys:screenshot:crop",
+
+  // Painting Board
+  OPEN_PAINTING_BOARD = "hotkeys:painting-board:open",
 
   // Pause/Resume hotkeys
   GLOBAL_PAUSE = "hotkeys:global:pause",

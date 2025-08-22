@@ -15,6 +15,7 @@ import {
   IDropdownPageSelectData,
   DropdownWindowEvents,
   CameraSettings,
+  PaintingBoardWindowEvents,
 } from "@shared/types/types"
 import {
   RecordSettingsEvents,
@@ -78,6 +79,8 @@ const changeCameraViewSizeBtn = document.querySelectorAll(
 const changeCameraOnlySizeBtn = document.querySelectorAll(
   ".js-camera-only-size"
 )!
+
+const openPaintingBoardBtn = document.querySelector(".js-open-painting-board")
 const controlPanel = document.querySelector(".panel-wrapper")!
 const draggableZone = document.querySelector(".draggable-zone") as HTMLElement
 const draggableZoneTarget = draggableZone.querySelector(
@@ -474,6 +477,13 @@ window.electronAPI.ipcRenderer.on(
   }
 )
 
+openPaintingBoardBtn?.addEventListener(
+  "click",
+  (event) => {
+    window.electronAPI.ipcRenderer.send(PaintingBoardWindowEvents.OPEN)
+  },
+  false
+)
 changeCameraViewSizeBtn.forEach((button) => {
   button.addEventListener(
     "click",

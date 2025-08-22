@@ -45,6 +45,12 @@ export const DEFAULT_SHORTCUTS: IUserSettingsShortcut[] = [
     disabled: false,
     actionState: "app:visible",
   },
+  {
+    name: HotkeysEvents.OPEN_PAINTING_BOARD,
+    keyCodes: os.platform() == "darwin" ? "Option+Shift+H" : "Alt+Shift+H",
+    disabled: false,
+    actionState: "app:run",
+  },
 ]
 
 export const getUserShortcutsSettings = (

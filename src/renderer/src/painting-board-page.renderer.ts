@@ -9,11 +9,27 @@ import {
 } from "@shared/types/types"
 import { PaintingBoard, PaintingBoardEvents } from "./helpers/painting-board"
 
-const paintingBoard = new PaintingBoard({})
+const activeBgBtn = document.querySelector(
+  ".js-toggle-bg"
+)! as HTMLButtonElement
+const activeBgBtns = document.querySelectorAll(
+  "[data-bg]"
+)! as NodeListOf<HTMLButtonElement>
+const bgPopover = document.querySelector(
+  ".js-active-bg-popover"
+)! as HTMLDivElement
+// activeColorBtn?: HTMLButtonElement
+const paintingBoard = new PaintingBoard({
+  activeBgBtn,
+  activeBgBtns,
+  bgPopover,
+})
 const LAST_COLOR = "LAST_COLOR"
 const LAST_SHAPE_WIDTH = "LAST_SHAPE_WIDTH"
+const LAST_PAINTING_BOARD_BG = "LAST_PAINTING_BOARD_BG"
 const lastColor = localStorage.getItem(LAST_COLOR)
 const lastWidth = Number(localStorage.getItem(LAST_SHAPE_WIDTH))
+const lastBoardBg = localStorage.getItem(LAST_PAINTING_BOARD_BG)
 
 if (lastColor) {
   paintingBoard.setActiveColor(lastColor)
@@ -23,13 +39,16 @@ if (lastWidth) {
   paintingBoard.setActiveShapeWidth(lastWidth)
 }
 
-// paintingBoard.on(PaintingBoardEvents.COPY_IMAGE, (event) => {
-//   const dataURL = event.detail
-//   window.electronAPI.ipcRenderer.send(
-//     ScreenshotWindowEvents.COPY_IMAGE,
-//     dataURL
-//   )
-// })
+if (lastBoardBg) {
+  paintingBoard.setBgColor(lastBoardBg)
+}
+
+paintingBoard.renderBackground(lastBoardBg || "")
+
+paintingBoard.on(PaintingBoardEvents.UPDATE_BOARD_BG, (event) => {
+  const bg = event.detail
+  localStorage.setItem(LAST_PAINTING_BOARD_BG, bg)
+})
 
 paintingBoard.on(PaintingBoardEvents.UPDATE_SHAPE_WIDTH, (event) => {
   const width = event.detail
@@ -41,28 +60,15 @@ paintingBoard.on(PaintingBoardEvents.UPDATE_SHAPE_COLOR, (event) => {
   localStorage.setItem(LAST_COLOR, colorName)
 })
 
-window.electronAPI?.ipcRenderer?.on(
-  ScreenshotWindowEvents.RENDER_IMAGE,
-  (event, data: IScreenshotImageData) => {
-    window.electronAPI?.ipcRenderer?.send(LoggerEvents.SEND_LOG, {
-      title: "screenshot.getImage",
-    })
-    paintingBoard.renderScreenshot(data)
-  }
-)
-
 const copyBtn = document.querySelector(".js-copy-image")! as HTMLButtonElement
 const saveBtn = document.querySelector(".js-save-image")! as HTMLButtonElement
-const uploadBtn = document.querySelector(
-  ".js-upload-image"
-)! as HTMLButtonElement
 
 copyBtn.addEventListener(
   "click",
   () => {
     window.electronAPI.ipcRenderer.send(
       ScreenshotWindowEvents.COPY_IMAGE,
-      paintingBoard.copyTrimStage()
+      paintingBoard.copyStage()
     )
   },
   false
@@ -71,7 +77,7 @@ copyBtn.addEventListener(
 saveBtn.addEventListener(
   "click",
   () => {
-    const dataURL = paintingBoard.copyTrimStage()
+    const dataURL = paintingBoard.copyStage()
     const a = document.createElement("a")
     a.style.display = "none"
     a.href = dataURL
@@ -80,23 +86,6 @@ saveBtn.addEventListener(
     a.click()
     window.URL.revokeObjectURL(dataURL)
     a.remove()
-  },
-  false
-)
-uploadBtn.addEventListener(
-  "click",
-  () => {
-    const dataURL = paintingBoard.copyTrimStage()
-    const fileSize = dataURLtoBlob(dataURL).size
-    const title = getTitle(Date.now(), true)
-    const fileName = `${title}.png`
-
-    window.electronAPI.ipcRenderer.send(APIEvents.UPLOAD_SCREENSHOT, {
-      fileSize,
-      dataURL,
-      title,
-      fileName,
-    })
   },
   false
 )
@@ -109,7 +98,7 @@ const maximizeBtns = document.querySelectorAll(
 )! as NodeListOf<HTMLDivElement>
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
-if (isWindows) {
+if (!isWindows) {
   windowsToolbar.removeAttribute("hidden")
 }
 
@@ -148,7 +137,7 @@ window.addEventListener(
     if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
       window.electronAPI.ipcRenderer.send(
         ScreenshotWindowEvents.COPY_IMAGE,
-        paintingBoard.copyTrimStage()
+        paintingBoard.copyStage()
       )
     }
   },

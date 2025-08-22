@@ -1,4 +1,4 @@
-import { WindowNames } from "@main/helpers/window-manager"
+import { WindowNames } from "@main/browser-windows/window-manager"
 import { BrowserWindow } from "electron"
 
 // export enum WindowNames {

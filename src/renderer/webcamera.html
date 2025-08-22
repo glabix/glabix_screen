@@ -195,8 +195,26 @@
       <div class="panel-settings-container">
         <div id="panel-draw" class="panel draw-settings">
           <div class="flex gap-1">
+            <button class="panel-btn p-0 clickable js-open-painting-board">
+              <span class="i i-palette i--lg pointer-events-none"></span>
+              <div
+                class="popover popover--dark popover--top popover--left pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap fw-500 text-xs">
+                    Окно для рисования
+                  </div>
+                  <div>
+                    <div
+                      class="tag fw-400 text-gray-400"
+                      data-text="hotkeys:painting-board:open"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </button>
             <input
-              class="panel-slider mr-2"
+              class="panel-slider ml-2 mr-2"
               type="range"
               min="1"
               max="25"

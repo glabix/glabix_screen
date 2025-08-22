@@ -56,6 +56,7 @@ import {
   ModalWindowEvents,
   ModalWindowHeight,
   ModalWindowWidth,
+  PaintingBoardWindowEvents,
   ScreenshotActionEvents,
   ScreenshotWindowEvents,
   SimpleStoreEvents,
@@ -123,7 +124,7 @@ import {
 } from "@main/v3/events/record-v3-types"
 import { RecorderSchedulerV3 } from "@main/v3/recorder-scheduler-v3"
 import { ChunkProcessor } from "@main/chunk-saver"
-import { WindowsHelper } from "@shared/helpers/windows.helper"
+import { WindowsHelper } from "@main/browser-windows/windows.helper"
 import {
   getLastWebcameraPosition,
   getWebCameraWindowPosition,
@@ -134,7 +135,8 @@ import {
   IWebCameraWindowSettings,
 } from "@shared/types/webcamera.types"
 import { getCorrectBounds, getCurrentDisplay } from "./helpers/display.helper"
-import { windowManager, WindowNames } from "./helpers/window-manager"
+import { windowManager, WindowNames } from "./browser-windows/window-manager"
+import { createPaintingBoardWindow } from "./browser-windows/painting-borard-window"
 
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
@@ -544,6 +546,19 @@ function registerUserShortCuts() {
 
   userShortcuts.forEach((us) => {
     if (!us.disabled) {
+      // Painting Board
+      if (us.name == HotkeysEvents.OPEN_PAINTING_BOARD) {
+        globalShortcut.register(us.keyCodes, () => {
+          if (isHotkeysLocked) {
+            return
+          }
+
+          if (isScreenshotAllowed) {
+            ipcMain.emit(PaintingBoardWindowEvents.OPEN)
+          }
+        })
+      }
+
       // Fullscreen Screenshot
       if (us.name == HotkeysEvents.FULL_SCREENSHOT) {
         globalShortcut.register(us.keyCodes, () => {
@@ -1644,9 +1659,9 @@ function logOut() {
   TokenStorage.reset()
   mainWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
   webCameraWindow.webContents.send(AppEvents.ON_BEFORE_HIDE)
-  mainWindow.hide()
-  modalWindow.hide()
-  webCameraWindow.hide()
+  const allWindows = windowManager.getAll()
+  allWindows.forEach((w) => w.hide())
+
   loginWindow.show()
 }
 
@@ -2021,6 +2036,11 @@ ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {
   webCameraWindow?.hide()
   mainWindow?.focus()
   mainWindow?.webContents.send(ScreenshotActionEvents.CROP, data)
+})
+
+ipcMain.on(PaintingBoardWindowEvents.OPEN, (event, data) => {
+  createPaintingBoardWindow(activeDisplay)
+  ipcMain.emit(DrawEvents.DRAW_END)
 })
 
 ipcMain.on(ScreenshotWindowEvents.COPY_IMAGE, (event, imgDataUrl: string) => {

@@ -1,0 +1,308 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title></title>
+  </head>
+
+  <body>
+    <div class="page-header" id="page_header">
+      <!-- <div class="maximize-dlbclick"></div> -->
+      <div class="windows-toolbar" hidden>
+        <button
+          type="button"
+          id="windows_maximize"
+          class="windows-toolbar-btn maximize"
+        >
+          <i class="i i-square"></i>
+        </button>
+        <button
+          type="button"
+          id="windows_close"
+          class="windows-toolbar-btn close"
+        >
+          <i class="i i-close"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-container" id="page_container"></div>
+
+    <div class="page-footer" id="page_footer">
+      <div class="maximize-dlbclick"></div>
+      <div class="flex relative z-100 justify-between">
+        <div class="flex items-center">
+          <button class="btn pl-0 pr-0 mr-3 btn--control btn--sm js-toggle-bg">
+            <span class="active-bg pointer-events-none"></span>
+          </button>
+          <button
+            class="btn pl-1 pr-0 mr-2 btn--control btn--sm js-toggle-color"
+          >
+            <span class="active-color pointer-events-none"></span>
+          </button>
+          <div class="pt-1 pr-2 mr-2">
+            <input
+              class="panel-slider js-slider-width"
+              type="range"
+              orient="vertical"
+              min="1"
+              max="10"
+            />
+          </div>
+          <button
+            class="btn btn--control btn--sm pl-2 pr-2 mr-1 hover"
+            data-shape-type="arrow"
+            data-tooltip="Стрелка"
+          >
+            <i class="i pointer-events-none i--lg i-arrow-right-top"></i>
+          </button>
+          <button
+            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            data-shape-type="text"
+            data-tooltip="Текст"
+          >
+            <i class="i pointer-events-none i--lg i-t"></i>
+          </button>
+          <button
+            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            data-shape-type="line"
+            data-tooltip="Линия"
+          >
+            <i class="i pointer-events-none i--lg i-slash-forward"></i>
+          </button>
+          <button
+            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            data-shape-type="ellipse"
+            data-tooltip="Овал"
+          >
+            <i class="i pointer-events-none i--lg i-ellipse"></i>
+          </button>
+          <button
+            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            data-shape-type="rect"
+            data-tooltip="Прямоугольник"
+          >
+            <i class="i pointer-events-none i--lg i-rectangle-wide"></i>
+          </button>
+          <button
+            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            data-shape-type="curved_line"
+            data-tooltip="Карандаш"
+          >
+            <i class="i pointer-events-none i--lg i-pencil-mechanical"></i>
+          </button>
+
+          <div
+            class="flex ml-2 pl-2 items-center"
+            style="border-left: solid 1px var(--gray-400)"
+          >
+            <button
+              class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+              data-history="clear"
+              data-tooltip="Стереть всё"
+            >
+              <i class="i pointer-events-none i--lg i-trash"></i>
+            </button>
+
+            <button
+              class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+              data-history="undo"
+              data-tooltip="Назад"
+            >
+              <i class="i pointer-events-none i--lg i-undo"></i>
+            </button>
+            <button
+              class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+              data-history="redo"
+              data-tooltip="Вперед"
+            >
+              <i class="i pointer-events-none i--lg i-redo"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex">
+          <div class="mr-2">
+            <button
+              class="btn btn--control btn--sm pl-2 pr-2 js-copy-image"
+              data-tooltip="Скопировать в буфер"
+            >
+              <i class="i pointer-events-none i--lg i-clone"></i>
+            </button>
+          </div>
+          <div class="mr-2">
+            <button
+              class="btn btn--control btn--sm pl-2 pr-2 js-save-image"
+              data-tooltip="Сохранить"
+            >
+              <i class="i pointer-events-none i--lg i-download"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="active-bg-popover js-active-bg-popover" hidden>
+        <div class="flex flex-wrap gap-1">
+          <button
+            class="transition-transform border-gray-300 bg-accent-0-light is-active"
+            data-bg="accent-0-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-1-light"
+            data-bg="accent-1-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-2-light"
+            data-bg="accent-2-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-3-light"
+            data-bg="accent-3-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-4-light"
+            data-bg="accent-4-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-5-light"
+            data-bg="accent-5-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-6-light"
+            data-bg="accent-6-light"
+          ></button>
+
+          <button
+            class="transition-transform border-gray-300 bg-accent-0-dark"
+            data-bg="accent-0-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-1-dark"
+            data-bg="accent-1-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-2-dark"
+            data-bg="accent-2-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-3-dark"
+            data-bg="accent-3-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-4-dark"
+            data-bg="accent-4-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-5-dark"
+            data-bg="accent-5-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-6-dark"
+            data-bg="accent-6-dark"
+          ></button>
+        </div>
+      </div>
+      <div class="active-color-popover js-active-color-popover" hidden>
+        <div class="flex flex-wrap gap-2">
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-0"
+            data-color="accent-0"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-1"
+            data-color="accent-1"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-2"
+            data-color="accent-2"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-3"
+            data-color="accent-3"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-4"
+            data-color="accent-4"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-5"
+            data-color="accent-5"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-6"
+            data-color="accent-6"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-7"
+            data-color="accent-7"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-8"
+            data-color="accent-8"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-9"
+            data-color="accent-9"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-10"
+            data-color="accent-10"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-11"
+            data-color="accent-11"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-12"
+            data-color="accent-12"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-13"
+            data-color="accent-13"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-14"
+            data-color="accent-14"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-15"
+            data-color="accent-15"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-16"
+            data-color="accent-16"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-17"
+            data-color="accent-17"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-18"
+            data-color="accent-18"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform border-gray-300 text-accent-19"
+            data-color="accent-19"
+          ></button>
+          <button
+            class="bullet-xl hover:scale-140 transition-transform text-light border border-gray-300"
+            data-color="light"
+          ></button>
+          <!-- <button
+            class="bullet-xl hover:scale-140 transition-transform text-dark"
+            data-color="dark"
+          ></button> -->
+        </div>
+      </div>
+    </div>
+    <textarea class="textarea-ghost" id="textarea_ghost" hidden></textarea>
+    <script type="module" src="./src/painting-board-page.renderer.ts"></script>
+  </body>
+</html>

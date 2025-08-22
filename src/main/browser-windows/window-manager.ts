@@ -9,6 +9,7 @@ export enum WindowNames {
   SCREENSHOT = "screenshot",
   LOGIN = "login",
   DROPDOWN = "dropdown",
+  PAINTING_BOARD = "painting_board",
 }
 
 const WindowRendererSources = {
@@ -35,6 +36,10 @@ const WindowRendererSources = {
   [WindowNames.SCREENSHOT]: {
     file: join(import.meta.dirname, "../renderer/screenshot.html"),
     url: `${process.env["ELECTRON_RENDERER_URL"]}/screenshot.html`,
+  },
+  [WindowNames.PAINTING_BOARD]: {
+    file: join(import.meta.dirname, "../renderer/painting-board.html"),
+    url: `${process.env["ELECTRON_RENDERER_URL"]}/painting-board.html`,
   },
 }
 
@@ -63,12 +68,15 @@ class WindowManager {
     }
 
     this.windows.set(name, win)
-
     return win
   }
 
   get(name: WindowNames): BrowserWindow | undefined {
     return this.windows.get(name)
+  }
+
+  getAll(): BrowserWindow[] {
+    return Array.from(this.windows.values()).filter((w) => !w.isDestroyed())
   }
 
   delete(name: WindowNames): void {
