@@ -17,6 +17,7 @@ body {
   padding: 40px 20px 20px;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  overflow: hidden;
 }
 
 .media-device-panel {
@@ -222,9 +223,16 @@ body {
   color: var(--gray-600);
 }
 
+.settings-content {
+  max-height: calc(100vh - 90px);
+}
+
 .settings-scrollbox {
-  max-height: calc(100% - 30px);
+  height: calc(100% - 32px);
   overflow-y: auto;
+  margin-right: -1.2rem;
+  padding-right: 1.2rem;
+  -webkit-app-region: no-drag;
 }
 
 .settings-shortcut-input-wrapper {

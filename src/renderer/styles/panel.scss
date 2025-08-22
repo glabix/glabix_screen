@@ -191,17 +191,19 @@ body.body--is-recording:not(.is-paused)
   position: absolute;
   left: 50%;
   translate: -50% 0;
-  top: 100%;
-  padding-top: 58px;
+  // top: 100%;
+  top: calc(100% + 58px);
+  // margin-top: 58px;
   width: 233px;
   // color: var(--gray-400);
   color: #cfd1d4;
+  z-index: 20;
 }
 
 .has-webcamera-only .panel-settings-container,
 .has-avatar .panel-settings-container {
-  // top: calc(100% + 46px);
-  padding-top: 46px;
+  top: calc(100% + 46px);
+  // margin-top: 46px;
   width: 256px;
   display: flex;
   justify-content: flex-end;

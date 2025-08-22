@@ -21,6 +21,7 @@ import {
   DropdownWindowEvents,
   CameraSettings,
   IDrawLaserDelaySettings,
+  PaintingBoardWindowEvents,
 } from "@shared/types/types"
 import { APIEvents } from "@shared/events/api.events"
 import { LoggerEvents } from "@shared/events/logger.events"
@@ -57,6 +58,7 @@ type PageViewType =
 const SETTINGS_SHORT_CUTS_LOCALES = {
   [HotkeysEvents.FULL_SCREENSHOT]: "Скриншот всего экрана",
   [HotkeysEvents.CROP_SCREENSHOT]: "Скриншот выбранной области",
+  [HotkeysEvents.OPEN_PAINTING_BOARD]: "Окно для рисоввания",
   [HotkeysEvents.STOP_RECORDING]: "Остановка видео",
   [HotkeysEvents.PAUSE_RECORDING]: "Пауза/отмена паузы видео",
   [HotkeysEvents.RESTART_RECORDING]: "Перезапуск записи",
@@ -271,6 +273,10 @@ screenshotButtons.forEach((btn) => {
 
       if (targetData == "crop") {
         window.electronAPI.ipcRenderer.send(ScreenshotActionEvents.CROP)
+      }
+
+      if (targetData == "paintingBoard") {
+        window.electronAPI.ipcRenderer.send(PaintingBoardWindowEvents.OPEN)
       }
     },
     false

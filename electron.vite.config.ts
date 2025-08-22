@@ -47,6 +47,10 @@ export default defineConfig({
             import.meta.dirname,
             "src/renderer/screenshot.html"
           ),
+          painting_board_window: resolve(
+            import.meta.dirname,
+            "src/renderer/painting-board.html"
+          ),
         },
       },
     },

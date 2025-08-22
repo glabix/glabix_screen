@@ -6,7 +6,8 @@
   "include": [
     "src/renderer/**/*.ts",
     "src/preload/*.d.ts",
-    "src/shared/**/*.ts"
+    "src/shared/**/*.ts",
+    "src/main/browser-windows/windows.helper.ts"
   ],
   "compilerOptions": {
     "composite": true

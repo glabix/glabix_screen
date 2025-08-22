@@ -41,8 +41,11 @@
       <div class="maximize-dlbclick"></div>
       <div class="flex relative z-100 justify-between">
         <div class="flex items-center">
+          <button class="btn pl-0 pr-0 mr-3 btn--control btn--sm js-toggle-bg">
+            <span class="active-bg pointer-events-none"></span>
+          </button>
           <button
-            class="btn pl-0 pr-0 mr-2 btn--control btn--sm js-toggle-color"
+            class="btn pl-1 pr-0 mr-2 btn--control btn--sm js-toggle-color"
           >
             <span class="active-color pointer-events-none"></span>
           </button>
@@ -143,16 +146,69 @@
               <i class="i pointer-events-none i--lg i-download"></i>
             </button>
           </div>
-          <div>
-            <button
-              class="btn btn--sm btn--rounded btn--primary js-upload-image"
-            >
-              Загрузить
-            </button>
-          </div>
         </div>
       </div>
+      <div class="active-bg-popover js-active-bg-popover" hidden>
+        <div class="flex flex-wrap gap-1">
+          <button
+            class="transition-transform border-gray-300 bg-accent-0-light is-active"
+            data-bg="accent-0-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-1-light"
+            data-bg="accent-1-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-2-light"
+            data-bg="accent-2-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-3-light"
+            data-bg="accent-3-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-4-light"
+            data-bg="accent-4-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-5-light"
+            data-bg="accent-5-light"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-6-light"
+            data-bg="accent-6-light"
+          ></button>
 
+          <button
+            class="transition-transform border-gray-300 bg-accent-0-dark"
+            data-bg="accent-0-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-1-dark"
+            data-bg="accent-1-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-2-dark"
+            data-bg="accent-2-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-3-dark"
+            data-bg="accent-3-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-4-dark"
+            data-bg="accent-4-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-5-dark"
+            data-bg="accent-5-dark"
+          ></button>
+          <button
+            class="transition-transform border-gray-300 bg-accent-6-dark"
+            data-bg="accent-6-dark"
+          ></button>
+        </div>
+      </div>
       <div class="active-color-popover js-active-color-popover" hidden>
         <div class="flex flex-wrap gap-2">
           <button
@@ -247,6 +303,6 @@
       </div>
     </div>
     <textarea class="textarea-ghost" id="textarea_ghost" hidden></textarea>
-    <script type="module" src="./src/screenshot-page.renderer.ts"></script>
+    <script type="module" src="./src/painting-board-page.renderer.ts"></script>
   </body>
 </html>

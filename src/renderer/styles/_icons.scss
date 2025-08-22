@@ -104,6 +104,12 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+.i-redo:before {
+  content: "\ea58";
+}
+.i-undo:before {
+  content: "\ea59";
+}
 .i-computer-speaker:before {
   content: "\ea57";
 }
