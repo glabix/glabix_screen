@@ -260,7 +260,6 @@ export class ServerUploadManager {
             recording.orgId,
             recording.serverUuid!,
             buffer,
-            chunk.index.toString(),
             config
           )
           if (Object.values(recording.chunks).find((c) => c.isLast)) {
