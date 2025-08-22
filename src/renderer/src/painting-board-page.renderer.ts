@@ -98,7 +98,7 @@ const maximizeBtns = document.querySelectorAll(
 )! as NodeListOf<HTMLDivElement>
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
-if (!isWindows) {
+if (isWindows) {
   windowsToolbar.removeAttribute("hidden")
 }
 
