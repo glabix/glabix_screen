@@ -469,11 +469,6 @@ window.electronAPI.ipcRenderer.on(
     if (lastStreamSettings && !skipAppShowEvent) {
       checkStream(lastStreamSettings)
     }
-
-    // setLastPanelSettings(
-    //   activeDisplay.bounds.width,
-    //   activeDisplay.bounds.height
-    // )
   }
 )
 

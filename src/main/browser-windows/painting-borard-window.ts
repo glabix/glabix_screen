@@ -13,15 +13,7 @@ let window: BrowserWindow | undefined = undefined
 export function createPaintingBoardWindow(display: Display) {
   window = windowManager.get(WindowNames.PAINTING_BOARD)
 
-  // if (window?.isDestroyed()) {
-  //   windowManager.delete(WindowNames.PAINTING_BOARD)
-  //   window = undefined
-  // }
-
   if (window) {
-    // window.show()
-    // window.moveTop()
-    // return
     windowManager.delete(WindowNames.PAINTING_BOARD)
     window = undefined
   }
