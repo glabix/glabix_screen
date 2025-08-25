@@ -84,10 +84,7 @@ export class ChunkProcessor extends EventEmitter {
         JSON.stringify(chunk)
       )
       clearTimeout(existing.timer)
-      this.logSender.sendLog(
-        "chunk_saver.received.start",
-        JSON.stringify(event)
-      )
+
       // сортируем по index
       const chunks = [existing.chunk, chunk].sort((a, b) => a.index - b.index)
 
