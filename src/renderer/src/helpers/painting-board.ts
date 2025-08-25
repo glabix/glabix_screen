@@ -3,7 +3,7 @@ import { IScreenshotImageData } from "@shared/types/types"
 import EventEmitter from "events"
 import Konva from "konva"
 import { Group } from "konva/lib/Group"
-import { KonvaEventObject } from "konva/lib/Node"
+import { KonvaEventObject, Node, NodeConfig } from "konva/lib/Node"
 import { Shape, ShapeConfig } from "konva/lib/Shape"
 import { Arrow } from "konva/lib/shapes/Arrow"
 import { Circle, CircleConfig } from "konva/lib/shapes/Circle"
@@ -114,6 +114,18 @@ export class PaintingBoard extends EventTarget {
   on(eventName: PaintingBoardEvents, callback: (event: CustomEvent) => void) {
     this.addEventListener(eventName, callback as EventListener)
   }
+
+  private isShape(
+    shape: Node<NodeConfig> | undefined,
+    type: ShapeTypes
+  ): boolean {
+    if (!shape) {
+      return false
+    }
+
+    return shape.attrs.name == type
+  }
+
   constructor(_elems: IPaintingBoardElements) {
     super()
 
@@ -154,6 +166,7 @@ export class PaintingBoard extends EventTarget {
   private fontSizeFactor = 6
 
   private isMouseDown = false
+  private isShiftPress = false
   private isShapeCreated = false
 
   private activeShapeType: ShapeTypes = "arrow"
@@ -484,7 +497,12 @@ export class PaintingBoard extends EventTarget {
     }
   }
 
+  private handleWindowKeyup(e: KeyboardEvent): void {
+    this.isShiftPress = false
+  }
   private handleWindowKeydown(e: KeyboardEvent): void {
+    this.isShiftPress = e.shiftKey
+
     if (e.key == "Delete" || e.key == "Backspace") {
       if (this.shapes.includes(this.clickedShapeId)) {
         const shape = this.stage.findOne(`#${this.clickedShapeId}`)
@@ -496,7 +514,7 @@ export class PaintingBoard extends EventTarget {
 
           if (
             shape instanceof Arrow ||
-            (shape instanceof Line && !(shape instanceof CurvedLine))
+            (shape instanceof Line && !this.isShape(shape, "curved_line"))
           ) {
             this.hideArrowCircles()
           }
@@ -588,6 +606,13 @@ export class PaintingBoard extends EventTarget {
     if (actionName == "clear") {
       this.historyClearNodes()
       this.historyInit()
+
+      this.hideArrowCircles()
+      if (this.tr.nodes().length) {
+        this.tr.nodes([])
+        this.tr.setAttrs(this.trDefaultConfig)
+        this.layer.batchDraw()
+      }
     }
   }
 
@@ -610,6 +635,7 @@ export class PaintingBoard extends EventTarget {
         if (activeShape instanceof Text) {
           activeShape.fill(this.activeColor)
         } else {
+          ;(activeShape as Arrow)?.fill(this.activeColor)
           ;(activeShape as Arrow).stroke(this.activeColor)
         }
         this.historySave()
@@ -739,10 +765,13 @@ export class PaintingBoard extends EventTarget {
     }
 
     // Add Transform Rectangle
-    if (clickedShape instanceof Text || clickedShape instanceof CurvedLine) {
+    if (
+      clickedShape instanceof Text ||
+      this.isShape(clickedShape, "curved_line")
+    ) {
       this.tr.off("dragend")
       this.tr.off("transformend")
-      this.tr.nodes([clickedShape])
+      this.tr.nodes([clickedShape!])
       this.tr.setAttrs(this.trDefaultConfig)
       this.tr.moveToTop()
       this.tr.on("dragend", () => {
@@ -790,7 +819,8 @@ export class PaintingBoard extends EventTarget {
     if (this.shapes.includes(this.clickedShapeId)) {
       if (
         clickedShape instanceof Arrow ||
-        (clickedShape instanceof Line && !(clickedShape instanceof CurvedLine))
+        (clickedShape instanceof Line &&
+          !this.isShape(clickedShape, "curved_line"))
       ) {
         const clickableArrow = this.stage.findOne(`#${this.clickedShapeId}`)
 
@@ -825,17 +855,19 @@ export class PaintingBoard extends EventTarget {
         this.createShape(this.activeShapeType)
       }
 
-      if (this.activeShape instanceof CurvedLine) {
+      if (this.isShape(this.activeShape, "curved_line")) {
         const pos = this.stage.getPointerPosition()!
-        const newPoints = this.activeShape.points().concat([pos.x, pos.y])
-        this.activeShape.points(newPoints)
+        const newPoints = (this.activeShape as CurvedLine)
+          .points()
+          .concat([pos.x, pos.y])
+        ;(this.activeShape as CurvedLine).points(newPoints)
         this.layer.batchDraw()
       }
 
       if (
         this.activeShape instanceof Arrow ||
         (this.activeShape instanceof Line &&
-          !(this.activeShape instanceof CurvedLine))
+          !this.isShape(this.activeShape, "curved_line"))
       ) {
         const pos = this.stage.getPointerPosition()!
 
@@ -843,12 +875,17 @@ export class PaintingBoard extends EventTarget {
           return
         }
 
-        const points = [
-          this.activeShape.points()[0],
-          this.activeShape.points()[1],
-          pos.x,
-          pos.y,
-        ] as number[]
+        const startX = this.activeShape.points()[0]!
+        const startY = this.activeShape.points()[1]!
+        const endX = pos.x
+        const endY = pos.y
+        const isHorizontal = Math.abs(startX - endX) > Math.abs(startY - endY)
+
+        const points = !this.isShiftPress
+          ? [startX, startY, endX, endY]
+          : isHorizontal
+            ? [startX, startY, endX, startY]
+            : [startX, startY, startX, endY]
         this.activeShape.points(points)
         this.layer.batchDraw()
       }
@@ -861,11 +898,16 @@ export class PaintingBoard extends EventTarget {
         }
 
         const posRect = this.flipRectCoordinates(this.startPos, pos)
+        const rX = posRect.endX - posRect.startX
+        const rY = posRect.endY - posRect.startY
+        const fixedRadius = Math.max(rX, rY)
 
-        this.activeShape.x(posRect.startX)
-        this.activeShape.y(posRect.startY)
-        this.activeShape.radiusX(posRect.endX - posRect.startX)
-        this.activeShape.radiusY(posRect.endY - posRect.startY)
+        const radiusX = this.isShiftPress ? fixedRadius : rX
+        const radiusY = this.isShiftPress ? fixedRadius : rY
+        this.activeShape.x(posRect.startX + radiusX / 3.14)
+        this.activeShape.y(posRect.startY + radiusY / 3.14)
+        this.activeShape.radiusX(radiusX)
+        this.activeShape.radiusY(radiusY)
         this.layer.batchDraw()
       }
 
@@ -877,11 +919,16 @@ export class PaintingBoard extends EventTarget {
         }
 
         const posRect = this.flipRectCoordinates(this.startPos, pos)
+        const w = posRect.endX - posRect.startX
+        const h = posRect.endY - posRect.startY
+        const fixedSize = Math.max(w, h)
 
+        const width = this.isShiftPress ? fixedSize : w
+        const height = this.isShiftPress ? fixedSize : h
         this.activeShape.x(posRect.startX)
         this.activeShape.y(posRect.startY)
-        this.activeShape.width(posRect.endX - posRect.startX)
-        this.activeShape.height(posRect.endY - posRect.startY)
+        this.activeShape.width(width)
+        this.activeShape.height(height)
         this.layer.batchDraw()
       }
     }
@@ -920,6 +967,7 @@ export class PaintingBoard extends EventTarget {
       this.handleWindowKeydown.bind(this),
       false
     )
+    window.addEventListener("keyup", this.handleWindowKeyup.bind(this), false)
     this.elems.textarea!.addEventListener(
       "blur",
       this.handleTextareaBlur.bind(this),
@@ -1044,15 +1092,32 @@ export class PaintingBoard extends EventTarget {
     const arrowId = circle.id().split(this.arrowIdSeparator)[1]
     const arrow = this.stage.findOne(`#${arrowId}`) as Arrow
 
-    if (arrow) {
-      const p = [
-        this.arrowCircleStart.x() - arrow.x(),
-        this.arrowCircleStart.y() - arrow.y(),
-        this.arrowCircleEnd.x() - arrow.x(),
-        this.arrowCircleEnd.y() - arrow.y(),
-      ]
-      arrow.points(p)
+    if (!arrow) {
+      return
     }
+
+    const startX = this.arrowCircleStart.x() - arrow.x()
+    const startY = this.arrowCircleStart.y() - arrow.y()
+    const endX = this.arrowCircleEnd.x() - arrow.x()
+    const endY = this.arrowCircleEnd.y() - arrow.y()
+
+    const isHorizontal = Math.abs(startX - endX) > Math.abs(startY - endY)
+    const p = !this.isShiftPress
+      ? [startX, startY, endX, endY]
+      : isHorizontal
+        ? [startX, startY, endX, startY]
+        : [startX, startY, startX, endY]
+
+    arrow.points(p)
+
+    this.moveArrowCircles(arrow)
+    // this.arrowCircleEnd.position({x: p[2]!, y: p[3]!})
+    // this.arrowCircleStart.position({x: p[0]!, y: p[1]!})
+    // if (circle.attrs.id.includes(this.arrowCircleEndId)) {
+    // } else {
+    //   // const p = [startX, startY, endX, endY]
+    //   // arrow.points(p)
+    // }
   }
 
   private focusTextarea(textShape: Text): void {
