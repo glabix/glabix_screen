@@ -242,6 +242,9 @@ export class ServerUploadManager {
               orgId: recording.orgId,
               serverUuid: recording.serverUuid,
               size: buffer.length,
+              number: chunk.index,
+              isLast: chunk.isLast,
+              chunkUuid: chunk.uuid,
             })
           )
           const config: AxiosRequestConfig = {

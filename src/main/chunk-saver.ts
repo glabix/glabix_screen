@@ -34,11 +34,76 @@ export class ChunkProcessor extends EventEmitter {
 
   private queues: Map<string, IQueue> = new Map()
 
-  private readonly MAX_FILE_SIZE = 5 * 1024 * 1024 // 100MB
+  private readonly MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
   private readonly baseDir = path.join(app.getPath("userData"), "recordsV3")
+
+  // 👇 буфер для временного хранения последнего чанка
+  private lastChunkBuffer: Map<
+    string,
+    {
+      timer: NodeJS.Timeout
+      chunk: IHandleChunkDataEvent
+    }
+  > = new Map()
 
   constructor() {
     super()
+  }
+
+  async accumulate(chunk: IHandleChunkDataEvent) {
+    const { recordUuid, isLast } = chunk
+
+    // если чанк не последний → сразу отправляем в очередь
+    if (!isLast) {
+      return this.addChunk(chunk)
+    }
+
+    // если чанк последний → проверяем, есть ли уже ожидающий
+    const existing = this.lastChunkBuffer.get(recordUuid)
+    if (!existing) {
+      // сохраняем и ждём 1 секунду
+      this.logSender.sendLog(
+        "chunk_saver.accumulate.start_await_another_last",
+        JSON.stringify(chunk)
+      )
+      const timer = setTimeout(async () => {
+        // времени вышло → отправляем чанк как есть
+        this.logSender.sendLog(
+          "chunk_saver.accumulate.end_await_another_last",
+          JSON.stringify(chunk)
+        )
+        this.lastChunkBuffer.delete(recordUuid)
+        await this.addChunk(chunk)
+      }, 1000)
+
+      this.lastChunkBuffer.set(recordUuid, { timer, chunk })
+    } else {
+      // если уже есть "ждущий" последний чанк → объединяем
+      this.logSender.sendLog(
+        "chunk_saver.accumulate.another_last_is_exist",
+        JSON.stringify(chunk)
+      )
+      clearTimeout(existing.timer)
+
+      // сортируем по index
+      const chunks = [existing.chunk, chunk].sort((a, b) => a.index - b.index)
+
+      const buffers = chunks.map((c) => Buffer.from(c.data))
+      const merged = Buffer.concat(buffers)
+
+      const mergedChunk: IHandleChunkDataEvent = {
+        ...chunks[chunks.length - 1]!, // берём метаданные от "самого последнего"
+        data: merged.buffer, // ArrayBuffer
+        size: merged.length,
+        index: chunks[0]!.index, // минимальный индекс
+      }
+      this.logSender.sendLog(
+        "chunk_saver.accumulate.another_last_is_exist.created",
+        JSON.stringify(mergedChunk)
+      )
+      this.lastChunkBuffer.delete(recordUuid)
+      await this.addChunk(mergedChunk)
+    }
   }
 
   async addChunk(event: IHandleChunkDataEvent): Promise<void> {
