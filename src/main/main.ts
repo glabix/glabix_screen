@@ -391,12 +391,12 @@ if (!gotTheLock) {
             const hasCameraId =
               lastStreamSettings.cameraDeviceId &&
               lastStreamSettings.cameraDeviceId != "no-camera"
+
             const s = {
               ..._settings,
-              avatarType:
-                !_settings.avatarType && hasCameraId
-                  ? "circle-sm"
-                  : _settings.avatarType,
+              avatarType: hasCameraId
+                ? _settings.avatarType || "circle-sm"
+                : null,
             }
 
             const size = getWebCameraWindowSize(activeDisplay, s)
@@ -838,6 +838,8 @@ function createWindow() {
     app.quit()
   })
 
+  mainWindow.setResizable(false)
+
   mainWindow.on("show", () => {
     mainWindow.webContents.send(AppEvents.ON_SHOW)
     modalWindow?.webContents.send(AppEvents.ON_SHOW)
@@ -1264,8 +1266,18 @@ function adjustWindowPosition(name: WindowNames) {
       const currentSettings = eStore.get(
         UserSettingsKeys.WEB_CAMERA_SIZE
       ) as ILastWebCameraSize
+      const hasCameraId =
+        lastStreamSettings?.cameraDeviceId &&
+        lastStreamSettings?.cameraDeviceId != "no-camera"
       const settings: ILastWebCameraSize = currentSettings
-        ? { ...currentSettings, left: posX, top: posY }
+        ? {
+            ...currentSettings,
+            left: posX,
+            top: posY,
+            avatarType: hasCameraId
+              ? currentSettings.avatarType || "circle-sm"
+              : currentSettings.avatarType,
+          }
         : { left: posX, top: posY, avatarType: "circle-sm" }
       eStore.set(UserSettingsKeys.WEB_CAMERA_SIZE, settings)
       logSender.sendLog(
@@ -2141,7 +2153,7 @@ ipcMain.on(VideoRecorderEvents.RESUME, async (event, data) => {
 })
 
 // V3 Record Start
-ipcMain.on(RecordEvents.START, async (event, data) => {
+ipcMain.on(RecordEvents.START, async (event, data: IStreamSettings) => {
   if (mainWindow) {
     try {
       const startEventV3: RecordStartEventV3 = {
@@ -2298,19 +2310,38 @@ ipcMain.on("windows:maximize", (event, data) => {
 ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const { key, value } = data
   store.set(key, value)
-
   mainWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
   modalWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
   webCameraWindow?.webContents.send(SimpleStoreEvents.CHANGED, store.get())
 
-  const isRecording = ["recording", "paused"].includes(
-    store.get()["recordingState"]
+  const state = store.get()["recordingState"]
+  const isRecording = ["recording"].includes(state)
+  const isPaused = ["paused"].includes(state)
+
+  const isPanelHidden = eStore.get(UserSettingsKeys.PANEL_HIDDEN)
+  const hasCameraId =
+    lastStreamSettings?.cameraDeviceId &&
+    lastStreamSettings?.cameraDeviceId != "no-camera"
+  console.log(
+    `
+    lastStreamSettings`,
+    lastStreamSettings,
+    `
+    isPanelHidden
+    `,
+    isPanelHidden
   )
 
-  if (isRecording) {
+  if (isRecording || isPaused) {
     PowerSaveBlocker.start()
   } else {
     PowerSaveBlocker.stop()
+  }
+
+  if (isRecording && isPanelHidden && !hasCameraId) {
+    webCameraWindow?.setIgnoreMouseEvents(true, { forward: true })
+  } else {
+    webCameraWindow?.setIgnoreMouseEvents(false)
   }
 })
 
@@ -2372,12 +2403,10 @@ ipcMain.on(LoginEvents.LOGIN_SUCCESS, (event) => {
         const hasCameraId =
           lastStreamSettings.cameraDeviceId &&
           lastStreamSettings.cameraDeviceId != "no-camera"
+
         const s = {
           ..._settings,
-          avatarType:
-            !_settings.avatarType && hasCameraId
-              ? "circle-sm"
-              : _settings.avatarType,
+          avatarType: hasCameraId ? _settings.avatarType || "circle-sm" : null,
         }
 
         const size = getWebCameraWindowSize(activeDisplay, s)
