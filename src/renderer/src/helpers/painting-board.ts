@@ -508,6 +508,8 @@ export class PaintingBoard extends EventTarget {
         const shape = this.stage.findOne(`#${this.clickedShapeId}`)
 
         if (shape && !this.isTextareaFocused) {
+          this.historySave()
+
           shape.destroy()
           this.shapes = this.shapes.filter((s) => s != this.clickedShapeId)
           this.stage.container().style.cursor = "default"
