@@ -315,7 +315,7 @@ window.electronAPI.ipcRenderer.on(
       const savedType =
         !data.cameraDeviceId || data.cameraDeviceId == "no-camera"
           ? null
-          : savedCameraWindowType
+          : savedCameraWindowType || "circle-sm"
 
       if (savedType) {
         videoContainer.classList.add(savedType)
@@ -344,6 +344,13 @@ window.electronAPI.ipcRenderer.on(
   (event, settings: IStreamSettings) => {
     lastStreamSettings = settings
 
+    webCameraWindowSettings = {
+      ...webCameraWindowSettings,
+      avatarType: lastStreamSettings?.cameraDeviceId
+        ? webCameraWindowSettings.avatarType
+        : null,
+    }
+
     if (isAppShown && !currentStream) {
       startStream(lastStreamSettings.cameraDeviceId)
     }
@@ -358,11 +365,6 @@ window.electronAPI.ipcRenderer.on(
     }
   }
 )
-
-window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
-  isRecording = state["recordingState"] == "recording"
-  isCountdown = state["recordingState"] == "countdown"
-})
 
 window.electronAPI.ipcRenderer.on(AppEvents.ON_BEFORE_HIDE, () => {
   if (isRecording || isCountdown) {
@@ -504,6 +506,14 @@ function renderWebcameraView(target: HTMLElement) {
   if (target.dataset.type == "null") {
     closeWebcameraSize()
     window.electronAPI.ipcRenderer.send(CameraSettings.NO_CAMERA)
+    webCameraWindowSettings = {
+      ...webCameraWindowSettings,
+      isDropdownOpen: false,
+    }
+    window.electronAPI.ipcRenderer.send(
+      WebCameraWindowEvents.RESIZE,
+      webCameraWindowSettings
+    )
     return
   }
 
@@ -522,6 +532,7 @@ function renderWebcameraView(target: HTMLElement) {
 
   webCameraWindowSettings = {
     ...webCameraWindowSettings,
+    isDropdownOpen: true,
     skipPosition: false,
     avatarType: type,
   }
@@ -632,6 +643,7 @@ restartBtn.addEventListener("click", () => {
 })
 
 window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
+  isRecording = state["recordingState"] == "recording"
   isCountdown = state["recordingState"] == "countdown"
 
   if (state["recordingState"] == null) {
@@ -663,6 +675,7 @@ window.electronAPI.ipcRenderer.on(SimpleStoreEvents.CHANGED, (event, state) => {
     document.body.classList.add("is-paused")
     resumeBtn.removeAttribute("hidden")
     pauseBtn.setAttribute("hidden", "")
+    timer.pause()
   } else {
     document.body.classList.remove("is-paused")
     resumeBtn.setAttribute("hidden", "")
@@ -682,7 +695,10 @@ window.electronAPI.ipcRenderer.on(DrawEvents.DRAW_START, (event, data) => {
 })
 
 function setupAvatarSettings(settings: ILastWebCameraSize) {
-  const type = settings.avatarType || "circle-sm"
+  const hasCameraId =
+    lastStreamSettings?.cameraDeviceId &&
+    lastStreamSettings?.cameraDeviceId != "no-camera"
+  const type = hasCameraId ? settings.avatarType || "circle-sm" : null
 
   AVATAR_TYPES.forEach((t) => {
     if (t) {

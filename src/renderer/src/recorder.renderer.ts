@@ -218,8 +218,8 @@ const mergeAudioStreams = (
   voiceStream: MediaStream
 ): MediaStreamTrack[] => {
   audioContext = new AudioContext()
-  const hasSystemAudio = Boolean(desktopStream.getAudioTracks().length)
-  const hasMicrophone = Boolean(voiceStream.getAudioTracks().length)
+  const hasSystemAudio = Boolean(desktopStream?.getAudioTracks().length)
+  const hasMicrophone = Boolean(voiceStream?.getAudioTracks().length)
   const desktopSource: MediaStreamAudioSourceNode | null = hasSystemAudio
     ? audioContext.createMediaStreamSource(desktopStream)
     : null
@@ -946,10 +946,12 @@ window.electronAPI.ipcRenderer.on(
       if (isRecordRestart || isRecordCanceled) {
         stopRecording()
         if (isRecordRestart) {
-          window.electronAPI.ipcRenderer.send(
-            RecordEvents.START,
-            lastStreamSettings
-          )
+          setTimeout(() => {
+            window.electronAPI.ipcRenderer.send(
+              RecordEvents.START,
+              lastStreamSettings
+            )
+          }, 100)
         }
       }
     }
