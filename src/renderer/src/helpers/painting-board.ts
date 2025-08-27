@@ -216,7 +216,7 @@ export class PaintingBoard extends EventTarget {
     shadowOffset: { x: 0, y: 3 },
     shadowOpacity: 0.6,
     draggable: true,
-    hitStrokeWidth: 10,
+    hitStrokeWidth: 20,
     visible: false,
     ignoreHistory: true,
   }
@@ -1081,6 +1081,7 @@ export class PaintingBoard extends EventTarget {
       startX = endX
       endX = startX + diff
     }
+
     if (startY > endY) {
       diff = Math.abs(startY - endY)
       startY = endY
@@ -1113,13 +1114,6 @@ export class PaintingBoard extends EventTarget {
     arrow.points(p)
 
     this.moveArrowCircles(arrow)
-    // this.arrowCircleEnd.position({x: p[2]!, y: p[3]!})
-    // this.arrowCircleStart.position({x: p[0]!, y: p[1]!})
-    // if (circle.attrs.id.includes(this.arrowCircleEndId)) {
-    // } else {
-    //   // const p = [startX, startY, endX, endY]
-    //   // arrow.points(p)
-    // }
   }
 
   private focusTextarea(textShape: Text): void {
@@ -1174,7 +1168,7 @@ export class PaintingBoard extends EventTarget {
         stroke: this.activeColor,
         strokeWidth: this.activeShapeWidth,
         draggable: true,
-        hitStrokeWidth: 20,
+        hitStrokeWidth: 50,
       }) as CurvedLine
 
       this.layer.add(this.activeShape)
