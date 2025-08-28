@@ -2225,7 +2225,7 @@ ipcMain.on(RecordEvents.SEND_DATA, (event, res) => {
     size: data.byteLength,
     index: index - 1,
   }
-  chunkProcessor.addChunk(handleChunkDataEvent)
+  chunkProcessor.accumulate(handleChunkDataEvent)
 })
 
 chunkProcessor.on(
