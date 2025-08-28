@@ -151,6 +151,12 @@ export class PaintingBoard extends EventTarget {
 
   private shapes: any[] = []
   private clickedShapeId = ""
+  private copiedShape:
+    | Group
+    | Shape<ShapeConfig>
+    | Node<NodeConfig>
+    | undefined = undefined
+  private selectedShapes: (Group | Shape<ShapeConfig> | Node<NodeConfig>)[] = []
   private activeShape:
     | Arrow
     | Text
@@ -312,6 +318,7 @@ export class PaintingBoard extends EventTarget {
       this.hideArrowCircles()
 
       if (this.tr.nodes().length) {
+        this.selectedShapes.length = 0
         this.tr.nodes([])
       }
 
@@ -504,35 +511,78 @@ export class PaintingBoard extends EventTarget {
     this.isShiftPress = e.shiftKey
 
     if (e.key == "Delete" || e.key == "Backspace") {
-      if (this.shapes.includes(this.clickedShapeId)) {
-        const shape = this.stage.findOne(`#${this.clickedShapeId}`)
+      if (this.selectedShapes.length && !this.isTextareaFocused) {
+        this.historySave()
 
-        if (shape && !this.isTextareaFocused) {
-          this.historySave()
+        this.selectedShapes.forEach((node) => {
+          node.destroy()
+          this.shapes = this.shapes.filter((s) => s != node.attrs.id)
 
-          shape.destroy()
-          this.shapes = this.shapes.filter((s) => s != this.clickedShapeId)
-          this.stage.container().style.cursor = "default"
-
-          if (
-            shape instanceof Arrow ||
-            (shape instanceof Line && !this.isShape(shape, "curved_line"))
-          ) {
+          if (["line", "arrow"].includes(node.attrs.name)) {
             this.hideArrowCircles()
           }
+        })
 
-          if (this.tr.nodes().length) {
-            this.tr.nodes([])
-          }
-        }
+        this.stage.container().style.cursor = "default"
+        this.tr.nodes([])
+        this.selectedShapes.length = 0
       }
+
+      // if (this.shapes.includes(this.clickedShapeId)) {
+      //   const shape = this.stage.findOne(`#${this.clickedShapeId}`)
+
+      //   if (shape && !this.isTextareaFocused) {
+      //     this.historySave()
+
+      //     shape.destroy()
+      //     this.shapes = this.shapes.filter((s) => s != this.clickedShapeId)
+      //     this.stage.container().style.cursor = "default"
+
+      //     if (
+      //       shape instanceof Arrow ||
+      //       (shape instanceof Line && !this.isShape(shape, "curved_line"))
+      //     ) {
+      //       this.hideArrowCircles()
+      //     }
+
+      //     if (this.tr.nodes().length) {
+      //       this.tr.nodes([])
+      //     }
+      //   }
+      // }
     }
 
+    // 90 - z
     if (e.keyCode == 90 && (e.metaKey || e.ctrlKey)) {
       if (e.shiftKey) {
         this.historyRedo()
       } else {
         this.historyUndo()
+      }
+    }
+
+    // 67 - C
+    if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
+      if (this.clickedShapeId) {
+        const shape = this.stage.findOne(`#${this.clickedShapeId}`)
+        if (shape) {
+          this.copiedShape = shape.clone() as Shape
+        }
+      }
+    }
+    // 86 - V
+    if (e.keyCode == 86 && (e.metaKey || e.ctrlKey)) {
+      if (this.copiedShape) {
+        this.copiedShape.x(this.copiedShape.x() + 10)
+        this.copiedShape.y(this.copiedShape.y() + 10)
+        this.copiedShape.id(this.copiedShape.id() + "_copy")
+        this.layer.add(this.copiedShape as Shape)
+        this.layer.batchDraw()
+
+        this.historySave()
+
+        this.copiedShape = this.copiedShape.clone()
+        // this.copiedShape = un
       }
     }
 
@@ -611,6 +661,7 @@ export class PaintingBoard extends EventTarget {
 
       this.hideArrowCircles()
       if (this.tr.nodes().length) {
+        this.selectedShapes.length = 0
         this.tr.nodes([])
         this.tr.setAttrs(this.trDefaultConfig)
         this.layer.batchDraw()
@@ -743,6 +794,13 @@ export class PaintingBoard extends EventTarget {
     this.clickedShapeId = [this.screenshotImageId].includes(id) ? undefined : id
     const clickedShape = this.stage.findOne(`#${this.clickedShapeId}`)
 
+    this.selectedShapes = this.tr.nodes()
+    const selecredIds = this.selectedShapes.map((n) => n.attrs.id)
+
+    if (selecredIds.includes(this.clickedShapeId)) {
+      return
+    }
+
     if (e.target.attrs.name?.indexOf("_anchor") >= 0) {
       return
     }
@@ -771,9 +829,12 @@ export class PaintingBoard extends EventTarget {
       clickedShape instanceof Text ||
       this.isShape(clickedShape, "curved_line")
     ) {
+      this.selectedShapes = this.isShiftPress
+        ? [...this.selectedShapes, clickedShape!]
+        : [clickedShape!]
       this.tr.off("dragend")
       this.tr.off("transformend")
-      this.tr.nodes([clickedShape!])
+      this.tr.nodes(this.selectedShapes)
       this.tr.setAttrs(this.trDefaultConfig)
       this.tr.moveToTop()
       this.tr.on("dragend", () => {
@@ -787,9 +848,12 @@ export class PaintingBoard extends EventTarget {
       clickedShape instanceof Ellipse ||
       clickedShape instanceof Rect
     ) {
+      this.selectedShapes = this.isShiftPress
+        ? [...this.selectedShapes, clickedShape!]
+        : [clickedShape!]
       this.tr.off("dragend")
       this.tr.off("transformend")
-      this.tr.nodes([clickedShape])
+      this.tr.nodes(this.selectedShapes)
       this.tr.setAttrs({ resizeEnabled: true })
       this.tr.moveToTop()
       this.tr.on("dragend", () => {
@@ -800,8 +864,42 @@ export class PaintingBoard extends EventTarget {
       })
 
       this.layer.batchDraw()
+    } else if (
+      clickedShape instanceof Arrow ||
+      (clickedShape instanceof Line &&
+        !this.isShape(clickedShape, "curved_line"))
+    ) {
+      // const clickableArrow = this.stage.findOne(`#${this.clickedShapeId}`)
+
+      if (!this.isShiftPress) {
+        this.selectedShapes = [clickedShape]
+        this.moveArrowCircles(clickedShape as Arrow)
+        this.showArrowCircles(clickedShape.attrs.id)
+
+        clickedShape.off("dragmove")
+        clickedShape.on("dragmove", (event) => {
+          this.moveArrowCircles(clickedShape as Arrow)
+        })
+
+        clickedShape.off("dragend")
+        clickedShape.on("dragend", (event) => {
+          this.historySave()
+        })
+        this.tr.nodes(this.selectedShapes)
+        this.tr.setAttrs(this.trDefaultConfig)
+        this.tr.moveToTop()
+      } else {
+        this.hideArrowCircles()
+        this.selectedShapes = [...this.selectedShapes, clickedShape]
+        this.tr.nodes(this.selectedShapes)
+        this.tr.setAttrs(this.trDefaultConfig)
+        this.tr.moveToTop()
+      }
+      this.layer.batchDraw()
     } else {
       if (this.tr.nodes().length) {
+        this.hideArrowCircles()
+        this.selectedShapes.length = 0
         this.tr.nodes([])
         this.tr.setAttrs(this.trDefaultConfig)
         this.layer.batchDraw()
@@ -815,7 +913,6 @@ export class PaintingBoard extends EventTarget {
     ) {
       return
     } else {
-      this.hideArrowCircles()
     }
 
     if (this.shapes.includes(this.clickedShapeId)) {
@@ -824,21 +921,6 @@ export class PaintingBoard extends EventTarget {
         (clickedShape instanceof Line &&
           !this.isShape(clickedShape, "curved_line"))
       ) {
-        const clickableArrow = this.stage.findOne(`#${this.clickedShapeId}`)
-
-        if (clickableArrow) {
-          this.moveArrowCircles(clickableArrow as Arrow)
-          this.showArrowCircles(this.clickedShapeId)
-
-          clickableArrow.on("dragmove", (event) => {
-            this.moveArrowCircles(clickableArrow as Arrow)
-          })
-
-          clickableArrow.off("dragend")
-          clickableArrow.on("dragend", (event) => {
-            this.historySave()
-          })
-        }
       }
     } else {
       this.startPos = this.stage.getPointerPosition()!
@@ -1092,7 +1174,8 @@ export class PaintingBoard extends EventTarget {
   }
 
   private moveArrow(circle: Circle): void {
-    const arrowId = circle.id().split(this.arrowIdSeparator)[1]
+    const ids = circle.id().split(this.arrowIdSeparator)
+    const arrowId = ids[ids.length - 1]
     const arrow = this.stage.findOne(`#${arrowId}`) as Arrow
 
     if (!arrow) {
@@ -1142,6 +1225,10 @@ export class PaintingBoard extends EventTarget {
   }
 
   private createShape(type: ShapeTypes): void {
+    if (this.clickedShapeId) {
+      return
+    }
+
     const shapeId = `${type}_${this.shapes.length}`
     this.shapes.push(shapeId)
 
@@ -1168,7 +1255,7 @@ export class PaintingBoard extends EventTarget {
         stroke: this.activeColor,
         strokeWidth: this.activeShapeWidth,
         draggable: true,
-        hitStrokeWidth: 50,
+        hitStrokeWidth: 10,
       }) as CurvedLine
 
       this.layer.add(this.activeShape)
@@ -1197,7 +1284,8 @@ export class PaintingBoard extends EventTarget {
         stroke: this.activeColor,
         strokeWidth: this.activeShapeWidth,
         draggable: true,
-        hitStrokeWidth: 2,
+        hitStrokeWidth: 20,
+        fillEnabled: false,
         strokeScaleEnabled: false,
         scaleX: 1,
         scaleY: 1,
@@ -1220,6 +1308,8 @@ export class PaintingBoard extends EventTarget {
         stroke: this.activeColor,
         strokeWidth: this.activeShapeWidth,
         strokeScaleEnabled: false,
+        fillEnabled: false,
+        hitStrokeWidth: 20,
       })
 
       this.layer.add(this.activeShape)
