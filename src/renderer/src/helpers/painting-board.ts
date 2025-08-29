@@ -564,7 +564,9 @@ export class PaintingBoard extends EventTarget {
     // 67 - C
     if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
       if (this.clickedShapeId) {
-        const shape = this.stage.findOne(`#${this.clickedShapeId}`)
+        const ids = this.clickedShapeId.split(this.arrowIdSeparator)
+        const shapeId = ids[ids.length - 1]
+        const shape = this.stage.findOne(`#${shapeId}`)
         if (shape) {
           this.copiedShape = shape.clone() as Shape
         }
@@ -582,7 +584,6 @@ export class PaintingBoard extends EventTarget {
         this.historySave()
 
         this.copiedShape = this.copiedShape.clone()
-        // this.copiedShape = un
       }
     }
 
@@ -854,7 +855,9 @@ export class PaintingBoard extends EventTarget {
       this.tr.off("dragend")
       this.tr.off("transformend")
       this.tr.nodes(this.selectedShapes)
-      this.tr.setAttrs({ resizeEnabled: true })
+      this.tr.setAttrs({
+        resizeEnabled: Boolean(this.selectedShapes.length == 1),
+      })
       this.tr.moveToTop()
       this.tr.on("dragend", () => {
         this.historySave()
@@ -862,6 +865,10 @@ export class PaintingBoard extends EventTarget {
       this.tr.on("transformend", () => {
         this.historySave()
       })
+
+      if (this.selectedShapes.length > 1) {
+        this.hideArrowCircles()
+      }
 
       this.layer.batchDraw()
     } else if (
