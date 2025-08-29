@@ -151,11 +151,7 @@ export class PaintingBoard extends EventTarget {
 
   private shapes: any[] = []
   private clickedShapeId = ""
-  private copiedShape:
-    | Group
-    | Shape<ShapeConfig>
-    | Node<NodeConfig>
-    | undefined = undefined
+  private copiedShapes: (Group | Shape<ShapeConfig> | Node<NodeConfig>)[] = []
   private selectedShapes: (Group | Shape<ShapeConfig> | Node<NodeConfig>)[] = []
   private activeShape:
     | Arrow
@@ -563,28 +559,20 @@ export class PaintingBoard extends EventTarget {
 
     // 67 - C
     if (e.keyCode == 67 && (e.metaKey || e.ctrlKey)) {
-      if (this.clickedShapeId) {
-        const ids = this.clickedShapeId.split(this.arrowIdSeparator)
-        const shapeId = ids[ids.length - 1]
-        const shape = this.stage.findOne(`#${shapeId}`)
-        if (shape) {
-          this.copiedShape = shape.clone() as Shape
-        }
-      }
+      this.copiedShapes = this.selectedShapes.map((s) => s.clone())
     }
     // 86 - V
     if (e.keyCode == 86 && (e.metaKey || e.ctrlKey)) {
-      if (this.copiedShape) {
-        this.copiedShape.x(this.copiedShape.x() + 10)
-        this.copiedShape.y(this.copiedShape.y() + 10)
-        this.copiedShape.id(this.copiedShape.id() + "_copy")
-        this.layer.add(this.copiedShape as Shape)
-        this.layer.batchDraw()
+      this.copiedShapes.forEach((shape) => {
+        shape.x(shape.x() + 10)
+        shape.y(shape.y() + 10)
+        shape.id(shape.id() + "_copy")
+        this.layer.add(shape as Shape)
+      })
 
-        this.historySave()
-
-        this.copiedShape = this.copiedShape.clone()
-      }
+      this.historySave()
+      this.layer.batchDraw()
+      this.copiedShapes = this.copiedShapes.map((s) => s.clone())
     }
 
     switch (e.keyCode) {
