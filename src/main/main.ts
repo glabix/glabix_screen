@@ -1414,7 +1414,7 @@ function createScreenshotWindow(dataURL: string) {
   const imageSize = nativeImage
     .createFromDataURL(dataURL)
     .getSize(screenScaleFactor)
-  const minWidth = 750
+  const minWidth = 800
   const minHeight = 400
   const maxWidth = 0.8 * screenBounds.width
   const maxHeight = 0.8 * screenBounds.height
@@ -2322,15 +2322,6 @@ ipcMain.on(SimpleStoreEvents.UPDATE, (event, data: ISimpleStoreData) => {
   const hasCameraId =
     lastStreamSettings?.cameraDeviceId &&
     lastStreamSettings?.cameraDeviceId != "no-camera"
-  console.log(
-    `
-    lastStreamSettings`,
-    lastStreamSettings,
-    `
-    isPanelHidden
-    `,
-    isPanelHidden
-  )
 
   if (isRecording || isPaused) {
     PowerSaveBlocker.start()

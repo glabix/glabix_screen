@@ -104,6 +104,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+.i-cursor:before {
+  content: "\ea5a";
+}
 .i-redo:before {
   content: "\ea58";
 }

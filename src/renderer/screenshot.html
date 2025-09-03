@@ -42,7 +42,7 @@
       <div class="flex relative z-100 justify-between">
         <div class="flex items-center">
           <button
-            class="btn pl-0 pr-0 mr-2 btn--control btn--sm js-toggle-color"
+            class="btn pl-1 pr-0 mr-2 btn--control btn--sm js-toggle-color"
           >
             <span class="active-color pointer-events-none"></span>
           </button>
@@ -56,46 +56,137 @@
             />
           </div>
           <button
-            class="btn btn--control btn--sm pl-2 pr-2 mr-1 hover"
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
+            data-shape-type="pointer"
+          >
+            <i class="i pointer-events-none i--lg i-cursor"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Выделить
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="pointer:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </button>
+          <button
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1 hover"
             data-shape-type="arrow"
-            data-tooltip="Стрелка"
           >
             <i class="i pointer-events-none i--lg i-arrow-right-top"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Стрелка
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="arrow:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </button>
           <button
-            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
             data-shape-type="text"
-            data-tooltip="Текст"
           >
             <i class="i pointer-events-none i--lg i-t"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Текст
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="text:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </button>
           <button
-            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
             data-shape-type="line"
-            data-tooltip="Линия"
           >
             <i class="i pointer-events-none i--lg i-slash-forward"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Линия
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="line:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </button>
           <button
-            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
             data-shape-type="ellipse"
-            data-tooltip="Овал"
           >
             <i class="i pointer-events-none i--lg i-ellipse"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Овал
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="ellipse:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </button>
           <button
-            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
             data-shape-type="rect"
-            data-tooltip="Прямоугольник"
           >
             <i class="i pointer-events-none i--lg i-rectangle-wide"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Прямоугольник
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="rect:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </button>
           <button
-            class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+            class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
             data-shape-type="curved_line"
-            data-tooltip="Карандаш"
           >
             <i class="i pointer-events-none i--lg i-pencil-mechanical"></i>
+            <div class="popover popover--dark popover--top pointer-events-none">
+              <div class="flex gap-1 items-center">
+                <div class="whitespace-nowrap text-white fw-500 text-xs">
+                  Карандаш
+                </div>
+                <div>
+                  <div
+                    class="tag text-white fw-400"
+                    data-text="curved_line:hotkey"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </button>
 
           <div
@@ -103,44 +194,96 @@
             style="border-left: solid 1px var(--gray-400)"
           >
             <button
-              class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+              class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
               data-history="clear"
-              data-tooltip="Стереть всё"
             >
               <i class="i pointer-events-none i--lg i-trash"></i>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap text-white fw-500 text-xs">
+                    Стереть всё
+                  </div>
+                </div>
+              </div>
             </button>
 
             <button
-              class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+              class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
               data-history="undo"
-              data-tooltip="Назад"
             >
               <i class="i pointer-events-none i--lg i-undo"></i>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap text-white fw-500 text-xs">
+                    Назад
+                  </div>
+                  <div>
+                    <div
+                      class="tag text-white fw-400"
+                      data-text="history_undo:hotkey"
+                    ></div>
+                  </div>
+                </div>
+              </div>
             </button>
             <button
-              class="btn btn--control btn--sm pl-2 pr-2 mr-1"
+              class="btn popover-target btn--control btn--sm pl-2 pr-2 mr-1"
               data-history="redo"
-              data-tooltip="Вперед"
             >
               <i class="i pointer-events-none i--lg i-redo"></i>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap text-white fw-500 text-xs">
+                    Вперед
+                  </div>
+                  <div>
+                    <div
+                      class="tag text-white fw-400"
+                      data-text="history_redo:hotkey"
+                    ></div>
+                  </div>
+                </div>
+              </div>
             </button>
           </div>
         </div>
         <div class="flex">
           <div class="mr-2">
             <button
-              class="btn btn--control btn--sm pl-2 pr-2 js-copy-image"
-              data-tooltip="Скопировать в буфер"
+              class="btn popover-target btn--control btn--sm pl-2 pr-2 js-copy-image"
             >
               <i class="i pointer-events-none i--lg i-clone"></i>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap text-white fw-500 text-xs">
+                    Скопировать в буфер
+                  </div>
+                </div>
+              </div>
             </button>
           </div>
           <div class="mr-2">
             <button
-              class="btn btn--control btn--sm pl-2 pr-2 js-save-image"
-              data-tooltip="Сохранить"
+              class="btn popover-target btn--control btn--sm pl-2 pr-2 js-save-image"
             >
               <i class="i pointer-events-none i--lg i-download"></i>
+              <div
+                class="popover popover--dark popover--top pointer-events-none"
+              >
+                <div class="flex gap-1 items-center">
+                  <div class="whitespace-nowrap text-white fw-500 text-xs">
+                    Сохранить
+                  </div>
+                </div>
+              </div>
             </button>
           </div>
           <div>
