@@ -36,3 +36,15 @@
 .popover--dark .tag {
   background-color: rgba(58, 58, 58, 1);
 }
+
+.popover-target {
+  position: relative;
+}
+
+.popover-target .popover {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.popover-target:hover .popover {
+  opacity: 1;
+}
