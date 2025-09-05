@@ -1,6 +1,6 @@
 import { debounce } from "@shared/helpers/debounce"
 import { IScreenshotImageData } from "@shared/types/types"
-import EventEmitter from "events"
+import { Rectangle } from "electron"
 import Konva from "konva"
 import { Group } from "konva/lib/Group"
 import {
@@ -29,6 +29,7 @@ type ShapeTypes =
   | "rect"
   | "curved_line"
   | "pointer"
+  | "image"
 class CurvedLine extends Konva.Line {}
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 const COLORS_MAP = [
@@ -209,7 +210,6 @@ export class PaintingBoard extends EventTarget {
   private isMouseDown = false
   private isShiftPress = false
   private isShapeCreated = false
-  private isPointerActive = false
 
   private activeShapeType: ShapeTypes = "arrow"
   private startPos: Vector2d = { x: 0, y: 0 }
@@ -336,6 +336,8 @@ export class PaintingBoard extends EventTarget {
   private historySave(): void {
     const state = this.getHistoryNodes().map((i) => i.toObject())
 
+    // console.log('historySave state:', state, this.currentHistoryIndex, this.history.size)
+
     // Replace Old History
     if (this.currentHistoryIndex < this.history.size) {
       const entries = [...this.history.entries()].slice(
@@ -365,7 +367,7 @@ export class PaintingBoard extends EventTarget {
 
   private historyApply(index: number): void {
     const historyState = this.history.get(index)
-
+    // console.log('historyApply state:', historyState, index)
     if (historyState) {
       this.hideArrowCircles()
 
@@ -380,7 +382,12 @@ export class PaintingBoard extends EventTarget {
 
       historyState.forEach((node) => {
         const shape = Konva.Node.create(node) as Group | Shape<ShapeConfig>
-        this.layer.add(shape)
+        if (shape.attrs.name == "image") {
+          const url = shape.attrs.imageUrl
+          this.loadImages([url], shape.position())
+        } else {
+          this.layer.add(shape)
+        }
       })
 
       this.toggleSelectionMode()
@@ -456,8 +463,8 @@ export class PaintingBoard extends EventTarget {
     const hasLineOrArrow = this.selectedShapes.some((node) =>
       ["line", "arrow"].includes(node.attrs.name)
     )
-    const hasRectOrEllipse = this.selectedShapes.some((node) =>
-      ["ellipse", "rect"].includes(node.attrs.name)
+    const hasResizebleShape = this.selectedShapes.some((node) =>
+      ["ellipse", "rect", "image"].includes(node.attrs.name)
     )
     const hasText = this.selectedShapes.some((node) =>
       ["text"].includes(node.attrs.name)
@@ -467,7 +474,7 @@ export class PaintingBoard extends EventTarget {
       shouldOverdrawWholeArea:
         Boolean(this.selectedShapes.length == 1) && hasText ? false : true,
       resizeEnabled:
-        Boolean(this.selectedShapes.length == 1) && hasRectOrEllipse,
+        Boolean(this.selectedShapes.length == 1) && hasResizebleShape,
     }
 
     this.tr.nodes(this.selectedShapes)
@@ -536,7 +543,7 @@ export class PaintingBoard extends EventTarget {
 
     this.layer.add(this.arrowCircleStart)
     this.layer.add(this.arrowCircleEnd)
-    this.layer.draw()
+    this.layer.batchDraw()
 
     this.arrowCircleStart.on("dragmove", () => {
       this.moveArrow(this.arrowCircleStart)
@@ -635,18 +642,45 @@ export class PaintingBoard extends EventTarget {
   private handleWindowKeyup(e: KeyboardEvent): void {
     this.isShiftPress = false
   }
+
+  private handleDocumentPaste(e: ClipboardEvent): void {
+    let images: DataTransferItem[] = []
+
+    if (e.clipboardData && e.clipboardData.items) {
+      for (let i = 0; i < e.clipboardData.items.length; i++) {
+        const item = e.clipboardData.items[i]
+        if (item?.type.includes("image")) {
+          images.push(item)
+        }
+      }
+    }
+
+    Promise.all(
+      this.pasteImages(images, this.stage.getPointerPosition()!)
+    ).then((value) => {
+      this.historySave()
+      this.clickOnShapeBtn("pointer")
+
+      if (value.length == 1) {
+        const image = value[0]!
+        this.selectedShapes = [image]
+        this.updateTransform()
+      }
+    })
+  }
+
   private handleWindowKeydown(e: KeyboardEvent): void {
     this.isShiftPress = e.shiftKey
     const isCtrlPress = e.metaKey || e.ctrlKey
 
     if (e.key == "Delete" || e.key == "Backspace") {
       if (this.selectedShapes.length && !this.isTextareaFocused) {
-        this.historySave()
-
         this.selectedShapes.forEach((node) => {
           node.destroy()
           this.shapes = this.shapes.filter((s) => s != node.attrs.id)
         })
+
+        this.historySave()
 
         this.clearTransform()
         this.historyCheck()
@@ -767,18 +801,8 @@ export class PaintingBoard extends EventTarget {
 
     if (actionName == "clear") {
       this.historyClearNodes()
-      this.historyInit()
-
-      this.hideArrowCircles()
-
       this.clearTransform()
-
-      // if (this.tr.nodes().length) {
-      //   this.selectedShapes.length = 0
-      //   this.tr.nodes([])
-      //   // this.tr.setAttrs(this.trDefaultConfig)
-      //   this.layer.batchDraw()
-      // }
+      this.historySave()
     }
   }
 
@@ -911,6 +935,8 @@ export class PaintingBoard extends EventTarget {
     this.clickedShapeId = [this.screenshotImageId].includes(id) ? undefined : id
     const clickedShape = this.stage.findOne(`#${this.clickedShapeId}`)
 
+    // console.log('this.clickedShapeId', this.clickedShapeId)
+
     this.selectedShapes = this.tr.nodes()
     const selecredIds = this.selectedShapes.map((n) => n.attrs.id)
 
@@ -932,12 +958,16 @@ export class PaintingBoard extends EventTarget {
         this.setActiveShapeWidth(width)
         this.setActiveColor(color)
       } else {
-        this.setActiveShapeWidth((clickedShape as Arrow).strokeWidth())
-        this.setActiveColor(
-          this.getActiveColorNameByHex(
-            (clickedShape as Arrow).stroke() as string
-          )
-        )
+        const strokeWidth = (clickedShape as Arrow).strokeWidth()
+        const stroke = (clickedShape as Arrow).stroke() as string
+
+        if (strokeWidth) {
+          this.setActiveShapeWidth(strokeWidth)
+        }
+
+        if (stroke) {
+          this.setActiveColor(this.getActiveColorNameByHex(stroke))
+        }
       }
     }
 
@@ -1108,7 +1138,120 @@ export class PaintingBoard extends EventTarget {
 
     if (dblclickedShape instanceof Text) {
       this.focusTextarea(dblclickedShape as Text)
+    } else {
+      this.clickOnShapeBtn("pointer")
     }
+  }
+
+  private handleStageDropOver(e: DragEvent): void {
+    e.preventDefault()
+    e.dataTransfer!.dropEffect = "copy"
+    this.stage.container().style.cursor = "copy"
+  }
+
+  private handleStageDrop(e: DragEvent): void {
+    e.preventDefault()
+
+    const files = e.dataTransfer!.files
+
+    if (!files.length) {
+      return
+    }
+
+    let images: File[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (file?.type.match("image.*")) {
+        images.push(file)
+      }
+    }
+
+    const urls = images.map((i) => URL.createObjectURL(i))
+    const pos = this.stage.getPointerPosition()!
+
+    Promise.all(this.loadImages(urls, pos)).then((value) => {
+      this.historySave()
+      this.clickOnShapeBtn("pointer")
+
+      if (value.length == 1) {
+        const image = value[0]!
+        this.selectedShapes = [image]
+        this.updateTransform()
+      }
+    })
+  }
+
+  private pasteImages(
+    items: DataTransferItem[],
+    pos: Vector2d
+  ): Promise<Shape>[] {
+    let promises: Promise<Shape>[] = []
+    items.forEach((item) => {
+      const load = new Promise<Shape>((resolve, reject) => {
+        const blob = item.getAsFile()
+
+        if (blob) {
+          const reader = new FileReader()
+          const _this = this
+
+          reader.onload = function (event) {
+            const url = event.target!.result as string
+            Promise.all(_this.loadImages([url], pos)).then((value) => {
+              resolve(value[0]!)
+            })
+          }
+
+          reader.readAsDataURL(blob!)
+        } else {
+          reject()
+        }
+      })
+
+      promises.push(load)
+    })
+    return promises
+  }
+
+  private loadImages(urls: string[], pos: Vector2d): Promise<Shape>[] {
+    let promises: Promise<Shape>[] = []
+
+    urls.forEach((url, index) => {
+      const load = new Promise<Shape>((resolve, reject) => {
+        const imageObj = new Image()
+        const _this = this
+
+        imageObj.onload = function () {
+          const rect = _this.adjustImage({
+            width: imageObj.width,
+            height: imageObj.height,
+            x: pos.x,
+            y: pos.y,
+          })
+
+          const img = new Konva.Image({
+            id: "image_" + Date.now(),
+            name: "image",
+            imageUrl: url,
+            image: imageObj,
+            width: rect.width,
+            height: rect.height,
+          })
+
+          img.x(rect.x + index * 20)
+          img.y(rect.y + index * 20)
+
+          _this.layer.add(img)
+          resolve(img)
+        }
+
+        imageObj.src = url
+      })
+
+      promises.push(load)
+    })
+
+    return promises
   }
 
   private bindStageEvents(): void {
@@ -1117,9 +1260,25 @@ export class PaintingBoard extends EventTarget {
     this.stage.on("mousemove", this.handleStageMouseMove.bind(this))
     this.stage.on("mouseup", this.handleStageMouseUp.bind(this))
     this.stage.on("dblclick", this.handleStageDblclick.bind(this))
+
+    this.stage.content.addEventListener(
+      "drop",
+      this.handleStageDrop.bind(this),
+      false
+    )
+    this.stage.content.addEventListener(
+      "dragover",
+      this.handleStageDropOver.bind(this),
+      false
+    )
   }
 
   private bindEvents(): void {
+    document.addEventListener(
+      "paste",
+      this.handleDocumentPaste.bind(this),
+      false
+    )
     window.addEventListener(
       "keydown",
       this.handleWindowKeydown.bind(this),
@@ -1467,6 +1626,46 @@ export class PaintingBoard extends EventTarget {
     })
 
     this.layer.add(background)
+  }
+
+  private adjustImage(_data: Rectangle): Rectangle {
+    let data = { ..._data }
+    const stageWidth = this.stage.width()
+    const stageHeight = this.stage.height()
+
+    if (data.width + data.x > stageWidth) {
+      data = { ...data, x: 0 }
+    }
+
+    if (data.height + data.y > stageHeight) {
+      data = { ...data, y: 0 }
+    }
+
+    if (data.height > stageHeight) {
+      const scaleH = stageHeight / data.height
+      const imgHeight = stageHeight
+      const imgWidth = Math.ceil(data.width * scaleH)
+      data = {
+        x: (stageWidth - imgWidth) / 2,
+        y: (stageHeight - imgHeight) / 2,
+        height: imgHeight,
+        width: imgWidth,
+      }
+    }
+
+    if (data.width > stageWidth) {
+      const scaleW = stageWidth / data.width
+      const imgWidth = stageWidth
+      const imgHeight = Math.ceil(data.height * scaleW)
+      data = {
+        x: (stageWidth - imgWidth) / 2,
+        y: (stageHeight - imgHeight) / 2,
+        height: imgHeight,
+        width: imgWidth,
+      }
+    }
+
+    return data
   }
 
   renderScreenshot(data: IScreenshotImageData): void {
