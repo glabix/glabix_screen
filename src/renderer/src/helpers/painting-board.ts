@@ -351,30 +351,30 @@ export class PaintingBoard extends EventTarget {
     })
 
     // Replace Old History
-    // if (this.currentHistoryIndex < this.history.size) {
-    //   const entries = [...this.history.entries()].slice(
-    //     0,
-    //     this.currentHistoryIndex
-    //   )
-    //   this.history.clear()
-    //   entries.forEach((entry) => this.history.set(entry[0], entry[1]))
-    // }
+    if (this.currentHistoryIndex < this.history.size) {
+      const entries = [...this.history.entries()].slice(
+        0,
+        this.currentHistoryIndex
+      )
+      this.history.clear()
+      entries.forEach((entry) => this.history.set(entry[0], entry[1]))
+    }
 
+    this.currentHistoryIndex = this.history.size + 1
     this.history.set(this.currentHistoryIndex, state)
-    this.currentHistoryIndex = this.history.size
   }
 
   private historyUndo(step = 1): void {
     const index = this.currentHistoryIndex - step
     this.currentHistoryIndex = index < 0 ? 0 : index
-    this.historyApply(this.currentHistoryIndex - 1)
+    this.historyApply(this.currentHistoryIndex)
   }
 
   private historyRedo(step = 1): void {
     const index = this.currentHistoryIndex + step
     this.currentHistoryIndex =
       index >= this.history.size ? this.history.size : index
-    this.historyApply(this.currentHistoryIndex - 1)
+    this.historyApply(this.currentHistoryIndex)
   }
 
   private historyApply(index: number): void {
@@ -694,11 +694,14 @@ export class PaintingBoard extends EventTarget {
     const isCtrlPress = e.metaKey || e.ctrlKey
 
     if (e.key == "Delete" || e.key == "Backspace") {
+      console.log("this.selectedShapes", this.selectedShapes)
       if (this.selectedShapes.length && !this.isTextareaFocused) {
         this.selectedShapes.forEach((node) => {
           node.destroy()
           this.shapes = this.shapes.filter((s) => s != node.attrs.id)
         })
+        // this.layer.batchDraw()
+        console.log("")
 
         this.historySave()
 
