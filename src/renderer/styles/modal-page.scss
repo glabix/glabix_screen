@@ -134,6 +134,7 @@ body {
 .tab-btns-container {
   margin-left: -10px;
   margin-right: -10px;
+  overflow: hidden;
 }
 
 .tabs-container {
@@ -155,6 +156,7 @@ body {
 .btn-tab-first,
 .btn-tab-last {
   background: transparent;
+  border: none;
   z-index: 2;
 }
 
@@ -167,8 +169,8 @@ body {
     width: 1rem;
     height: 1rem;
     position: absolute;
-    left: calc(100% + 1px);
-    bottom: -1px;
+    left: 100%;
+    bottom: 0;
     pointer-events: none;
     z-index: 1;
   }
@@ -190,8 +192,8 @@ body {
     width: 1rem;
     height: 1rem;
     position: absolute;
-    right: calc(100% + 1px);
-    bottom: -1px;
+    right: 100%;
+    bottom: 0;
     pointer-events: none;
   }
   &:before {

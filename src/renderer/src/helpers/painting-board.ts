@@ -334,9 +334,20 @@ export class PaintingBoard extends EventTarget {
     }
   }
   private historySave(): void {
-    const state = this.getHistoryNodes().map((i) => i.toObject())
-
-    // console.log('historySave state:', state, this.currentHistoryIndex, this.history.size)
+    const state = this.getHistoryNodes().map((i) => {
+      if (i.attrs.name == "image") {
+        i.attrs = {
+          ...i.attrs,
+          imageRect: {
+            x: i.x(),
+            y: i.y(),
+            width: i.width(),
+            height: i.height(),
+          },
+        }
+      }
+      return i.toObject()
+    })
 
     // Replace Old History
     if (this.currentHistoryIndex < this.history.size) {
@@ -367,7 +378,6 @@ export class PaintingBoard extends EventTarget {
 
   private historyApply(index: number): void {
     const historyState = this.history.get(index)
-    // console.log('historyApply state:', historyState, index)
     if (historyState) {
       this.hideArrowCircles()
 
@@ -382,9 +392,11 @@ export class PaintingBoard extends EventTarget {
 
       historyState.forEach((node) => {
         const shape = Konva.Node.create(node) as Group | Shape<ShapeConfig>
+        // shape.moveToTop()
         if (shape.attrs.name == "image") {
           const url = shape.attrs.imageUrl
-          this.loadImages([url], shape.position())
+          const rect = shape.attrs.imageRect
+          this.loadImages([url], rect, false)
         } else {
           this.layer.add(shape)
         }
@@ -479,7 +491,9 @@ export class PaintingBoard extends EventTarget {
 
     this.tr.nodes(this.selectedShapes)
     this.tr.setAttrs(attrs)
-    this.tr.moveToTop()
+    const maxZIndex =
+      Math.max(...this.selectedShapes.map((s) => s.getAbsoluteZIndex())) + 1
+    this.tr.setZIndex(maxZIndex)
 
     if (this.selectedShapes.length > 1) {
       this.hideArrowCircles()
@@ -658,8 +672,10 @@ export class PaintingBoard extends EventTarget {
     Promise.all(
       this.pasteImages(images, this.stage.getPointerPosition()!)
     ).then((value) => {
-      this.historySave()
-      this.clickOnShapeBtn("pointer")
+      if (value.length) {
+        this.historySave()
+        this.clickOnShapeBtn("pointer")
+      }
 
       if (value.length == 1) {
         const image = value[0]!
@@ -935,8 +951,6 @@ export class PaintingBoard extends EventTarget {
     this.clickedShapeId = [this.screenshotImageId].includes(id) ? undefined : id
     const clickedShape = this.stage.findOne(`#${this.clickedShapeId}`)
 
-    // console.log('this.clickedShapeId', this.clickedShapeId)
-
     this.selectedShapes = this.tr.nodes()
     const selecredIds = this.selectedShapes.map((n) => n.attrs.id)
 
@@ -1096,6 +1110,9 @@ export class PaintingBoard extends EventTarget {
 
   private handleStageMouseUp(e: KonvaEventObject<MouseEvent, Stage>): void {
     const isPointerActive = Boolean(this.activeShape?.attrs.name == "pointer")
+    const isCurvedLineActive = Boolean(
+      this.activeShape?.attrs.name == "curved_line"
+    )
 
     if (isPointerActive) {
       const pointerAreas = this.layer.children.filter(
@@ -1123,6 +1140,18 @@ export class PaintingBoard extends EventTarget {
       this.layer.batchDraw()
     }
 
+    if (isCurvedLineActive) {
+      const lastShape = this.stage.findOne(`#${this.activeShape!.id()}`) as Line
+      const points = lastShape?.points()
+
+      if (points) {
+        const simplePoints = this.simplifyByDistance(points)
+        const newPoints = this.smoothPoints(simplePoints)
+        lastShape.points(newPoints)
+        this.layer.batchDraw()
+      }
+    }
+
     if (this.isShapeCreated && !isPointerActive) {
       this.historySave()
     }
@@ -1139,7 +1168,7 @@ export class PaintingBoard extends EventTarget {
     if (dblclickedShape instanceof Text) {
       this.focusTextarea(dblclickedShape as Text)
     } else {
-      this.clickOnShapeBtn("pointer")
+      // this.clickOnShapeBtn("pointer")
     }
   }
 
@@ -1213,7 +1242,11 @@ export class PaintingBoard extends EventTarget {
     return promises
   }
 
-  private loadImages(urls: string[], pos: Vector2d): Promise<Shape>[] {
+  private loadImages(
+    urls: string[],
+    _rect: { x: number; y: number; width?: number; height?: number },
+    adjustPosition = true
+  ): Promise<Shape>[] {
     let promises: Promise<Shape>[] = []
 
     urls.forEach((url, index) => {
@@ -1222,17 +1255,19 @@ export class PaintingBoard extends EventTarget {
         const _this = this
 
         imageObj.onload = function () {
-          const rect = _this.adjustImage({
-            width: imageObj.width,
-            height: imageObj.height,
-            x: pos.x,
-            y: pos.y,
-          })
+          const initRect = {
+            width: _rect.width || imageObj.width,
+            height: _rect.height || imageObj.height,
+            x: _rect.x,
+            y: _rect.y,
+          }
+          const rect = adjustPosition ? _this.adjustImage(initRect) : initRect
 
           const img = new Konva.Image({
             id: "image_" + Date.now(),
             name: "image",
             imageUrl: url,
+            imageRect: rect,
             image: imageObj,
             width: rect.width,
             height: rect.height,
@@ -1466,6 +1501,90 @@ export class PaintingBoard extends EventTarget {
     setTimeout(() => {
       this.elems.textarea!.focus()
     })
+  }
+
+  private simplifyByDistance(points: number[], tolerance = 2): number[] {
+    if (points.length < 2) return points
+
+    const newPoints = [points[0]!, points[1]!]
+    let lastX = points[0]!
+    let lastY = points[1]!
+
+    for (let i = 2; i < points.length - 1; i += 2) {
+      const x = points[i]!
+      const y = points[i + 1]!
+      const distance = Math.sqrt(
+        Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2)
+      )
+
+      // Сохраняем точку только если она достаточно далека от предыдущей
+      if (distance > tolerance) {
+        newPoints.push(x, y)
+        lastX = x
+        lastY = y
+      }
+    }
+
+    // Всегда сохраняем последнюю точку
+    if (points.length >= 4) {
+      const lastSavedX = newPoints[newPoints.length - 2]!
+      const lastSavedY = newPoints[newPoints.length - 1]!
+      const lastOriginalX = points[points.length - 2]!
+      const lastOriginalY = points[points.length - 1]!
+
+      if (lastSavedX !== lastOriginalX || lastSavedY !== lastOriginalY) {
+        newPoints.push(lastOriginalX, lastOriginalY)
+      }
+    }
+
+    return newPoints
+  }
+
+  private smoothPoints(points: number[], tolerance = 0.8): number[] {
+    if (points.length < 6) return points // Нужно как минимум 3 точки
+
+    const newPoints = [points[0]!, points[1]!] // Сохраняем первую точку
+
+    // Используем алгоритм скользящего среднего с учетом tolerance
+    for (let i = 2; i < points.length - 2; i += 2) {
+      const prevX = points[i - 2]!
+      const prevY = points[i - 1]!
+      const currentX = points[i]!
+      const currentY = points[i + 1]!
+      const nextX = points[i + 2]!
+      const nextY = points[i + 3]!
+
+      // Вычисляем расстояние между точками
+      const distToPrev = Math.sqrt(
+        Math.pow(currentX - prevX, 2) + Math.pow(currentY - prevY, 2)
+      )
+      const distToNext = Math.sqrt(
+        Math.pow(currentX - nextX, 2) + Math.pow(currentY - nextY, 2)
+      )
+
+      // Применяем сглаживание только если расстояние превышает tolerance
+      if (distToPrev > tolerance || distToNext > tolerance) {
+        // Взвешенное среднее с учетом расстояний
+        const totalDist = distToPrev + distToNext
+        const weightPrev = distToNext / totalDist // Чем дальше следующая точка, тем больше вес предыдущей
+        const weightNext = distToPrev / totalDist // Чем дальше предыдущая точка, тем больше вес следующей
+
+        const smoothedX =
+          (prevX * weightPrev + nextX * weightNext) / (weightPrev + weightNext)
+        const smoothedY =
+          (prevY * weightPrev + nextY * weightNext) / (weightPrev + weightNext)
+
+        newPoints.push(smoothedX, smoothedY)
+      } else {
+        // Если точки слишком близки, сохраняем исходную точку
+        newPoints.push(currentX, currentY)
+      }
+    }
+
+    // Сохраняем последнюю точку
+    newPoints.push(points[points.length - 2]!, points[points.length - 1]!)
+
+    return newPoints
   }
 
   private createShape(type: ShapeTypes): void {
