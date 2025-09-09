@@ -3,6 +3,7 @@ import { IScreenshotImageData } from "@shared/types/types"
 import { Rectangle } from "electron"
 import Konva from "konva"
 import { Group } from "konva/lib/Group"
+import { v4 as uuidv4 } from "uuid"
 import {
   KonvaEventListener,
   KonvaEventObject,
@@ -490,8 +491,12 @@ export class PaintingBoard extends EventTarget {
 
     this.tr.nodes(this.selectedShapes)
     this.tr.setAttrs(attrs)
-    const maxZIndex =
-      Math.max(...this.selectedShapes.map((s) => s.getAbsoluteZIndex())) + 1
+    const absoluteMaxZIndex = Math.max(
+      ...this.getHistoryNodes().map((s) => s.zIndex())
+    )
+    const selectedMaxZIndex =
+      Math.max(...this.selectedShapes.map((s) => s.zIndex())) + 1
+    const maxZIndex = Math.min(absoluteMaxZIndex, selectedMaxZIndex)
     this.tr.setZIndex(maxZIndex)
 
     if (this.selectedShapes.length > 1) {
@@ -989,7 +994,6 @@ export class PaintingBoard extends EventTarget {
       this.selectedShapes = this.isShiftPress
         ? [...this.selectedShapes, clickedShape!]
         : [clickedShape!]
-
       this.updateTransform()
     } else {
       this.clearTransform()
@@ -1263,7 +1267,7 @@ export class PaintingBoard extends EventTarget {
           const rect = adjustPosition ? _this.adjustImage(initRect) : initRect
 
           const img = new Konva.Image({
-            id: "image_" + Date.now(),
+            id: "image_" + uuidv4(),
             name: "image",
             imageUrl: url,
             imageRect: rect,
