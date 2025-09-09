@@ -341,8 +341,8 @@ export class PaintingBoard extends EventTarget {
           imageRect: {
             x: i.x(),
             y: i.y(),
-            width: i.width(),
-            height: i.height(),
+            width: i.width() * i.scale().x,
+            height: i.height() * i.scale().y,
           },
         }
       }
@@ -350,14 +350,14 @@ export class PaintingBoard extends EventTarget {
     })
 
     // Replace Old History
-    if (this.currentHistoryIndex < this.history.size) {
-      const entries = [...this.history.entries()].slice(
-        0,
-        this.currentHistoryIndex
-      )
-      this.history.clear()
-      entries.forEach((entry) => this.history.set(entry[0], entry[1]))
-    }
+    // if (this.currentHistoryIndex < this.history.size) {
+    //   const entries = [...this.history.entries()].slice(
+    //     0,
+    //     this.currentHistoryIndex
+    //   )
+    //   this.history.clear()
+    //   entries.forEach((entry) => this.history.set(entry[0], entry[1]))
+    // }
 
     this.history.set(this.currentHistoryIndex, state)
     this.currentHistoryIndex = this.history.size
@@ -392,7 +392,6 @@ export class PaintingBoard extends EventTarget {
 
       historyState.forEach((node) => {
         const shape = Konva.Node.create(node) as Group | Shape<ShapeConfig>
-        // shape.moveToTop()
         if (shape.attrs.name == "image") {
           const url = shape.attrs.imageUrl
           const rect = shape.attrs.imageRect
