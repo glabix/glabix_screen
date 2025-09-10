@@ -212,7 +212,7 @@ export class PaintingBoard extends EventTarget {
   private isShiftPress = false
   private isShapeCreated = false
 
-  private activeShapeType: ShapeTypes = "arrow"
+  private activeShapeType: ShapeTypes = "curved_line"
   private startPos: Vector2d = { x: 0, y: 0 }
   private mouseMoveTypes: ShapeTypes[] = [
     "arrow",
