@@ -2052,6 +2052,14 @@ ipcMain.on(ScreenshotActionEvents.CROP, (event, data) => {
 })
 
 ipcMain.on(PaintingBoardWindowEvents.OPEN, (event, data) => {
+  const isRecording = ["recording", "paused", "countdown"].includes(
+    store.get()["recordingState"]
+  )
+
+  if (!isRecording) {
+    hideWindows()
+  }
+
   createPaintingBoardWindow(activeDisplay)
   screenshotWindowBounds = undefined
   ipcMain.emit(DrawEvents.DRAW_END)
