@@ -4,6 +4,7 @@ import { LogSender } from "@main/helpers/log-sender"
 import { stringify } from "@main/helpers/stringify"
 import { APIEvents } from "@shared/events/api.events"
 import { IAccountData } from "@shared/types/types"
+import { AppEvents } from "@shared/events/app.events"
 
 const logSender = new LogSender()
 
@@ -22,6 +23,9 @@ export function getAccountData(
       })
       .catch((e) => {
         logSender.sendLog("api.accountData.get.error", stringify(e))
+        if (e.response && e.response.status == 401) {
+          ipcMain.emit(AppEvents.LOGOUT)
+        }
         reject(e)
       })
   })
