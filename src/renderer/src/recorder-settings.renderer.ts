@@ -9,11 +9,17 @@ document.addEventListener("DOMContentLoaded", () => {
 })
 
 const logger = document.querySelector(".js-logger")! as HTMLElement
-const videoSettings = document.querySelector(
-  ".js-input-video-settings"
-)! as HTMLTextAreaElement
 const codec = document.querySelector(".js-input-codec")! as HTMLInputElement
 const bitrate = document.querySelector(".js-input-bitrate")! as HTMLInputElement
+const maxHeight = document.querySelector(
+  ".js-input-max-height"
+)! as HTMLInputElement
+const maxWidth = document.querySelector(
+  ".js-input-max-width"
+)! as HTMLInputElement
+const maxRate = document.querySelector(
+  ".js-input-max-rate"
+)! as HTMLInputElement
 const updateBtn = document.querySelector(".js-update-btn")! as HTMLButtonElement
 
 function updateLog(newLog: string, clear = false) {
@@ -22,9 +28,12 @@ function updateLog(newLog: string, clear = false) {
 }
 
 function initSettings(settings) {
-  videoSettings.value = settings.videoSettings
-    ? JSON.stringify(settings.videoSettings)
-    : "true"
+  // videoSettings.value = settings.videoSettings
+  //   ? JSON.stringify(settings.videoSettings)
+  //   : "true"
+  maxWidth.value = settings?.streamSettings?.maxWidth || ""
+  maxHeight.value = settings?.streamSettings?.maxHeight || ""
+  maxRate.value = settings?.streamSettings?.maxRate || ""
   codec.value = settings.codec || "video/webm;codecs=h264"
   bitrate.value = settings.bitrate || 14000000
 }
@@ -34,49 +43,31 @@ initSettings({})
 updateBtn.addEventListener(
   "click",
   (e) => {
-    try {
-      const v = JSON.parse(videoSettings.value)
-
-      const newSettings = {
-        videoSettings: v,
-        codec: codec.value,
-        bitrate: Number(bitrate.value),
-      }
-      if (newSettings.codec && newSettings.bitrate) {
-        const success = `
-      <span class="text-primary">
-      ================== <br>
-      настройки обновлены
-      </span>
-      <br>
-      `
-        updateLog(success)
-
-        window.electronAPI.ipcRenderer.send(
-          "recorder-settings-window:set",
-          newSettings
-        )
-      }
-    } catch {}
-  },
-  false
-)
-
-videoSettings.addEventListener(
-  "input",
-  (e) => {
-    const value = (e.target as HTMLTextAreaElement).value
-
-    try {
-      JSON.parse(value)
-      videoSettings.classList.remove("has-error")
-    } catch {
-      videoSettings.classList.add("has-error")
+    let streamSettings = {
+      maxHeight: Number(maxHeight.value) || undefined,
+      maxWidth: Number(maxWidth.value) || undefined,
+      maxRate: Number(maxRate.value) || undefined,
     }
 
-    if (!value) {
-      videoSettings.classList.remove("has-error")
+    const newSettings = {
+      streamSettings,
+      codec: codec.value,
+      bitrate: Number(bitrate.value),
     }
+
+    const success = `
+    <span class="text-primary">
+    ================== <br>
+    настройки обновлены
+    </span>
+    <br>
+    `
+    updateLog(success)
+
+    window.electronAPI.ipcRenderer.send(
+      "recorder-settings-window:set",
+      newSettings
+    )
   },
   false
 )
