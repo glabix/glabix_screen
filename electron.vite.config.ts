@@ -51,6 +51,10 @@ export default defineConfig({
             import.meta.dirname,
             "src/renderer/painting-board.html"
           ),
+          recording_settings_window: resolve(
+            import.meta.dirname,
+            "src/renderer/recorder-settings.html"
+          ),
         },
       },
     },
