@@ -137,6 +137,10 @@ import {
 import { getCorrectBounds, getCurrentDisplay } from "./helpers/display.helper"
 import { windowManager, WindowNames } from "./browser-windows/window-manager"
 import { createPaintingBoardWindow } from "./browser-windows/painting-borard-window"
+import {
+  createRecorderSettingsWindow,
+  handleRecorderSettingsEvents,
+} from "./browser-windows/recorder-settings.window"
 
 let activeDisplay: Electron.Display
 let webCameraWindow: BrowserWindow
@@ -1644,6 +1648,12 @@ function createMenu() {
 
   contextMenu = Menu.buildFromTemplate([
     {
+      label: "Окно настроек записи",
+      click: () => {
+        createRecorderSettingsWindow()
+      },
+    },
+    {
       id: "menuLogOutItem",
       label: "Выйти из аккаунта",
       visible: TokenStorage.dataIsActual(),
@@ -1658,6 +1668,8 @@ function createMenu() {
       },
     },
   ])
+
+  handleRecorderSettingsEvents()
 }
 
 function logOut() {
