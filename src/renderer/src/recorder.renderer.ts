@@ -497,7 +497,7 @@ const createVideo = (stream: MediaStream, _video) => {
     })
     currentRecordChunksCount += 1
 
-    const blob = new Blob([e.data], { type: "video/mp4" })
+    const blob = new Blob([e.data], { type: getSupportedMimeType() })
     readFileAsync(
       blob,
       currentRecordChunksCount,
