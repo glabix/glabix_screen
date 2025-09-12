@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title>Настройки записи</title>
+  </head>
+  <body>
+    <div class="p-6">
+      <div class="mb-4">
+        <b>Codec</b>
+        <input class="input mt-1 js-input-codec" type="text" value="" />
+      </div>
+      <div class="mb-4">
+        <b>Bitrate</b>
+        <input class="input mt-1 js-input-bitrate" type="text" value="" />
+      </div>
+
+      <div class="mb-4">
+        <div>
+          <b>Stream Video Settings</b> -
+          <a
+            href="https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints"
+            target="_blank"
+            >boolean || MediaTrackConstraints Object</a
+          >
+        </div>
+        <textarea
+          disabled
+          class="input mt-1 js-input-video-settings"
+          type="text"
+          rows="5"
+          value=""
+        ></textarea>
+      </div>
+
+      <div class="mb-6">
+        <button class="btn btn--rounded btn--primary js-update-btn">
+          Update
+        </button>
+      </div>
+
+      <div>
+        <b>Logger</b>
+        <div class="logger js-logger"></div>
+      </div>
+    </div>
+    <script type="module" src="./src/recorder-settings.renderer.ts"></script>
+  </body>
+</html>

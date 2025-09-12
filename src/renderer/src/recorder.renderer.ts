@@ -38,6 +38,14 @@ import {
 import { AppEvents } from "@shared/events/app.events"
 import { FileUploadEvents } from "@shared/events/file-upload.events"
 import { ZoomPageDisabled } from "./helpers/zoom-page-disable"
+
+let testRecordSettings:
+  | {
+      codec: string
+      bitrate: number
+      videoSettings: boolean | MediaTrackConstraints | undefined
+    }
+  | undefined = undefined
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
 
 const LAST_CROP_SETTINGS_NAME = "LAST_CROP_SETTINGS"
@@ -299,19 +307,40 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
   }
 
   if (["fullScreenVideo", "cropVideo"].includes(settings.action)) {
+    let s = {
+      video: testRecordSettings?.videoSettings || true,
+      audio: systemAudioSettings,
+    }
+
     try {
-      desktopStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: systemAudioSettings,
-      })
+      desktopStream = await navigator.mediaDevices.getDisplayMedia(s)
+
+      window.electronAPI.ipcRenderer.send(
+        "recorder-settings-window:log",
+        `
+          ==================== <br>
+          Успешно создали поток с настроками: <br> 
+          ${JSON.stringify(s)}
+          <br>
+        `
+      )
+
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: `${settings.action}.mediaStream.init`,
-        body: JSON.stringify({
-          video: true,
-          audio: systemAudioSettings,
-        }),
+        body: JSON.stringify(s),
       })
     } catch (e) {
+      window.electronAPI.ipcRenderer.send(
+        "recorder-settings-window:log",
+        `
+          ==================== <br>
+          Ошибка при создании поток с настроками: <br> 
+          ${JSON.stringify(testRecordSettings?.videoSettings)} - ${typeof testRecordSettings?.videoSettings}
+          ${JSON.stringify(s)}
+          <br>
+          Код ошибки: ${e}
+        `
+      )
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: `${settings.action}.mediaStream.error`,
         body: `${e}`,
@@ -324,6 +353,7 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
       desktopStream = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: settings.cameraDeviceId } },
       })
+
       window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
         title: `${settings.action}.mediaStream.init`,
         body: JSON.stringify({
@@ -357,6 +387,14 @@ const getSupportedMimeType = () => {
   const vp9MimeType = "video/webm;codecs=vp9"
   const h264MimeType = "video/webm;codecs=h264"
 
+  if (testRecordSettings?.codec) {
+    return testRecordSettings?.codec
+  }
+  // return 'video/mp4;codecs=av01.2.05H.12'
+  // return 'video/mp4;codecs=avc1.640033'
+  // return 'video/mp4;codecs=avc1.64001f'
+  // return 'video/mp4;codecs=avc1.42401f'
+
   if (MediaRecorder.isTypeSupported(h264MimeType)) {
     return h264MimeType
   }
@@ -371,10 +409,22 @@ const getSupportedMimeType = () => {
 const createVideo = (stream: MediaStream, _video) => {
   videoRecorder = new MediaRecorder(stream, {
     mimeType: getSupportedMimeType(),
-    videoBitsPerSecond: 5_000_000, // 5 Mbps
+    // videoBitsPerSecond: 5_000_000, // 5 Mbps
+    videoBitsPerSecond: testRecordSettings?.bitrate || 14_000_000, // 5 Mbps
   })
 
   videoRecorder.onerror = (event) => {
+    window.electronAPI.ipcRenderer.send(
+      "recorder-settings-window:log",
+      `<span class="text-error">
+      ==================== <br>
+      Ошибка медиа рекордера: <br> 
+      name: ${event.error.name}, event.error.message: ${event.error.message}
+      </span>
+      <br> 
+    `
+    )
+
     window.electronAPI.ipcRenderer.send(RecordEvents.ERROR, {
       title: "videoRecorder.onerror",
       body:
@@ -409,11 +459,18 @@ const createVideo = (stream: MediaStream, _video) => {
     updateRecorderState("recording")
   }
 
+  let _chunks: any = []
+
   videoRecorder.ondataavailable = function (e) {
+    if (e.data.size > 0) {
+      _chunks.push(e.data)
+    }
+
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "videoRecorder.ondataavailable",
     })
     currentRecordChunksCount += 1
+
     const blob = new Blob([e.data], { type: getSupportedMimeType() })
     readFileAsync(
       blob,
@@ -438,6 +495,8 @@ const createVideo = (stream: MediaStream, _video) => {
   }
 
   videoRecorder.onstop = function (e) {
+    saveVideoFile(_chunks)
+
     window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
       title: "videoRecorder.onstop",
     })
@@ -453,16 +512,6 @@ const createVideo = (stream: MediaStream, _video) => {
     }
 
     lastChunk = null // Reset the lastChunk for the next recording
-
-    // Create a link to download the recorded video
-    // const url = URL.createObjectURL(blob)
-    // const a = document.createElement("a")
-    // a.style.display = "none"
-    // a.href = url
-    // a.download = "recorded-video.webm"
-    // document.body.appendChild(a)
-    // a.click()
-    // window.URL.revokeObjectURL(url)
 
     stream.getTracks().forEach((track) => track.stop())
     combineStream?.getTracks().forEach((track) => track.stop())
@@ -489,6 +538,21 @@ const createVideo = (stream: MediaStream, _video) => {
 
     updateRecorderState("stopped")
   }
+}
+
+const saveVideoFile = (chunks: any[]) => {
+  // Create a link to download the recorded video
+  const _blob = new Blob(chunks, { type: getSupportedMimeType() })
+  const url = URL.createObjectURL(_blob)
+  const a_blob = document.createElement("a")
+  a_blob.style.display = "none"
+  a_blob.href = url
+  a_blob.download = "blob-video.mp4"
+  document.body.appendChild(a_blob)
+  a_blob.click()
+  window.URL.revokeObjectURL(url)
+  a_blob.remove()
+  // END
 }
 
 const updateRecorderState = (state: RecorderState | null) => {
@@ -840,6 +904,16 @@ function initRecord(data: IStreamSettings): Promise<void> {
           resolve()
         })
         .catch((e) => {
+          window.electronAPI.ipcRenderer.send(
+            "recorder-settings-window:log",
+            `<span class="text-error">
+              ==================== <br>
+              Ошибка при создании комбинированного потока: <br> 
+              Код ошибки: ${e}
+              </span>
+              <br> 
+            `
+          )
           window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
             title: `${data.action}.combineStream.error`,
             body: `${e}`,
@@ -1398,3 +1472,20 @@ function readFileAsync(file, index, isLast, fileUuid): Promise<any> {
     reader.readAsArrayBuffer(file)
   })
 }
+
+window.electronAPI.ipcRenderer.on(
+  "recorder-settings-window:get",
+  (event, settings) => {
+    window.electronAPI.ipcRenderer.send(LoggerEvents.SEND_LOG, {
+      title: `
+        recorder-settings-window:get: ${JSON.stringify(settings)}
+      `,
+    })
+
+    testRecordSettings = settings || {}
+
+    if (lastStreamSettings) {
+      initStream(lastStreamSettings)
+    }
+  }
+)
