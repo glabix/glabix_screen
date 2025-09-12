@@ -43,7 +43,11 @@ let testRecordSettings:
   | {
       codec: string
       bitrate: number
-      videoSettings: boolean | MediaTrackConstraints | undefined
+      streamSettings?: {
+        maxRate: number
+        maxWidth: number
+        maxHeight: number
+      }
     }
   | undefined = undefined
 const isWindows = navigator.userAgent.indexOf("Windows") != -1
@@ -307,8 +311,31 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
   }
 
   if (["fullScreenVideo", "cropVideo"].includes(settings.action)) {
+    let _v = {}
+
+    if (testRecordSettings?.streamSettings?.maxHeight) {
+      _v = {
+        ..._v,
+        height: { max: testRecordSettings!.streamSettings!.maxHeight },
+      }
+    }
+
+    if (testRecordSettings?.streamSettings?.maxWidth) {
+      _v = {
+        ..._v,
+        width: { max: testRecordSettings!.streamSettings!.maxWidth },
+      }
+    }
+
+    if (testRecordSettings?.streamSettings?.maxRate) {
+      _v = {
+        ..._v,
+        frameRate: { max: testRecordSettings!.streamSettings!.maxRate },
+      }
+    }
+
     let s = {
-      video: testRecordSettings?.videoSettings || true,
+      video: Object.keys(_v).length ? _v : true,
       audio: systemAudioSettings,
     }
 
@@ -335,7 +362,6 @@ const initStream = async (settings: IStreamSettings): Promise<MediaStream> => {
         `
           ==================== <br>
           Ошибка при создании поток с настроками: <br> 
-          ${JSON.stringify(testRecordSettings?.videoSettings)} - ${typeof testRecordSettings?.videoSettings}
           ${JSON.stringify(s)}
           <br>
           Код ошибки: ${e}
